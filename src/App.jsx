@@ -1,11 +1,22 @@
 import { Button } from "@/components/ui/button"
+import { Login } from "@/pages/login"
+import { Dashboard } from "@/pages/dashboard"
+import { Routes, Route } from 'react-router-dom';
+import PrivateRoute from './components/privateRoute'; // <-- Protects pages
+
 
 function App() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-svh">
-      <Button>Click me</Button>
-    </div>
-  )
+    <Routes>
+      <Route path="/" element={<Login />} />
+      {/* Protected Routes */}
+      <Route path="/dashboard" element={
+        <PrivateRoute>
+          <Dashboard />
+        </PrivateRoute>
+      } />
+    </Routes>
+  );
 }
 
-export default App
+export default App;
