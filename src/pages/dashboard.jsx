@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { jwtDecode } from 'jwt-decode'; // <-- FIXED!
 import api from '@/lib/api'; // Adjust if path is different
-import { Events } from '@/components/ui/events'
+import { Events } from '@/components/ui/events';
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/ui/app-sidebar"
+
 
 function Dashboard() {
   const [user, setUser] = useState({ first_name: '', last_name: '', role: '', company: '' });

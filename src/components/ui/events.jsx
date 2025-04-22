@@ -29,6 +29,14 @@ function Events() {
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
 
+  const [circuitTransfers, setCircuitTransfers] = useState([]);
+  const [loadingCircuitTransfers, setLoadingCircuitTransfers] = useState(false);
+  const [selectedCircuitTransfer, setSelectedCircuitTransfer] = useState(null);
+
+  const [airportTransfers, setAirportTransfers] = useState([]);
+  const [loadingAirportTransfers, setLoadingAirportTransfers] = useState(false);
+  const [selectedAirportTransfer, setSelectedAirportTransfer] = useState(null);
+
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -110,20 +118,43 @@ function Events() {
     const foundHotel = hotels.find((hotel) => hotel.hotel_id === hotelId);
     setSelectedHotel(foundHotel);
     setSelectedRoom(null);
+    setSelectedCircuitTransfer(null);
     setRooms([]);
+    setCircuitTransfers([]);
+    setAirportTransfers([]);
 
     if (foundHotel) {
       try {
         setLoadingRooms(true);
-        const res = await api.get("/rooms", {
-          params: { hotelId: foundHotel.hotel_id },
-        });
-        setRooms(res.data);
+        setLoadingCircuitTransfers(true);
+        setLoadingAirportTransfers(true);
+
+        const [roomsRes, circuitTransfersRes, airportTransfersRes] =
+          await Promise.all([
+            api.get("/rooms", { params: { hotelId: foundHotel.hotel_id } }),
+            api.get("/circuit-transfers", {
+              params: { hotelId: foundHotel.hotel_id },
+            }),
+            api.get("/airport-transfers", {
+              params: { hotelId: foundHotel.hotel_id },
+            }),
+          ]);
+
+        setRooms(roomsRes.data);
+        setCircuitTransfers(circuitTransfersRes.data);
+        setAirportTransfers(airportTransfersRes.data);
       } catch (error) {
-        console.error("Failed to fetch rooms:", error.message);
+        console.error(
+          "Failed to fetch rooms, circuit transfers, or airport transfers found:",
+          error.message
+        );
         setRooms([]);
+        setCircuitTransfers([]);
+        setAirportTransfers([]);
       } finally {
         setLoadingRooms(false);
+        setLoadingCircuitTransfers(false);
+        setLoadingAirportTransfers(false);
       }
     }
   };
@@ -255,10 +286,6 @@ function Events() {
                 {selectedTicket.ticket_name}
               </h2>
               <p>
-                <span className="font-semibold">Ticket ID:</span>{" "}
-                {selectedTicket.ticket_id}
-              </p>
-              <p>
                 <span className="font-semibold">Ticket Price:</span>{" "}
                 {selectedTicket.price}
               </p>
@@ -345,6 +372,132 @@ function Events() {
               <p>
                 <span className="font-semibold">Room ID:</span>{" "}
                 {selectedRoom.room_id}
+              </p>
+              <p>
+                <span className="font-semibold">Room Price:</span>{" "}
+                {selectedRoom.price}
+              </p>
+              <p>
+                <span className="font-semibold">Nights:</span>{" "}
+                {selectedRoom.nights}
+              </p>
+              <p>
+                <span className="font-semibold">Extra Night Price:</span>{" "}
+                {selectedRoom.extra_night_price}
+              </p>
+              <p>
+                <span className="font-semibold">Remaining:</span>{" "}
+                {selectedRoom.remaining}
+              </p>
+              <p>
+                <span className="font-semibold">Max Guests:</span>{" "}
+                {selectedRoom.max_guests}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Circuit Transfers Select */}
+      {selectedHotel && (
+        <div>
+          <h2 className="text-2xl font-bold mb-6">Select Circuit Transfer</h2>
+
+          {loadingCircuitTransfers ? (
+            <div>Loading circuit transfers...</div>
+          ) : circuitTransfers.length > 0 ? (
+            <Select
+              onValueChange={(transferId) => {
+                const foundTransfer = circuitTransfers.find(
+                  (t) => t.circuit_transfer_id === transferId
+                );
+                setSelectedCircuitTransfer(foundTransfer);
+              }}
+            >
+              <SelectTrigger className="w-full md:w-1/2">
+                <SelectValue placeholder="Choose a circuit transfer..." />
+              </SelectTrigger>
+              <SelectContent>
+                {circuitTransfers.map((transfer, idx) => (
+                  <SelectItem key={idx} value={transfer.circuit_transfer_id}>
+                    {transfer.transport_type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p>No circuit transfers available for this hotel.</p>
+          )}
+
+          {selectedCircuitTransfer && (
+            <div className="mt-6 p-4 border rounded-md shadow-sm space-y-2">
+              <h2 className="text-xl font-semibold">
+                {selectedCircuitTransfer.transport_type}
+              </h2>
+              <p>
+                <span className="font-semibold">Circuit Transfer ID:</span>{" "}
+                {selectedCircuitTransfer.circuit_transfer_id}
+              </p>
+              <p>
+                <span className="font-semibold">Price:</span>{" "}
+                {selectedCircuitTransfer.price}
+              </p>
+              <p>
+                <span className="font-semibold">Max Capacity:</span>{" "}
+                {selectedCircuitTransfer.max_capacity}
+              </p>
+            </div>
+          )}npx shadcn@latest add sidebar
+
+        </div>
+      )}
+
+      {/* Circuit Transfers Select */}
+      {selectedHotel && (
+        <div>
+          <h2 className="text-2xl font-bold mb-6">Select Airport Transfer</h2>
+
+          {loadingAirportTransfers ? (
+            <div>Loading airport transfers...</div>
+          ) : airportTransfers.length > 0 ? (
+            <Select
+              onValueChange={(transferId) => {
+                const foundTransfer = airportTransfers.find(
+                  (t) => t.airport_transfer_id === transferId
+                );
+                setSelectedAirportTransfer(foundTransfer);
+              }}
+            >
+              <SelectTrigger className="w-full md:w-1/2">
+                <SelectValue placeholder="Choose a airport transfer..." />
+              </SelectTrigger>
+              <SelectContent>
+                {airportTransfers.map((transfer, idx) => (
+                  <SelectItem key={idx} value={transfer.airport_transfer_id}>
+                    {transfer.transport_type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p>No airport transfers available.</p>
+          )}
+
+          {selectedAirportTransfer && (
+            <div className="mt-6 p-4 border rounded-md shadow-sm space-y-2">
+              <h2 className="text-xl font-semibold">
+                {selectedAirportTransfer.transport_type}
+              </h2>
+              <p>
+                <span className="font-semibold">Airport Transfer ID:</span>{" "}
+                {selectedAirportTransfer.airport_transfer_id}
+              </p>
+              <p>
+                <span className="font-semibold">Price:</span>{" "}
+                {selectedAirportTransfer.price}
+              </p>
+              <p>
+                <span className="font-semibold">Max Capacity:</span>{" "}
+                {selectedAirportTransfer.max_capacity}
               </p>
             </div>
           )}
