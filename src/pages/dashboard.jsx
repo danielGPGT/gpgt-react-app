@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { jwtDecode } from 'jwt-decode'; // <-- FIXED!
 import api from '@/lib/api'; // Adjust if path is different
 import { Events } from '@/components/ui/events';
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/ui/app-sidebar"
+
 
 
 function Dashboard() {
@@ -23,8 +22,8 @@ function Dashboard() {
   }, []);
 
   return (
+    
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
       <h2 className="text-2xl font-bold mb-2">Welcome, {user.first_name} {user.last_name}</h2>
       <p>Role: {user.role}</p>
       <p>Company: {user.company}</p>
