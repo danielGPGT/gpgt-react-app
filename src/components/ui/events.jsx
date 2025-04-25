@@ -53,6 +53,15 @@ function Events() {
   const [selectedAirportTransfer, setSelectedAirportTransfer] = useState(null);
   const [airportTransferQuantity, setAirportTransferQuantity] = useState(1);
 
+  const [flights, setFlights] = useState([]);
+  const [loadingFlights, setLoadingFlights] = useState(false);
+  const [selectedFlight, setSelectedFlight] = useState(null);
+
+  const [loungePasses, setLoungePasses] = useState([]);
+  const [loadingLoungePasses, setLoadingLoungePasses] = useState(false);
+  const [selectedLoungePass, setSelectedLoungePass] = useState(null);
+  const [loungePassQuantity, setLoungePassQuantity] = useState(1);
+
   const [originalNights, setOriginalNights] = useState(0);
 
   const minNights = selectedRoom?.nights || 1;
@@ -114,24 +123,44 @@ function Events() {
   const handleEventSelect = async (eventId) => {
     const foundEvent = events.find((ev) => ev.event_id === eventId);
     setSelectedEvent(foundEvent);
+
+    // Reset dependent states
     setSelectedPackage(null);
     setSelectedHotel(null);
     setSelectedRoom(null);
+    setSelectedFlight(null); // <-- new
+    setPackages([]);
     setHotels([]);
     setRooms([]);
+    setFlights([]);
+    setLoungePasses([]);
 
     if (foundEvent) {
       try {
         setLoadingPackages(true);
-        const res = await api.get("/packages", {
-          params: { eventId: foundEvent.event_id },
-        });
-        setPackages(res.data);
+        setLoadingFlights(true); // <-- new
+        setLoadingLoungePasses(true);
+
+        const [packagesRes, flightsRes, loungePassesRes] = await Promise.all([
+          api.get("/packages", { params: { eventId: foundEvent.event_id } }),
+          api.get("/flights", { params: { eventId: foundEvent.event_id } }), // <-- new
+          api.get("/lounge-passes", {
+            params: { eventId: foundEvent.event_id },
+          }), // <-- new
+        ]);
+
+        setPackages(packagesRes.data);
+        setFlights(flightsRes.data); // <-- new
+        setLoungePasses(loungePassesRes.data);
       } catch (error) {
-        console.error("Failed to fetch packages:", error.message);
+        console.error("Failed to fetch packages or flights:", error.message);
         setPackages([]);
+        setFlights([]); // <-- new
+        setLoungePasses([]);
       } finally {
         setLoadingPackages(false);
+        setLoadingFlights(false); // <-- new
+        setLoadingLoungePasses(false);
       }
     }
   };
@@ -313,13 +342,16 @@ function Events() {
             {selectedHotel && (
               <div className="mt-6 space-y-2">
                 <h2 className="text-xl font-bold">
-                  {selectedHotel.hotel_name} <span className="font-semibold">{" "}
-                  {[...Array(selectedHotel.stars)].map((_, index) => (
-                    <Star
-                      key={index}
-                      className="inline-block w-4 h-4 text-black-500"
-                    />
-                  ))}</span>
+                  {selectedHotel.hotel_name}{" "}
+                  <span className="font-semibold">
+                    {" "}
+                    {[...Array(selectedHotel.stars)].map((_, index) => (
+                      <Star
+                        key={index}
+                        className="inline-block w-4 h-4 text-black-500"
+                      />
+                    ))}
+                  </span>
                 </h2>
               </div>
             )}
@@ -554,63 +586,189 @@ function Events() {
 
             {selectedAirportTransfer && (
               <p>
-              <span className="font-semibold">Transfers Required:</span>{" "}
-              {Math.ceil(numberOfAdults / (Number(selectedAirportTransfer.max_capacity) || 1))}
-            </p>
-            
+                <span className="font-semibold">Transfers Required:</span>{" "}
+                {Math.ceil(
+                  numberOfAdults /
+                    (Number(selectedAirportTransfer.max_capacity) || 1)
+                )}
+              </p>
             )}
           </div>
         </div>
       )}
-      <div className="mt-8 p-6 border-t pt-6">
-        <p className="text-xl font-bold">
-          Total Price:{" "}
-          {(() => {
-            let total = 0;
 
-            // Hotel room total
-            if (selectedRoom && dateRange.from && dateRange.to) {
-              const nights = differenceInCalendarDays(
-                dateRange.to,
-                dateRange.from
-              );
-              const extraNights = Math.max(nights - originalNights, 0);
-              const roomTotal =
-                (Number(selectedRoom.price) +
-                  extraNights * Number(selectedRoom.extra_night_price)) *
-                Number(roomQuantity || 0);
-              total += roomTotal;
-            }
+      {selectedEvent && (
+        <div>
+          <h2 className="text-xl font-bold mb-2">Select Flights</h2>
 
-            // Ticket total
-            if (selectedTicket) {
-              total +=
-                Number(selectedTicket.price) * Number(ticketQuantity || 0);
-            }
+          {loadingFlights ? (
+            <div>Loading flights...</div>
+          ) : flights.length > 0 ? (
+            <Select
+              onValueChange={(flightId) => {
+                const foundFlight = flights.find(
+                  (f) => f.flight_id === flightId
+                );
+                setSelectedFlight(foundFlight);
+              }}
+            >
+              <SelectTrigger className="w-full md:w-2/3">
+                <SelectValue placeholder="Choose a return flight..." />
+              </SelectTrigger>
+              <SelectContent>
+                {flights.map((flight, idx) => (
+                  <SelectItem key={idx} value={flight.flight_id}>
+                    {flight.airline} • {flight.class} • £{flight.price}
+                    <br />✈ {flight.outbound_flight}
+                    <br />↩ {flight.inbound_flight}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p>No flights available for this event.</p>
+          )}
 
-            // Circuit transfer total
-            if (selectedCircuitTransfer) {
-              total +=
-                Number(selectedCircuitTransfer.price) *
-                Number(ticketQuantity || 0);
-            }
+          {selectedFlight && (
+            <div className="mt-6 p-4 border rounded-md shadow-sm text-sm space-y-1">
+              <p>
+                <strong>Airline:</strong> {selectedFlight.airline}
+              </p>
+              <p>
+                <strong>Class:</strong> {selectedFlight.class}
+              </p>
+              <p>
+                <strong>Outbound:</strong> {selectedFlight.outbound_flight}
+              </p>
+              <p>
+                <strong>Inbound:</strong> {selectedFlight.inbound_flight}
+              </p>
+              <p>
+                <strong>Price (pp):</strong> £{selectedFlight.price}{" "}
+                {selectedFlight.currency}
+              </p>
+              <p>
+                <strong>Source:</strong> {selectedFlight.source}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
-            // Airport transfer total
-            // Airport transfer total (based on max capacity)
-            if (selectedAirportTransfer) {
-              const capacity =
-                Number(selectedAirportTransfer.max_capacity) || 1;
-              const transfersNeeded = Math.ceil(numberOfAdults / capacity);
-              const airportTransferTotal =
-                transfersNeeded * Number(selectedAirportTransfer.price);
-              total += airportTransferTotal;
-            }
+      {selectedEvent && (
+        <div>
+          <h2 className="text-xl font-bold mb-2">Select Lounge Pass</h2>
 
-            return `£${total.toFixed(2)}`;
-          })()}
-      
-        </p>
-      </div>
+          {loadingLoungePasses ? (
+            <div>Loading lounge passes...</div>
+          ) : loungePasses.length > 0 ? (
+            <Select
+              onValueChange={(loungePassId) => {
+                const foundLoungePass = loungePasses.find(
+                  (lp) => lp.lounge_pass_id === loungePassId
+                );
+                setSelectedLoungePass(foundLoungePass);
+                setLoungePassQuantity(1); // Reset quantity on selection
+              }}
+            >
+              <SelectTrigger className="w-full md:w-2/3">
+                <SelectValue placeholder="Choose a lounge pass..." />
+              </SelectTrigger>
+              <SelectContent>
+                {loungePasses.map((lp, idx) => (
+                  <SelectItem key={idx} value={lp.lounge_pass_id}>
+                    {lp.variant} – £{lp.price}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p>No lounge passes available for this event.</p>
+          )}
+
+          {selectedLoungePass && (
+            <div className="mt-6 p-4 border rounded-md shadow-sm text-sm space-y-3">
+              <div className="space-y-1">
+                <p>
+                  <strong>Variant:</strong> {selectedLoungePass.variant}
+                </p>
+                <p>
+                  <strong>Price:</strong> £{selectedLoungePass.price}
+                </p>
+              </div>
+
+              <div>
+                <p className="font-medium">Quantity</p>
+                <QuantitySelector
+                  value={loungePassQuantity}
+                  onChange={setLoungePassQuantity}
+                  min={1}
+                  max={10} // or set a dynamic limit based on availability
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <p className="text-xl font-bold">
+        Total Price:{" "}
+        {(() => {
+          let total = 0;
+
+          // Hotel room total
+          if (selectedRoom && dateRange.from && dateRange.to) {
+            const nights = differenceInCalendarDays(
+              dateRange.to,
+              dateRange.from
+            );
+            const extraNights = Math.max(nights - originalNights, 0);
+            const roomTotal =
+              (Number(selectedRoom.price) +
+                extraNights * Number(selectedRoom.extra_night_price)) *
+              Number(roomQuantity || 0);
+            total += roomTotal;
+          }
+
+          // Ticket total
+          if (selectedTicket) {
+            total += Number(selectedTicket.price) * Number(ticketQuantity || 0);
+          }
+
+          // Circuit transfer total
+          if (selectedCircuitTransfer) {
+            total +=
+              Number(selectedCircuitTransfer.price) *
+              Number(ticketQuantity || 0);
+          }
+
+          // Airport transfer total
+          if (selectedAirportTransfer) {
+            const capacity = Number(selectedAirportTransfer.max_capacity) || 1;
+            const transfersNeeded = Math.ceil(numberOfAdults / capacity);
+            const airportTransferTotal =
+              transfersNeeded * Number(selectedAirportTransfer.price);
+            total += airportTransferTotal;
+          }
+
+          // Flight total
+          if (selectedFlight) {
+            total += Number(selectedFlight.price) * Number(numberOfAdults || 0);
+          }
+
+          // Lounge pass total
+          if (selectedLoungePass) {
+            total +=
+              Number(selectedLoungePass.price) *
+              Number(loungePassQuantity || 0);
+          }
+
+          // Apply rounding logic: Round UP to nearest 100, then subtract 2
+          const roundedTotal = Math.ceil(total / 100) * 100 - 2;
+
+          return `£${roundedTotal.toFixed(2)}`;
+        })()}
+      </p>
     </div>
   );
 }
