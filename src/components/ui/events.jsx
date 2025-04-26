@@ -14,7 +14,7 @@ import {
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { DatePickerWithRange } from "@/components/ui/date-picker-range";
 
-function Events() {
+function Events({ numberOfAdults, setNumberOfAdults }) {
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -22,8 +22,6 @@ function Events() {
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
-
-  const [numberOfAdults, setNumberOfAdults] = useState(1);
 
   const [hotels, setHotels] = useState([]);
   const [loadingHotels, setLoadingHotels] = useState(false);
@@ -65,6 +63,43 @@ function Events() {
   const [originalNights, setOriginalNights] = useState(0);
 
   const minNights = selectedRoom?.nights || 1;
+
+  const availableCurrencies = ["GBP", "USD", "EUR", "AUD", "CAD"];
+  const currencySymbols = {
+    GBP: "£",
+    USD: "$",
+    EUR: "€",
+    AUD: "A$",
+    CAD: "C$",
+  };
+
+  const ASK_SPREAD = 0.5 * 0.1; // 0.5% ask added to every exchange rate
+
+  // Inside your Events component
+  const [selectedCurrency, setSelectedCurrency] = useState("GBP");
+  const [exchangeRate, setExchangeRate] = useState(1);
+
+  async function fetchExchangeRate(base = "GBP", target = "USD") {
+    const res = await fetch(
+      `https://api.freecurrencyapi.com/v1/latest?apikey=fca_live_9rR1LhiOwndKNXxJ62JGHbd294ispnSSTBBFHWFz&base_currency=${base}`
+    );
+    const data = await res.json();
+    return data.data[target];
+  }
+
+  useEffect(() => {
+    async function updateExchangeRate() {
+      if (selectedCurrency === "GBP") {
+        setExchangeRate(1);
+        return;
+      }
+      const rate = await fetchExchangeRate("GBP", selectedCurrency);
+      const adjustedRate = rate + ASK_SPREAD; // add 0.5
+      setExchangeRate(adjustedRate);
+    }
+
+    updateExchangeRate();
+  }, [selectedCurrency]);
 
   const handleDateChange = (range) => {
     if (!range?.from || !range?.to) return;
@@ -128,7 +163,7 @@ function Events() {
     setSelectedPackage(null);
     setSelectedHotel(null);
     setSelectedRoom(null);
-    setSelectedFlight(null); // <-- new
+    setSelectedFlight(null);
     setPackages([]);
     setHotels([]);
     setRooms([]);
@@ -138,28 +173,72 @@ function Events() {
     if (foundEvent) {
       try {
         setLoadingPackages(true);
-        setLoadingFlights(true); // <-- new
+        setLoadingFlights(true);
         setLoadingLoungePasses(true);
 
         const [packagesRes, flightsRes, loungePassesRes] = await Promise.all([
           api.get("/packages", { params: { eventId: foundEvent.event_id } }),
-          api.get("/flights", { params: { eventId: foundEvent.event_id } }), // <-- new
+          api.get("/flights", { params: { eventId: foundEvent.event_id } }),
           api.get("/lounge-passes", {
             params: { eventId: foundEvent.event_id },
-          }), // <-- new
+          }),
         ]);
 
         setPackages(packagesRes.data);
-        setFlights(flightsRes.data); // <-- new
+        setFlights(flightsRes.data);
         setLoungePasses(loungePassesRes.data);
+
+        // ⚡ AUTO SELECT FIRST PACKAGE based on the response directly
+        if (packagesRes.data.length > 0) {
+          const firstPackage = packagesRes.data[0];
+          setSelectedPackage(firstPackage);
+
+          // 🔥 Instead of calling handlePackageSelect immediately, replicate its logic here
+          const foundPackage = firstPackage;
+          setSelectedHotel(null);
+          setSelectedRoom(null);
+          setHotels([]);
+          setRooms([]);
+          setTickets([]);
+          setSelectedTicket(null);
+
+          if (foundPackage) {
+            try {
+              setLoadingHotels(true);
+              setLoadingTickets(true);
+
+              const [hotelsRes, ticketsRes] = await Promise.all([
+                api.get("/hotels", {
+                  params: { packageId: foundPackage.package_id },
+                }),
+                api.get("/tickets", {
+                  params: { packageId: foundPackage.package_id },
+                }),
+              ]);
+
+              setHotels(hotelsRes.data);
+              setTickets(ticketsRes.data);
+            } catch (error) {
+              console.error(
+                "Failed to fetch hotels or tickets:",
+                error.message
+              );
+              setHotels([]);
+              setTickets([]);
+            } finally {
+              setLoadingHotels(false);
+              setLoadingTickets(false);
+            }
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch packages or flights:", error.message);
         setPackages([]);
-        setFlights([]); // <-- new
+        setFlights([]);
         setLoungePasses([]);
       } finally {
         setLoadingPackages(false);
-        setLoadingFlights(false); // <-- new
+        setLoadingFlights(false);
         setLoadingLoungePasses(false);
       }
     }
@@ -257,162 +336,145 @@ function Events() {
   }
 
   return (
-    <div className="mt-8 p-6 space-y-4 border rounded-md shadow-sm border-rose-700">
-      {/* Event Select */}
-      <div>
-        <h2 className="text-xl font-bold mb-2">Select Event</h2>
-
-        <Select onValueChange={handleEventSelect}>
-          <SelectTrigger className="w-full md:w-1/2">
-            <SelectValue placeholder="Choose an event..." />
-          </SelectTrigger>
-          <SelectContent>
-            {events.map((event, idx) => (
-              <SelectItem key={idx} value={event.event_id}>
-                {event.event || event.event_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="p-4 space-y-4 bg-neutral-50 rounded-md border shadow-sm w-full max-w-6xl mx-auto">
+      {/* Event & Package */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h2 className="text-xs font-semibold mb-1">Select Event</h2>
+          <Select onValueChange={handleEventSelect}>
+            <SelectTrigger className="w-full h-9 text-sm bg-white">
+              <SelectValue placeholder="Choose event" />
+            </SelectTrigger>
+            <SelectContent>
+              {events.map((event) => (
+                <SelectItem key={event.event_id} value={event.event_id}>
+                  {event.event || event.event_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {selectedEvent && (
+          <div>
+            <h2 className="text-xs font-semibold mb-1">Select Package</h2>
+            {loadingPackages ? (
+              <div className="text-xs">Loading packages...</div>
+            ) : (
+              <Select
+                onValueChange={handlePackageSelect}
+                value={selectedPackage?.package_id} // 👈 THIS LINE: make the Select controlled
+              >
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue placeholder="Choose a package..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {packages.map((pkg, idx) => (
+                    <SelectItem key={idx} value={pkg.package_id}>
+                      {pkg.package_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Package Select */}
-      {selectedEvent && (
-        <div>
-          <h2 className="text-xl font-bold mb-2">Select Package</h2>
+      <div className="flex w-full justify-between items-end gap-4">
+        {/* Hotel */}
+        {selectedPackage && (
+          <div className=" gap-4 w-full">
+            <div>
+              <h2 className="text-xs font-semibold mb-1">Select Hotel</h2>
+              {loadingHotels ? (
+                <div className="text-xs">Loading hotels...</div>
+              ) : (
+                <Select onValueChange={(id) => handleHotelSelect(id)}>
+                  <SelectTrigger className="w-full h-9 text-sm bg-white">
+                    <SelectValue placeholder="Choose hotel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {hotels.map((hotel) => (
+                      <SelectItem key={hotel.hotel_id} value={hotel.hotel_id}>
+                        {hotel.hotel_name}{" "}
+                        <span className="text-amber-500">
+                          {Array(hotel.stars).fill("★").join("")}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+        )}
+        {/* Adults */}
+        {selectedPackage && (
+          <div className="flex items-center gap-4 w-full justify-end">
+            <h2 className="text-xs font-semibold">Adults</h2>
+            <QuantitySelector
+              value={numberOfAdults}
+              onChange={setNumberOfAdults}
+              min={1}
+              max={100}
+            />
+          </div>
+        )}
+      </div>
 
-          {loadingPackages ? (
-            <div>Loading packages...</div>
-          ) : packages.length > 0 ? (
-            <Select onValueChange={handlePackageSelect}>
-              <SelectTrigger className="w-full md:w-1/2">
-                <SelectValue placeholder="Choose a package..." />
+      {selectedHotel && (
+        <div className="p-3 border rounded-md space-y-1 bg-white">
+          <h2 className="text-xs font-semibold">Select Room</h2>
+
+          {loadingRooms ? (
+            <div className="text-xs text-muted-foreground">
+              Loading rooms...
+            </div>
+          ) : (
+            <Select onValueChange={handleRoomSelect}>
+              <SelectTrigger className="w-full h-8 text-xs bg-white">
+                <SelectValue placeholder="Choose a room..." />
               </SelectTrigger>
               <SelectContent>
-                {packages.map((pkg, idx) => (
-                  <SelectItem key={idx} value={pkg.package_id}>
-                    {pkg.package_name}
+                {rooms.map((room) => (
+                  <SelectItem
+                    key={room.room_id}
+                    value={room.room_id}
+                    className="text-xs"
+                  >
+                    {room.room_category} - {room.room_type} - {room.remaining}{" "}
+                    rooms left
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          ) : (
-            <p>No packages available for this event.</p>
           )}
 
-          {selectedEvent && (
-            <div className="mt-4 space-y-1">
-              <p className="text-sm font-medium">Number of Adults</p>
-              <QuantitySelector
-                value={numberOfAdults}
-                onChange={setNumberOfAdults}
-                min={1}
-                max={100}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="p-4 border rounded-md shadow-sm space-y-2 w-full">
-        {/* Hotel Select */}
-        {selectedPackage && (
-          <div className="w-full ">
-            <h2 className="text-xl font-bold mb-2">Select Hotel</h2>
-
-            {loadingHotels ? (
-              <div>Loading hotels...</div>
-            ) : hotels.length > 0 ? (
-              <Select onValueChange={handleHotelSelect}>
-                <SelectTrigger className="w-full md:w-1/2">
-                  <SelectValue placeholder="Choose a hotel..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {hotels.map((hotel, idx) => (
-                    <SelectItem key={idx} value={hotel.hotel_id}>
-                      {hotel.hotel_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <p>No hotels available for this package.</p>
-            )}
-
-            {selectedHotel && (
-              <div className="mt-6 space-y-2">
-                <h2 className="text-xl font-bold">
-                  {selectedHotel.hotel_name}{" "}
-                  <span className="font-semibold">
-                    {" "}
-                    {[...Array(selectedHotel.stars)].map((_, index) => (
-                      <Star
-                        key={index}
-                        className="inline-block w-4 h-4 text-black-500"
-                      />
-                    ))}
-                  </span>
-                </h2>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Room Select */}
-        {selectedHotel && (
-          <div className="mt-6">
-            <h2 className="text-xl font-bold mb-2">Select Room</h2>
-
-            {loadingRooms ? (
-              <div>Loading rooms...</div>
-            ) : rooms.length > 0 ? (
-              <Select onValueChange={handleRoomSelect}>
-                <SelectTrigger className="w-full md:w-1/2">
-                  <SelectValue placeholder="Choose a room..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {rooms.map((room, idx) => (
-                    <SelectItem key={idx} value={room.room_id}>
-                      {room.room_category} - {room.room_type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <p>No rooms available for this hotel.</p>
-            )}
-
-            {selectedRoom && (
-              <div className="mt-6 p-4 border rounded-md shadow-sm space-y-2">
-                <h2 className="text-xl font-semibold">
-                  {selectedRoom.room_category} - {selectedRoom.room_type}
-                </h2>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <p className="font-semibold whitespace-nowrap">
-                    Check-in – Check-out:
-                  </p>
+          {selectedRoom && (
+            <div className="flex justify-between gap-4 pt-3 text-xs align-bottom items-end ">
+              {/* Left Info */}
+              <div className="space-y-2">
+                <p>
+                  <span className="font-semibold">Remaining rooms:</span>{" "}
+                  {selectedRoom.remaining}
+                </p>
+                <p>
+                  <span className="font-semibold">Max Guests (per room):</span>{" "}
+                  {selectedRoom.max_guests}
+                </p>
+                <div className="pt-2">
                   <DatePickerWithRange
                     date={dateRange}
                     setDate={handleDateChange}
                   />
                 </div>
-                <p>
-                  <span className="font-semibold">Nights:</span>{" "}
-                  {dateRange.from && dateRange.to
-                    ? differenceInCalendarDays(dateRange.to, dateRange.from)
-                    : "–"}
-                </p>
+              </div>
 
-                <p>
-                  <span className="font-semibold">Remaining:</span>{" "}
-                  {selectedRoom.remaining}
-                </p>
-                <p>
-                  <span className="font-semibold">Max Guests (Per room):</span>{" "}
-                  {selectedRoom.max_guests}
-                </p>
-                <div className="pt-2">
-                  <p className="font-medium mb-1">Room Quantity</p>
+              {/* Right Quantity + Pricing */}
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <p className="font-semibold">Room Quantity</p>
                   <QuantitySelector
                     value={roomQuantity}
                     onChange={setRoomQuantity}
@@ -420,176 +482,128 @@ function Events() {
                     max={parseInt(selectedRoom.remaining) || 10}
                   />
                 </div>
-
-                <p>
-                  <span className="font-semibold">Total Price:</span>{" "}
-                  {(() => {
-                    if (!dateRange.from || !dateRange.to)
-                      return selectedRoom.price;
-
-                    const actualNights = differenceInCalendarDays(
-                      dateRange.to,
-                      dateRange.from
-                    );
-                    const extraNights = Math.max(
-                      actualNights - originalNights,
-                      0
-                    );
-                    const roomTotal =
-                      (Number(selectedRoom.price) +
-                        extraNights * Number(selectedRoom.extra_night_price)) *
-                      Number(roomQuantity || 0);
-
-                    return `£${roomTotal.toFixed(2)}`;
-                  })()}
-                </p>
               </div>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="p-4 border rounded-md shadow-sm space-y-2 w-full">
-        {selectedPackage && (
-          <div className="w-full">
-            <h2 className="text-xl font-bold mb-2">Select Ticket</h2>
-
-            {loadingTickets ? (
-              <div>Loading tickets...</div>
-            ) : tickets.length > 0 ? (
-              <Select
-                onValueChange={(ticketId) => {
-                  const foundTicket = tickets.find(
-                    (t) => t.ticket_id === ticketId
-                  );
-                  setSelectedTicket(foundTicket);
-                }}
-              >
-                <SelectTrigger className="w-full md:w-1/2">
-                  <SelectValue placeholder="Choose a ticket..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {tickets.map((ticket, idx) => (
-                    <SelectItem key={idx} value={ticket.ticket_id}>
-                      {ticket.ticket_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <p>No tickets available for this package.</p>
-            )}
-
-            {selectedTicket && (
-              <div className="mt-6 p-4 border rounded-md shadow-sm space-y-2">
-                <h2 className="text-xl font-semibold">
-                  {selectedTicket.ticket_name}
-                </h2>
-                <p>
-                  <span className="font-semibold">Remaining:</span>{" "}
-                  {selectedTicket.remaining}
-                </p>
-                <p>
-                  <span className="font-semibold">Event Days:</span>{" "}
-                  {selectedTicket.event_days}
-                </p>
-
-                <div className="pt-2">
-                  <p className="font-medium mb-1">Select Quantity</p>
-                  <QuantitySelector
-                    value={ticketQuantity}
-                    onChange={setTicketQuantity}
-                    min={1}
-                    max={parseInt(selectedTicket.remaining) || 10}
-                  />
-                </div>
-                <p>
-                  <span className="font-semibold">Total Price:</span>{" "}
-                  {(() => {
-                    const ticketTotal =
-                      Number(selectedTicket.price) *
-                      Number(ticketQuantity || 0);
-                    return `£${ticketTotal.toFixed(2)}`;
-                  })()}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Circuit Transfers Select */}
-      {selectedHotel && (
-        <div className="mt-6 p-4 border rounded-md shadow-sm space-y-2">
-          <h2 className="text-xl font-bold mb-2">
-            Circuit Transfers (Per Ticket)
-          </h2>
-          <div className="flex w-full justify-between gap-6">
-            {loadingCircuitTransfers ? (
-              <div>Loading circuit transfers...</div>
-            ) : circuitTransfers.length > 0 ? (
-              <Select
-                onValueChange={(transferId) => {
-                  const foundTransfer = circuitTransfers.find(
-                    (t) => t.circuit_transfer_id === transferId
-                  );
-                  setSelectedCircuitTransfer(foundTransfer);
-                }}
-              >
-                <SelectTrigger className="w-full md:w-1/2">
-                  <SelectValue placeholder="Choose a circuit transfer..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {circuitTransfers.map((transfer, idx) => (
-                    <SelectItem key={idx} value={transfer.circuit_transfer_id}>
-                      {transfer.transport_type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <p>No circuit transfers available for this hotel.</p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Circuit Transfers Select */}
+      {/* Ticket */}
+      {selectedPackage && (
+        <div className="p-3 border rounded-md space-y-2 bg-white">
+          <h2 className="text-xs font-semibold">Select Ticket</h2>
+          {loadingTickets ? (
+            <div className="text-xs">Loading tickets...</div>
+          ) : (
+            <Select
+              onValueChange={(ticketId) => {
+                const found = tickets.find((t) => t.ticket_id === ticketId);
+                setSelectedTicket(found);
+              }}
+            >
+              <SelectTrigger className="w-full h-9 text-sm bg-white">
+                <SelectValue placeholder="Choose ticket" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {tickets.map((ticket) => (
+                  <SelectItem key={ticket.ticket_id} value={ticket.ticket_id}>
+                    {ticket.ticket_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {selectedTicket && (
+            <div className="flex items-center justify-between gap-4 text-xs pt-2">
+              <div>
+                <p>Remaining: {selectedTicket.remaining}</p>
+                <p>Event Days: {selectedTicket.event_days}</p>
+              </div>
+              <QuantitySelector
+                value={ticketQuantity}
+                onChange={setTicketQuantity}
+                min={1}
+                max={parseInt(selectedTicket.remaining) || 100}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {selectedHotel && (
-        <div className="mt-6 p-4 border rounded-md shadow-sm space-y-2">
-          <h2 className="text-xl font-bold mb-3">Select Airport Transfer</h2>
-          <div className="flex w-full justify-between gap-6">
-            {loadingAirportTransfers ? (
-              <div>Loading airport transfers...</div>
-            ) : airportTransfers.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
+          {/* Circuit Transfer */}
+          <div className="p-3 border rounded-md space-y-2 bg-white">
+            <h2 className="text-xs font-semibold">Circuit Transfer</h2>
+            {loadingCircuitTransfers ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
               <Select
-                onValueChange={(transferId) => {
-                  const foundTransfer = airportTransfers.find(
-                    (t) => t.airport_transfer_id === transferId
+                onValueChange={(id) => {
+                  const found = circuitTransfers.find(
+                    (t) => t.circuit_transfer_id === id
                   );
-                  setSelectedAirportTransfer(foundTransfer);
+                  setSelectedCircuitTransfer(found);
                 }}
               >
-                <SelectTrigger className="w-full md:w-1/2">
-                  <SelectValue placeholder="Choose a airport transfer..." />
+                <SelectTrigger className="w-full h-8 text-xs bg-white">
+                  <SelectValue placeholder="Select circuit transfer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {airportTransfers.map((transfer, idx) => (
-                    <SelectItem key={idx} value={transfer.airport_transfer_id}>
+                  <SelectItem value="none">None</SelectItem>
+                  {circuitTransfers.map((transfer) => (
+                    <SelectItem
+                      key={transfer.circuit_transfer_id}
+                      value={transfer.circuit_transfer_id}
+                      className="text-xs"
+                    >
                       {transfer.transport_type}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            )}
+          </div>
+
+          {/* Airport Transfer */}
+          <div className="p-3 border rounded-md space-y-2 bg-white">
+            <h2 className="text-xs font-semibold">Airport Transfer</h2>
+            {loadingAirportTransfers ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
             ) : (
-              <p>No airport transfers available.</p>
+              <Select
+                onValueChange={(id) => {
+                  const found = airportTransfers.find(
+                    (t) => t.airport_transfer_id === id
+                  );
+                  setSelectedAirportTransfer(found);
+                }}
+              >
+                <SelectTrigger className="w-full h-8 text-xs bg-white">
+                  <SelectValue placeholder="Select airport transfer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {airportTransfers.map((transfer) => (
+                    <SelectItem
+                      key={transfer.airport_transfer_id}
+                      value={transfer.airport_transfer_id}
+                      className="text-xs"
+                    >
+                      {transfer.transport_type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
 
             {selectedAirportTransfer && (
-              <p>
-                <span className="font-semibold">Transfers Required:</span>{" "}
+              <p className="text-xs pt-1">
+                Transfers Needed:{" "}
                 {Math.ceil(
-                  numberOfAdults /
-                    (Number(selectedAirportTransfer.max_capacity) || 1)
+                  numberOfAdults / (selectedAirportTransfer.max_capacity || 1)
                 )}
               </p>
             )}
@@ -597,178 +611,144 @@ function Events() {
         </div>
       )}
 
+      {/* Flights */}
       {selectedEvent && (
-        <div>
-          <h2 className="text-xl font-bold mb-2">Select Flights</h2>
-
+        <div className="p-3 border rounded-md space-y-2 bg-white">
+          <h2 className="text-xs font-semibold">Flight</h2>
           {loadingFlights ? (
-            <div>Loading flights...</div>
-          ) : flights.length > 0 ? (
+            <div className="text-xs">Loading flights...</div>
+          ) : (
             <Select
-              onValueChange={(flightId) => {
-                const foundFlight = flights.find(
-                  (f) => f.flight_id === flightId
-                );
-                setSelectedFlight(foundFlight);
+              onValueChange={(id) => {
+                const found = flights.find((f) => f.flight_id === id);
+                setSelectedFlight(found);
               }}
             >
-              <SelectTrigger className="w-full md:w-2/3">
-                <SelectValue placeholder="Choose a return flight..." />
+              <SelectTrigger className="w-full h-9 text-sm bg-white">
+                <SelectValue placeholder="Select flight" />
               </SelectTrigger>
               <SelectContent>
-                {flights.map((flight, idx) => (
-                  <SelectItem key={idx} value={flight.flight_id}>
+                <SelectItem value="none">None</SelectItem>
+                {flights.map((flight) => (
+                  <SelectItem key={flight.flight_id} value={flight.flight_id}>
                     {flight.airline} • {flight.class} • £{flight.price}
-                    <br />✈ {flight.outbound_flight}
-                    <br />↩ {flight.inbound_flight}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          ) : (
-            <p>No flights available for this event.</p>
           )}
 
           {selectedFlight && (
-            <div className="mt-6 p-4 border rounded-md shadow-sm text-sm space-y-1">
-              <p>
-                <strong>Airline:</strong> {selectedFlight.airline}
-              </p>
-              <p>
-                <strong>Class:</strong> {selectedFlight.class}
-              </p>
-              <p>
-                <strong>Outbound:</strong> {selectedFlight.outbound_flight}
-              </p>
-              <p>
-                <strong>Inbound:</strong> {selectedFlight.inbound_flight}
-              </p>
-              <p>
-                <strong>Price (pp):</strong> £{selectedFlight.price}{" "}
-                {selectedFlight.currency}
-              </p>
-              <p>
-                <strong>Source:</strong> {selectedFlight.source}
-              </p>
+            <div className="text-xs space-y-1 pt-1">
+              <p>Outbound: {selectedFlight.outbound_flight}</p>
+              <p>Inbound: {selectedFlight.inbound_flight}</p>
+              <p>Price (pp): £{selectedFlight.price}</p>
             </div>
           )}
         </div>
       )}
 
+      {/* Lounge Pass */}
       {selectedEvent && (
-        <div>
-          <h2 className="text-xl font-bold mb-2">Select Lounge Pass</h2>
-
+        <div className="p-3 border rounded-md space-y-2 bg-white">
+          <h2 className="text-xs font-semibold">Lounge Pass</h2>
           {loadingLoungePasses ? (
-            <div>Loading lounge passes...</div>
-          ) : loungePasses.length > 0 ? (
+            <div className="text-xs">Loading lounge passes...</div>
+          ) : (
             <Select
-              onValueChange={(loungePassId) => {
-                const foundLoungePass = loungePasses.find(
-                  (lp) => lp.lounge_pass_id === loungePassId
+              onValueChange={(id) => {
+                const found = loungePasses.find(
+                  (lp) => lp.lounge_pass_id === id
                 );
-                setSelectedLoungePass(foundLoungePass);
-                setLoungePassQuantity(1); // Reset quantity on selection
+                setSelectedLoungePass(found);
+                setLoungePassQuantity(1);
               }}
             >
-              <SelectTrigger className="w-full md:w-2/3">
-                <SelectValue placeholder="Choose a lounge pass..." />
+              <SelectTrigger className="w-full h-9 text-sm bg-white">
+                <SelectValue placeholder="Select lounge pass" />
               </SelectTrigger>
               <SelectContent>
-                {loungePasses.map((lp, idx) => (
-                  <SelectItem key={idx} value={lp.lounge_pass_id}>
-                    {lp.variant} – £{lp.price}
+                <SelectItem value="none">None</SelectItem>
+                {loungePasses.map((lp) => (
+                  <SelectItem key={lp.lounge_pass_id} value={lp.lounge_pass_id}>
+                    {lp.variant} • £{lp.price}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          ) : (
-            <p>No lounge passes available for this event.</p>
           )}
 
           {selectedLoungePass && (
-            <div className="mt-6 p-4 border rounded-md shadow-sm text-sm space-y-3">
-              <div className="space-y-1">
-                <p>
-                  <strong>Variant:</strong> {selectedLoungePass.variant}
-                </p>
-                <p>
-                  <strong>Price:</strong> £{selectedLoungePass.price}
-                </p>
-              </div>
-
-              <div>
-                <p className="font-medium">Quantity</p>
-                <QuantitySelector
-                  value={loungePassQuantity}
-                  onChange={setLoungePassQuantity}
-                  min={1}
-                  max={10} // or set a dynamic limit based on availability
-                />
-              </div>
+            <div className="flex items-center justify-between pt-1 text-xs">
+              <span>Quantity:</span>
+              <QuantitySelector
+                value={loungePassQuantity}
+                onChange={setLoungePassQuantity}
+                min={1}
+                max={10}
+              />
             </div>
           )}
         </div>
       )}
 
-      <p className="text-xl font-bold">
-        Total Price:{" "}
-        {(() => {
-          let total = 0;
+      {/* Total Price */}
+      <div className="pt-4 space-y-2">
+        <div className="flex gap-2 items-center justify-center">
+          <select
+            value={selectedCurrency}
+            onChange={(e) => setSelectedCurrency(e.target.value)}
+            className="border px-2 py-1 rounded-md text-xs"
+          >
+            {availableCurrencies.map((curr) => (
+              <option key={curr} value={curr}>
+                {curr}
+              </option>
+            ))}
+          </select>
 
-          // Hotel room total
-          if (selectedRoom && dateRange.from && dateRange.to) {
-            const nights = differenceInCalendarDays(
-              dateRange.to,
-              dateRange.from
-            );
-            const extraNights = Math.max(nights - originalNights, 0);
-            const roomTotal =
-              (Number(selectedRoom.price) +
-                extraNights * Number(selectedRoom.extra_night_price)) *
-              Number(roomQuantity || 0);
-            total += roomTotal;
-          }
+          <h2 className="text-lg font-bold">
+            Total:{" "}
+            {(() => {
+              let total = 0;
+              if (selectedRoom && dateRange.from && dateRange.to) {
+                const nights = differenceInCalendarDays(
+                  dateRange.to,
+                  dateRange.from
+                );
+                const extra = Math.max(nights - originalNights, 0);
+                total +=
+                  (Number(selectedRoom.price) +
+                    extra * Number(selectedRoom.extra_night_price)) *
+                  roomQuantity;
+              }
+              if (selectedTicket)
+                total += Number(selectedTicket.price) * ticketQuantity;
+              if (selectedCircuitTransfer)
+                total += Number(selectedCircuitTransfer.price) * ticketQuantity;
+              if (selectedAirportTransfer) {
+                const needed = Math.ceil(
+                  numberOfAdults / (selectedAirportTransfer.max_capacity || 1)
+                );
+                total += needed * Number(selectedAirportTransfer.price);
+              }
+              if (selectedFlight)
+                total += Number(selectedFlight.price) * numberOfAdults;
+              if (selectedLoungePass)
+                total += Number(selectedLoungePass.price) * loungePassQuantity;
 
-          // Ticket total
-          if (selectedTicket) {
-            total += Number(selectedTicket.price) * Number(ticketQuantity || 0);
-          }
+              if (total === 0) {
+                return `${currencySymbols[selectedCurrency] || ""}0.00`;
+              }
 
-          // Circuit transfer total
-          if (selectedCircuitTransfer) {
-            total +=
-              Number(selectedCircuitTransfer.price) *
-              Number(ticketQuantity || 0);
-          }
+              const rounded = Math.ceil(total / 100) * 100 - 2;
+              const finalAmount = (rounded * exchangeRate).toFixed(0);
 
-          // Airport transfer total
-          if (selectedAirportTransfer) {
-            const capacity = Number(selectedAirportTransfer.max_capacity) || 1;
-            const transfersNeeded = Math.ceil(numberOfAdults / capacity);
-            const airportTransferTotal =
-              transfersNeeded * Number(selectedAirportTransfer.price);
-            total += airportTransferTotal;
-          }
-
-          // Flight total
-          if (selectedFlight) {
-            total += Number(selectedFlight.price) * Number(numberOfAdults || 0);
-          }
-
-          // Lounge pass total
-          if (selectedLoungePass) {
-            total +=
-              Number(selectedLoungePass.price) *
-              Number(loungePassQuantity || 0);
-          }
-
-          // Apply rounding logic: Round UP to nearest 100, then subtract 2
-          const roundedTotal = Math.ceil(total / 100) * 100 - 2;
-
-          return `£${roundedTotal.toFixed(2)}`;
-        })()}
-      </p>
+              return `${currencySymbols[selectedCurrency] || ""}${finalAmount}`;
+            })()}
+          </h2>
+        </div>
+      </div>
     </div>
   );
 }
