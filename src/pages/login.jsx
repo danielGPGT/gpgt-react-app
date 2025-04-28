@@ -1,44 +1,122 @@
-import { useState } from 'react';
-import api from '../lib/api'; // Axios instance
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import api from "../lib/api";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.post('/login', { email, password });
+      const res = await api.post("/login", { email, password });
       const { token } = res.data;
-      localStorage.setItem('token', token); // Save JWT
-      window.location.href = '/dashboard'; // Redirect after login
+      localStorage.setItem("token", token);
+      window.location.href = "/dashboard";
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || "Login failed");
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <h1 className="text-2xl font-bold mb-6">Login</h1>
-      <form className="flex flex-col space-y-4 w-80" onSubmit={handleLogin}>
-        <Input
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          type="email"
-        />
-        <Input
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          type="password"
-        />
-        {error && <div className="text-red-500 text-sm">{error}</div>}
-        <Button type="submit">Login</Button>
-      </form>
+    <div className="flex min-h-screen relative">
+      {/* Create account link at top right */}
+      <div className="absolute top-6 right-6">
+        <a
+          href="/register"
+          className="text-sm font-medium text-gray-500 hover:underline"
+        >
+          Want to create an account with us?
+        </a>
+      </div>
+
+      {/* Left Side */}
+      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-black text-white p-8 relative overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img
+            src="/src/assets/imgs/baku.webp"
+            alt="Track background"
+            className="w-full h-full object-cover opacity-30"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-transparent via-black/50 to-black"></div>
+        </div>
+
+        {/* Top content */}
+        <div className="relative flex flex-col space-y-6 z-10">
+          <img
+            src="/src/assets/imgs/Grand_Prix_Logo_Vector_new_light.svg"
+            className="w-72"
+            alt="Grand Prix Logo"
+          />
+          <h2 className="font-grandprix text-4xl font-bold leading-tight mt-8">
+            Tailor-made Motorsport Travel
+          </h2>
+          <p className="text-lg text-gray-300 max-w-md">
+            Welcome to the Grand Prix Grand Tours Pricing Portal — your gateway
+            to exclusive F1, MotoGP, and motorsport travel experiences.
+          </p>
+        </div>
+
+        {/* Bottom quote */}
+        <div className="relative text-sm text-gray-400 mt-8 z-10">
+          <p className="italic">
+            “Travel faster. Dream bigger. Experience motorsport like never
+            before.”
+          </p>
+          <p className="mt-4 font-semibold">Grand Prix Grand Tours</p>
+        </div>
+      </div>
+
+      {/* Right Side */}
+      <div className="flex flex-col justify-center items-center w-full lg:w-1/2 p-8">
+        <div className="w-full max-w-md space-y-6">
+          <h1 className="text-2xl font-bold text-center">
+            Sign in to your account
+          </h1>
+          <p className="text-center text-gray-500 text-sm">
+            Enter your email and password to access your account
+          </p>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <Input
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              required
+            />
+            <Input
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              required
+            />
+            {error && <div className="text-red-500 text-sm">{error}</div>}
+            <Button
+              type="submit"
+              className="w-full bg-red-600 hover:bg-red-700"
+            >
+              Sign In
+            </Button>
+          </form>
+
+          <p className="text-xs text-gray-400 text-center mt-4">
+            By signing in, you agree to our{" "}
+            <a href="/terms" className="underline">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="/privacy" className="underline">
+              Privacy Policy
+            </a>
+            .
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

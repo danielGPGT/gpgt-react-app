@@ -1,3 +1,9 @@
+@font-face {
+  font-family: 'GrandPrix';
+  src: url('/src/assets/fonts/Formula1-Regular.otf') format('opentype');
+}
+
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -117,5 +123,9 @@
   body {
     @apply bg-background text-foreground;
     @apply text-xs;
+    h1, h2, h3 {
+      font-family: 'GrandPrix', sans-serif;
+    }
   }
 }
+
