@@ -35,6 +35,39 @@ function ExternalPricing({
   setNumberOfAdults,
   totalPrice,
   setTotalPrice,
+  setSalesTeam,
+  selectedEvent,
+  setSelectedEvent,
+  selectedPackage,
+  setSelectedPackage,
+  selectedHotel,
+  setSelectedHotel,
+  selectedRoom,
+  setSelectedRoom,
+  selectedTicket,
+  setSelectedTicket,
+  selectedFlight,
+  setSelectedFlight,
+  selectedLoungePass,
+  setSelectedLoungePass,
+  selectedCircuitTransfer,
+  setSelectedCircuitTransfer,
+  selectedAirportTransfer,
+  setSelectedAirportTransfer,
+  circuitTransferQuantity,
+  setCircuitTransferQuantity,
+  airportTransferQuantity,
+  setAirportTransferQuantity,
+  roomQuantity,
+  setRoomQuantity,
+  ticketQuantity,
+  setTicketQuantity,
+  loungePassQuantity,
+  setLoungePassQuantity,
+  dateRange,
+  setDateRange,
+  selectedCurrency,
+  setSelectedCurrency
 }) {
   const [selectedSport, setSelectedSport] = useState("");
   const [filteredEvents, setFilteredEvents] = useState([]);
@@ -42,53 +75,36 @@ function ExternalPricing({
 
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState(null);
 
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState(null);
 
   const [hotels, setHotels] = useState([]);
   const [loadingHotels, setLoadingHotels] = useState(false);
-  const [selectedHotel, setSelectedHotel] = useState(null);
-  const [roomQuantity, setRoomQuantity] = useState(1);
 
   const [rooms, setRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
-  const [selectedRoom, setSelectedRoom] = useState(null);
-  const [dateRange, setDateRange] = useState({
-    from: null,
-    to: null,
-  });
 
   const [tickets, setTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [ticketQuantity, setTicketQuantity] = useState(1);
 
   const [circuitTransfers, setCircuitTransfers] = useState([]);
   const [loadingCircuitTransfers, setLoadingCircuitTransfers] = useState(false);
-  const [selectedCircuitTransfer, setSelectedCircuitTransfer] = useState(null);
-  const [circuitTransferQuantity, setCircuitTransferQuantity] = useState(1);
 
   const [airportTransfers, setAirportTransfers] = useState([]);
   const [loadingAirportTransfers, setLoadingAirportTransfers] = useState(false);
-  const [selectedAirportTransfer, setSelectedAirportTransfer] = useState(null);
-  const [airportTransferQuantity, setAirportTransferQuantity] = useState(1);
 
   const [flights, setFlights] = useState([]);
   const [loadingFlights, setLoadingFlights] = useState(false);
-  const [selectedFlight, setSelectedFlight] = useState(null);
 
   const [loungePasses, setLoungePasses] = useState([]);
   const [loadingLoungePasses, setLoadingLoungePasses] = useState(false);
-  const [selectedLoungePass, setSelectedLoungePass] = useState(null);
-  const [loungePassQuantity, setLoungePassQuantity] = useState(1);
 
   const [salesTeams, setSalesTeams] = useState([]);
   const [loadingSalesTeams, setLoadingSalesTeams] = useState(false);
 
   const [originalNights, setOriginalNights] = useState(0);
+  const [exchangeRate, setExchangeRate] = useState(1);
 
   const minNights = selectedRoom?.nights || 1;
 
@@ -102,10 +118,6 @@ function ExternalPricing({
   };
 
   const ASK_SPREAD = 0.5 * 0.1; // 0.5% ask added to every exchange rate
-
-  // Inside your Events component
-  const [selectedCurrency, setSelectedCurrency] = useState("GBP");
-  const [exchangeRate, setExchangeRate] = useState(1);
 
   async function fetchExchangeRate(base = "GBP", target = "USD") {
     const res = await fetch(
@@ -124,7 +136,7 @@ function ExternalPricing({
 
         // Extract unique sports
         const uniqueSports = [...new Set(allEvents.map((ev) => ev.sport))];
-        setSports(uniqueSports); // you'll need: const [sports, setSports] = useState([]);
+        setSports(uniqueSports);
       } catch (error) {
         console.error("Failed to fetch events:", error.message);
       } finally {
@@ -263,6 +275,13 @@ function ExternalPricing({
     }
   }, [selectedRoom]);
 
+  useEffect(() => {
+    if (salesTeams.length > 0) {
+      console.log('Sales teams updated:', salesTeams);
+      setSalesTeam(salesTeams);
+    }
+  }, [salesTeams, setSalesTeam]);
+
   const handleEventSelect = async (eventId) => {
     const foundEvent = events.find((ev) => ev.event_id === eventId);
     setSelectedEvent(foundEvent);
@@ -277,12 +296,14 @@ function ExternalPricing({
     setRooms([]);
     setFlights([]);
     setLoungePasses([]);
+    setSalesTeams([]);
 
     if (foundEvent) {
       try {
         setLoadingPackages(true);
         setLoadingFlights(true);
         setLoadingLoungePasses(true);
+        setLoadingSalesTeams(true);
 
         const [packagesRes, flightsRes, loungePassesRes, salesTeamsRes] =
           await Promise.all([
@@ -297,51 +318,8 @@ function ExternalPricing({
         setPackages(packagesRes.data);
         setFlights(flightsRes.data);
         setLoungePasses(loungePassesRes.data);
+        console.log('Fetched sales teams:', salesTeamsRes.data);
         setSalesTeams(salesTeamsRes.data);
-
-        // ⚡ AUTO SELECT FIRST PACKAGE based on the response directly
-        if (packagesRes.data.length > 0) {
-          const firstPackage = packagesRes.data[0];
-          setSelectedPackage(firstPackage);
-
-          // 🔥 Instead of calling handlePackageSelect immediately, replicate its logic here
-          const foundPackage = firstPackage;
-          setSelectedHotel(null);
-          setSelectedRoom(null);
-          setHotels([]);
-          setRooms([]);
-          setTickets([]);
-          setSelectedTicket(null);
-
-          if (foundPackage) {
-            try {
-              setLoadingHotels(true);
-              setLoadingTickets(true);
-
-              const [hotelsRes, ticketsRes] = await Promise.all([
-                api.get("/hotels", {
-                  params: { packageId: foundPackage.package_id },
-                }),
-                api.get("/tickets", {
-                  params: { packageId: foundPackage.package_id },
-                }),
-              ]);
-
-              setHotels(hotelsRes.data);
-              setTickets(ticketsRes.data);
-            } catch (error) {
-              console.error(
-                "Failed to fetch hotels or tickets:",
-                error.message
-              );
-              setHotels([]);
-              setTickets([]);
-            } finally {
-              setLoadingHotels(false);
-              setLoadingTickets(false);
-            }
-          }
-        }
       } catch (error) {
         console.error("Failed to fetch packages or flights:", error.message);
         setPackages([]);
@@ -587,12 +565,54 @@ function ExternalPricing({
           {selectedRoom && (
             <div className="flex justify-between gap-4 pt-3 text-xs align-bottom items-end ">
               {/* Left Info */}
-              <div className="space-y-2">
-                <p>
-                  <span className="font-semibold">Max Guests (per room):</span>{" "}
-                  {selectedRoom.max_guests}
-                </p>
+              <div className="space-y-0">
+                {/* Dialog Trigger */}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-fit text-xs bg-primary text-white pointer-events-auto"
+                    >
+                      More Room info
+                    </Button>
+                  </DialogTrigger>
+
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="mb-2">{selectedRoom.room_category} - {selectedRoom.room_type}</DialogTitle>
+                      <DialogDescription>
+                        Room details for{" "}
+                        <strong>{selectedRoom.hotel_name}</strong>
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="text-sm text-gray-700 mt-2 space-y-2">
+                      {/* Room Details */}
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <p className="font-semibold">Room Category:</p>
+                          <p>{selectedRoom.room_category}</p>
+                          <p className="font-semibold">Room Type:</p>
+                          <p>{selectedRoom.room_type}</p>
+                          <p className="font-semibold">Flexibility:</p>
+                          <p>{selectedRoom.room_flexibility}</p>
+                          <p className="font-semibold">Max Guests:</p>
+                          <p>{selectedRoom.max_guests}</p>
+                          <p className="font-semibold">Breakfast:</p>
+                          <p>{selectedRoom["breakfast_(2_people)"]}</p>
+                          <p className="font-semibold">Rooms Available:</p>
+                          <p>{selectedRoom.remaining}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <DialogFooter className="pt-4">
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 <div className="pt-2">
+                  <p className="font-semibold mb-1">Check in - Check out:</p>
                   <DatePickerWithRange
                     date={dateRange}
                     setDate={handleDateChange}
@@ -603,7 +623,10 @@ function ExternalPricing({
               {/* Right Quantity + Pricing */}
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <p className="font-semibold">Room Quantity</p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <p className="font-semibold">Room Quantity</p>
+                    <p className="text-muted-foreground">(Max {selectedRoom.max_guests} guests per room)</p>
+                  </div>
                   <QuantitySelector
                     value={roomQuantity}
                     onChange={setRoomQuantity}

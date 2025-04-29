@@ -29,6 +29,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
+import emailjs from '@emailjs/browser';
+import { useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
+import api from "@/lib/api";
+
+// Initialize EmailJS with your public key
+emailjs.init("QzVZTjwyU9dQUmSDq");
+
+// Add currency symbol mapping
+const currencySymbols = {
+  GBP: "£",
+  USD: "$",
+  EUR: "€",
+  AUD: "A$",
+  CAD: "C$",
+};
 
 const formSchema = z.object({
   booker_name: z.string().min(1),
@@ -44,11 +61,82 @@ const formSchema = z.object({
   lead_traveller_phone: z.string().min(1),
   lead_traveller_email: z.string().min(1),
   guest_traveller_names: z.array(z.string().min(1)),
-  acquisition: z.string(),
   booking_type: z.string(),
 });
 
-function RequestBooking({ numberOfAdults, totalPrice }) {
+function RequestBooking({ 
+  numberOfAdults, 
+  totalPrice, 
+  salesTeam,
+  selectedEvent,
+  selectedPackage,
+  selectedHotel,
+  selectedRoom,
+  selectedTicket,
+  selectedFlight,
+  selectedLoungePass,
+  selectedCircuitTransfer,
+  selectedAirportTransfer,
+  circuitTransferQuantity,
+  airportTransferQuantity,
+  roomQuantity,
+  ticketQuantity,
+  loungePassQuantity,
+  dateRange,
+  selectedCurrency
+}) {
+  console.log('Transfer data:', {
+    circuitTransfer: {
+      fullObject: selectedCircuitTransfer,
+      transportType: selectedCircuitTransfer?.transport_type,
+      allKeys: selectedCircuitTransfer ? Object.keys(selectedCircuitTransfer) : []
+    },
+    airportTransfer: {
+      fullObject: selectedAirportTransfer,
+      transportType: selectedAirportTransfer?.transport_type,
+      allKeys: selectedAirportTransfer ? Object.keys(selectedAirportTransfer) : []
+    }
+  });
+
+  const [currentUser, setCurrentUser] = useState(null);
+  const [assignedSalesTeam, setAssignedSalesTeam] = useState(null);
+
+  // Update assignedSalesTeam when salesTeam prop changes
+  useEffect(() => {
+    console.log('Sales team prop updated:', salesTeam);
+    if (Array.isArray(salesTeam) && salesTeam.length > 0) {
+      setAssignedSalesTeam(salesTeam[0]);
+    } else if (salesTeam && typeof salesTeam === 'object') {
+      setAssignedSalesTeam(salesTeam);
+    }
+  }, [salesTeam]);
+
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const decoded = jwtDecode(token);
+        const res = await api.get("/users");
+        const users = res.data;
+
+        // Try match by user_id or email depending on your token
+        const user = users.find(
+          (u) => u.user_id === decoded.user_id || u.email === decoded.email
+        );
+
+        if (user) {
+          setCurrentUser(user);
+        }
+      } catch (error) {
+        console.error("Failed to fetch current user:", error);
+      }
+    }
+
+    fetchCurrentUser();
+  }, []);
+
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -57,25 +145,124 @@ function RequestBooking({ numberOfAdults, totalPrice }) {
     },
   });
 
-  function onSubmit(values) {
-    try {
-      console.log(values);
-      toast(
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(values, null, 2)}</code>
-        </pre>
-      );
-    } catch (error) {
-      console.error("Form submission error", error);
-      toast.error("Failed to submit the form. Please try again.");
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    console.log('Form submitted with salesTeam:', assignedSalesTeam);
+    
+    if (!assignedSalesTeam?.email) {
+      console.error('No sales team email available. Full sales team object:', assignedSalesTeam);
+      alert("No sales team member is currently assigned. Please try again later or contact support.");
+      return;
     }
-  }
+
+    const templateParams = {
+      from_name: form.getValues("booker_name"),
+      from_email: form.getValues("booker_email"),
+      from_phone: form.getValues("booker_phone"),
+      to_name: `${assignedSalesTeam.first_name} ${assignedSalesTeam.last_name}`,
+      to_email: assignedSalesTeam.email,
+      reply_to: currentUser?.email || form.getValues("booker_email"),
+      message: `
+        Booking Request Details:
+        
+        Event Details:
+        Event: ${selectedEvent?.event || "Not selected"}
+        Package: ${selectedPackage?.package_name || "Not selected"}
+        
+        Hotel Details:
+        Hotel: ${selectedHotel?.hotel_name || "Not selected"}
+        Room: ${selectedRoom?.room_category || "Not selected"} - ${selectedRoom?.room_type || "Not selected"}
+        Room Quantity: ${roomQuantity}
+        Check-in: ${dateRange?.from ? new Date(dateRange.from).toLocaleDateString() : "Not selected"}
+        Check-out: ${dateRange?.to ? new Date(dateRange.to).toLocaleDateString() : "Not selected"}
+        
+        Transfer Details:
+        Circuit Transfer: ${selectedCircuitTransfer?.transport_type || "Not selected"}
+        Circuit Transfer Quantity: ${ticketQuantity || 1}
+        Airport Transfer: ${selectedAirportTransfer?.transport_type || "Not selected"}
+        Airport Transfer Quantity: ${selectedAirportTransfer ? Math.ceil(numberOfAdults / selectedAirportTransfer.max_capacity) : 1}
+        
+        Ticket Details:
+        Ticket: ${selectedTicket?.ticket_name || "Not selected"}
+        Ticket Type: ${selectedTicket?.ticket_type || "Not selected"}
+        Ticket Quantity: ${ticketQuantity}
+        
+        Flight Details:
+        Airline: ${selectedFlight?.airline || "Not selected"}
+        Class: ${selectedFlight?.class || "Not selected"}
+        Outbound: ${selectedFlight?.outbound_flight || "Not selected"}
+        Inbound: ${selectedFlight?.inbound_flight || "Not selected"}
+        
+        Lounge Pass Details:
+        Type: ${selectedLoungePass?.variant || "Not selected"}
+        Quantity: ${loungePassQuantity}
+        
+        Booking Summary:
+        Number of Adults: ${numberOfAdults}
+        Total Price: ${currencySymbols[selectedCurrency] || selectedCurrency}${Math.round(totalPrice).toLocaleString()}
+        
+        Booker Details:
+        Name: ${form.getValues("booker_name")}
+        Email: ${form.getValues("booker_email")}
+        Phone: ${form.getValues("booker_phone")}
+        
+        Address:
+        ${form.getValues("address_line_1")}
+        ${form.getValues("address_line_2") || ""}
+        ${form.getValues("city")}
+        ${form.getValues("postcode")}
+        ${form.getValues("country")}
+        
+        Lead Traveller:
+        Name: ${form.getValues("lead_traveller_name")}
+        Email: ${form.getValues("lead_traveller_email")}
+        Phone: ${form.getValues("lead_traveller_phone")}
+        
+        Guest Travellers:
+        ${form.getValues("guest_traveller_names").filter(name => name).join("\n")}
+        
+        Booking Information:
+        Date: ${form.getValues("booking_date") ? new Date(form.getValues("booking_date")).toLocaleDateString() : "Not selected"}
+        Type: ${form.getValues("booking_type") || "Not selected"}
+        Acquisition: B2B Travel Agent
+      `,
+    };
+
+    try {
+      // Send email using EmailJS
+      const response = await emailjs.send(
+        'service_0jnx7qi',
+        'template_lxbsl6s',
+        templateParams
+      );
+
+      console.log("EmailJS response:", response);
+
+      if (response.status === 200) {
+        toast.success("Booking request submitted", {
+          description: `A sales team member (${assignedSalesTeam?.first_name} ${assignedSalesTeam?.last_name}) will contact you shortly.`,
+        });
+      } else {
+        throw new Error(`EmailJS returned status ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Failed to submit booking request:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        response: error.response
+      });
+      toast.error("Failed to submit booking request", {
+        description: error.message || "Please try again.",
+      });
+    }
+  };
 
   return (
     <Form {...form}>
       <div className="w-8/12 max-w-6xl mx-auto">
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={onSubmit}
           className="p-4 space-y-4 bg-white rounded-md border-[1px] border-primary shadow-sm w-full max-w-6xl mx-auto"
         >
           {/* Booker Details */}
@@ -265,7 +452,7 @@ function RequestBooking({ numberOfAdults, totalPrice }) {
             )}
           </div>
           {/* Booking Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
             <FormField
               control={form.control}
               name="booking_date"
@@ -305,36 +492,7 @@ function RequestBooking({ numberOfAdults, totalPrice }) {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="acquisition"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Acquisition</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select acquisition source" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="referral">Referral</SelectItem>
-                      <SelectItem value="newsletter">Newsletter</SelectItem>
-                      <SelectItem value="unknown">Unknown</SelectItem>
-                      <SelectItem value="meta">Meta</SelectItem>
-                      <SelectItem value="repeat">Repeat</SelectItem>
-                      <SelectItem value="organic">Organic</SelectItem>
-                      <SelectItem value="b2b">B2B (Travel agent)</SelectItem>
-                      <SelectItem value="adwords">Adwords</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            
             <FormField
               control={form.control}
               name="booking_type"
@@ -359,35 +517,6 @@ function RequestBooking({ numberOfAdults, totalPrice }) {
                 </FormItem>
               )}
             />
-          </div>
-
-          {/* Payment Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
-            {/* Deposit Payment */}
-            <div className="space-y-2">
-              <FormLabel>Deposit Payment</FormLabel>
-              <div className="text-sm font-semibold">
-                £{(totalPrice / 3).toFixed(2)}
-              </div>
-              
-            </div>
-
-            {/* Payment 2 */}
-            <div className="space-y-2">
-              <FormLabel>Payment 2</FormLabel>
-              <div className="text-sm font-semibold">
-                £{(totalPrice / 3).toFixed(2)}
-              </div>
-              
-            </div>
-
-            {/* Final Payment */}
-            <div className="space-y-2">
-              <FormLabel>Final Payment</FormLabel>
-              <div className="text-sm font-semibold">
-                £{(totalPrice / 3).toFixed(2)}
-              </div>
-            </div>
           </div>
 
           <div className="pt-4">
