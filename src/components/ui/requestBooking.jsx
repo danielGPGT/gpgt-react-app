@@ -48,7 +48,7 @@ const formSchema = z.object({
   booking_type: z.string(),
 });
 
-function BookingForm({ numberOfAdults, totalPrice }) {
+function RequestBooking({ numberOfAdults, totalPrice }) {
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -495,7 +495,7 @@ function BookingForm({ numberOfAdults, totalPrice }) {
 
           <div className="pt-4">
             <Button type="submit" size="lg" className="w-full">
-              Submit Booking
+              Send Booking Request
             </Button>
           </div>
         </form>
@@ -504,4 +504,4 @@ function BookingForm({ numberOfAdults, totalPrice }) {
   );
 }
 
-export { BookingForm };
+export { RequestBooking };

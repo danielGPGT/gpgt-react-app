@@ -14,7 +14,12 @@ import {
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { DatePickerWithRange } from "@/components/ui/date-picker-range";
 
-function Events({ numberOfAdults, setNumberOfAdults }) {
+function InternalPricing({
+  numberOfAdults,
+  setNumberOfAdults,
+  totalPrice,
+  setTotalPrice,
+}) {
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -86,6 +91,54 @@ function Events({ numberOfAdults, setNumberOfAdults }) {
     const data = await res.json();
     return data.data[target];
   }
+
+  useEffect(() => {
+    let total = 0;
+
+    if (selectedRoom && dateRange.from && dateRange.to) {
+      const nights = differenceInCalendarDays(dateRange.to, dateRange.from);
+      const extra = Math.max(nights - originalNights, 0);
+      total +=
+        (Number(selectedRoom.price) +
+          extra * Number(selectedRoom.extra_night_price)) *
+        roomQuantity;
+    }
+
+    if (selectedTicket) total += Number(selectedTicket.price) * ticketQuantity;
+    if (selectedCircuitTransfer)
+      total += Number(selectedCircuitTransfer.price) * ticketQuantity;
+    if (selectedAirportTransfer) {
+      const needed = Math.ceil(
+        numberOfAdults / (selectedAirportTransfer.max_capacity || 1)
+      );
+      total += needed * Number(selectedAirportTransfer.price);
+    }
+    if (selectedFlight) total += Number(selectedFlight.price) * numberOfAdults;
+    if (selectedLoungePass)
+      total += Number(selectedLoungePass.price) * loungePassQuantity;
+
+    if (total === 0) {
+      setTotalPrice(0);
+      return;
+    }
+
+    const rounded = Math.ceil(total / 100) * 100 - 2;
+    setTotalPrice(rounded * exchangeRate);
+  }, [
+    selectedRoom,
+    dateRange,
+    originalNights,
+    roomQuantity,
+    selectedTicket,
+    ticketQuantity,
+    selectedCircuitTransfer,
+    selectedAirportTransfer,
+    numberOfAdults,
+    selectedFlight,
+    selectedLoungePass,
+    loungePassQuantity,
+    exchangeRate,
+  ]);
 
   useEffect(() => {
     async function updateExchangeRate() {
@@ -442,9 +495,12 @@ function Events({ numberOfAdults, setNumberOfAdults }) {
                     key={room.room_id}
                     value={room.room_id}
                     className="text-xs"
+                    disabled={parseInt(room.remaining) <= 0} // Disable if no remaining
                   >
-                    {room.room_category} - {room.room_type} - {room.remaining}{" "}
-                    rooms left
+                    {room.room_category} - {room.room_type}
+                    {parseInt(room.remaining) > 0
+                      ? ` (${room.remaining} rooms left)`
+                      : " (Sold Out)"}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -455,10 +511,6 @@ function Events({ numberOfAdults, setNumberOfAdults }) {
             <div className="flex justify-between gap-4 pt-3 text-xs align-bottom items-end ">
               {/* Left Info */}
               <div className="space-y-2">
-                <p>
-                  <span className="font-semibold">Remaining rooms:</span>{" "}
-                  {selectedRoom.remaining}
-                </p>
                 <p>
                   <span className="font-semibold">Max Guests (per room):</span>{" "}
                   {selectedRoom.max_guests}
@@ -507,8 +559,18 @@ function Events({ numberOfAdults, setNumberOfAdults }) {
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
                 {tickets.map((ticket) => (
-                  <SelectItem key={ticket.ticket_id} value={ticket.ticket_id}>
-                    {ticket.ticket_name}
+                  <SelectItem
+                    key={ticket.ticket_id}
+                    value={ticket.ticket_id}
+                    disabled={parseInt(ticket.remaining) <= 0} // Disable if no remaining
+                    className={`text-xs ${
+                      parseInt(ticket.remaining) <= 0 ? "text-gray-400" : ""
+                    }`}
+                  >
+                    {ticket.ticket_name}{" "}
+                    {parseInt(ticket.remaining) > 0
+                      ? ` (${ticket.remaining} tickets left)`
+                      : " (Sold Out)"}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -518,7 +580,6 @@ function Events({ numberOfAdults, setNumberOfAdults }) {
           {selectedTicket && (
             <div className="flex items-center justify-between gap-4 text-xs pt-2">
               <div>
-                <p>Remaining: {selectedTicket.remaining}</p>
                 <p>Event Days: {selectedTicket.event_days}</p>
               </div>
               <QuantitySelector
@@ -694,58 +755,23 @@ function Events({ numberOfAdults, setNumberOfAdults }) {
 
       {/* Total Price */}
       <div className="pt-4 space-y-2">
-        <div className="flex gap-2 items-center justify-center">
-          <select
-            value={selectedCurrency}
-            onChange={(e) => setSelectedCurrency(e.target.value)}
-            className="border px-2 py-1 rounded-md text-xs"
-          >
-            {availableCurrencies.map((curr) => (
-              <option key={curr} value={curr}>
-                {curr}
-              </option>
-            ))}
-          </select>
+        <div className="flex gap-6 items-center">
+          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+            <SelectTrigger className="text-xs bg-white">
+              <SelectValue placeholder="Select currency" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCurrencies.map((curr) => (
+                <SelectItem key={curr} value={curr}>
+                  {curr}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <h2 className="text-lg font-bold">
-            Total:{" "}
-            {(() => {
-              let total = 0;
-              if (selectedRoom && dateRange.from && dateRange.to) {
-                const nights = differenceInCalendarDays(
-                  dateRange.to,
-                  dateRange.from
-                );
-                const extra = Math.max(nights - originalNights, 0);
-                total +=
-                  (Number(selectedRoom.price) +
-                    extra * Number(selectedRoom.extra_night_price)) *
-                  roomQuantity;
-              }
-              if (selectedTicket)
-                total += Number(selectedTicket.price) * ticketQuantity;
-              if (selectedCircuitTransfer)
-                total += Number(selectedCircuitTransfer.price) * ticketQuantity;
-              if (selectedAirportTransfer) {
-                const needed = Math.ceil(
-                  numberOfAdults / (selectedAirportTransfer.max_capacity || 1)
-                );
-                total += needed * Number(selectedAirportTransfer.price);
-              }
-              if (selectedFlight)
-                total += Number(selectedFlight.price) * numberOfAdults;
-              if (selectedLoungePass)
-                total += Number(selectedLoungePass.price) * loungePassQuantity;
-
-              if (total === 0) {
-                return `${currencySymbols[selectedCurrency] || ""}0.00`;
-              }
-
-              const rounded = Math.ceil(total / 100) * 100 - 2;
-              const finalAmount = (rounded * exchangeRate).toFixed(0);
-
-              return `${currencySymbols[selectedCurrency] || ""}${finalAmount}`;
-            })()}
+            Total: {currencySymbols[selectedCurrency]}
+            {Number(totalPrice).toFixed(0)}
           </h2>
         </div>
       </div>
@@ -753,4 +779,4 @@ function Events({ numberOfAdults, setNumberOfAdults }) {
   );
 }
 
-export { Events };
+export { InternalPricing };

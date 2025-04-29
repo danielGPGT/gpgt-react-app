@@ -47,7 +47,7 @@ function Login() {
         {/* Top content */}
         <div className="relative flex flex-col space-y-6 z-10">
           <img
-            src="/src/assets/imgs/gpgt_logo_light.svg"
+            src="/src/assets/imgs/Grand_Prix_Logo_Vector_new_light.svg"
             className="w-72"
             alt="Grand Prix Logo"
           />

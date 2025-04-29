@@ -1,50 +1,110 @@
+'use client';
+
 import { useEffect, useState } from "react";
-import { jwtDecode } from "jwt-decode";
+import { DynamicBreadcrumb } from "@/components/ui/dy-breadcrumb";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/ui/app-sidebar";
 import api from "@/lib/api";
-import { Events } from "@/components/ui/events";
-import { BookingForm } from "@/components/ui/bookingForm";
+import { jwtDecode } from "jwt-decode";
+import { AdminDashboard } from "../components/ui/adminDashboard";
 
 function Dashboard() {
-  const [user, setUser] = useState({
-    first_name: "",
-    last_name: "",
-    role: "",
-    company: "",
-  });
-
-  const [numberOfAdults, setNumberOfAdults] = useState(2); // <--- ADD THIS HERE
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      const decoded = jwtDecode(token);
-      setUser({
-        first_name: decoded.first_name,
-        last_name: decoded.last_name,
-        role: decoded.role,
-        company: decoded.company,
-      });
+    async function fetchCurrentUser() {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const decoded = jwtDecode(token);
+        setRole(decoded.role);
+
+        const res = await api.get("/users");
+        const users = res.data;
+
+        // Try match by user_id or email depending on your token
+        const currentUser = users.find(
+          (u) => u.user_id === decoded.user_id || u.email === decoded.email
+        );
+
+        if (currentUser) {
+          setUser(currentUser);
+        }
+      } catch (error) {
+        console.error("Failed to fetch current user:", error);
+      }
     }
+
+    fetchCurrentUser();
   }, []);
 
+  const renderDashboardContent = () => {
+    switch (role) {
+      case "Admin":
+        return <AdminDashboard />;
+      case "Internal Sales":
+        return <SalesDashboard />;
+      case "Operations":
+        return <OperationsDashboard />;
+      case "External B2B":
+        return <B2BDashboard />;
+      default:
+        return (
+          <div className="text-center text-gray-400">
+            No dashboard available for your role.
+          </div>
+        );
+    }
+  };
+
   return (
-    <div className="p-8">
-      <div className="flex w-full justify-between">
-        <div>
-      <h2 className="text-2xl font-bold mb-2">
-        Welcome, {user.first_name} {user.last_name}
-      </h2>
-      <p>Role: {user.role}</p>
-      <p>Company: {user.company}</p>
-      </div>
-      <div>
-        <img src="/src/assets/imgs/gpgt_logo_vector_new.svg" className="w-80"></img>
-      </div>
-      </div>
-      <div className="flex w-full justify-between mt-8 gap-6">
-        <Events numberOfAdults={numberOfAdults} setNumberOfAdults={setNumberOfAdults} /> {/* pass down */}
-        <BookingForm numberOfAdults={numberOfAdults} /> {/* pass down */}
-      </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <main className="w-full">
+        <div className="p-8">
+          <div className="flex gap-6 items-center">
+            <SidebarTrigger />
+            <DynamicBreadcrumb />
+          </div>
+
+          <div className="mt-6">
+            <h2 className="text-2xl font-bold">
+            {user ? `${user.first_name}'s Dashboard` : "Loading..."}
+            </h2>
+          </div>
+
+          <div className="flex w-full justify-between mt-6 gap-6">
+            {/* Render role-specific dashboard */}
+            {renderDashboardContent()}
+          </div>
+        </div>
+      </main>
+    </SidebarProvider>
+  );
+}
+
+function SalesDashboard() {
+  return (
+    <div className="w-full p-8 bg-gray-100 rounded-lg shadow">
+      Welcome to the Sales Dashboard
+    </div>
+  );
+}
+
+function OperationsDashboard() {
+  return (
+    <div className="w-full p-8 bg-gray-100 rounded-lg shadow">
+      Welcome to the Operations Dashboard
+    </div>
+  );
+}
+
+function B2BDashboard() {
+  return (
+    <div className="w-full p-8 bg-gray-100 rounded-lg shadow">
+      Welcome to the B2B Dashboard
     </div>
   );
 }
