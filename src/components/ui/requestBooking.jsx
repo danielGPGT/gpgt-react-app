@@ -79,6 +79,9 @@ function RequestBooking({ numberOfAdults, totalPrice }) {
           className="p-4 space-y-4 bg-white rounded-md border-[1px] border-primary shadow-sm w-full max-w-6xl mx-auto"
         >
           {/* Booker Details */}
+          <h2 className="max-w-150 pb-6">To create a booking with us, fill out the form below with the travellers details. 
+            Once the request is created our sales team will be notified to process your booking.
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -366,42 +369,7 @@ function RequestBooking({ numberOfAdults, totalPrice }) {
               <div className="text-sm font-semibold">
                 £{(totalPrice / 3).toFixed(2)}
               </div>
-              <FormField
-                control={form.control}
-                name="deposit_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                )}
-              />
+              
             </div>
 
             {/* Payment 2 */}
@@ -410,42 +378,7 @@ function RequestBooking({ numberOfAdults, totalPrice }) {
               <div className="text-sm font-semibold">
                 £{(totalPrice / 3).toFixed(2)}
               </div>
-              <FormField
-                control={form.control}
-                name="payment2_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                )}
-              />
+              
             </div>
 
             {/* Final Payment */}
@@ -454,42 +387,6 @@ function RequestBooking({ numberOfAdults, totalPrice }) {
               <div className="text-sm font-semibold">
                 £{(totalPrice / 3).toFixed(2)}
               </div>
-              <FormField
-                control={form.control}
-                name="final_payment_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                )}
-              />
             </div>
           </div>
 

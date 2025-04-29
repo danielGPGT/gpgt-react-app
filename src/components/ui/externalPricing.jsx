@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { Star } from "lucide-react";
+import { MonitorPlay, Umbrella, Hash, CheckCircle } from "lucide-react";
 import { parse } from "date-fns";
 import { differenceInCalendarDays } from "date-fns";
 
@@ -11,6 +11,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { Badge } from "@/components/ui/badge"
+
+
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { DatePickerWithRange } from "@/components/ui/date-picker-range";
 
@@ -20,6 +36,10 @@ function ExternalPricing({
   totalPrice,
   setTotalPrice,
 }) {
+  const [selectedSport, setSelectedSport] = useState("");
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [sports, setSports] = useState([]);
+
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -65,6 +85,9 @@ function ExternalPricing({
   const [selectedLoungePass, setSelectedLoungePass] = useState(null);
   const [loungePassQuantity, setLoungePassQuantity] = useState(1);
 
+  const [salesTeams, setSalesTeams] = useState([]);
+  const [loadingSalesTeams, setLoadingSalesTeams] = useState(false);
+
   const [originalNights, setOriginalNights] = useState(0);
 
   const minNights = selectedRoom?.nights || 1;
@@ -91,6 +114,35 @@ function ExternalPricing({
     const data = await res.json();
     return data.data[target];
   }
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await api.get("/event");
+        const allEvents = res.data;
+        setEvents(allEvents);
+
+        // Extract unique sports
+        const uniqueSports = [...new Set(allEvents.map((ev) => ev.sport))];
+        setSports(uniqueSports); // you'll need: const [sports, setSports] = useState([]);
+      } catch (error) {
+        console.error("Failed to fetch events:", error.message);
+      } finally {
+        setLoadingEvents(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
+  useEffect(() => {
+    if (selectedSport === "all") {
+      setFilteredEvents(events); // Show all
+    } else {
+      const filtered = events.filter((ev) => ev.sport === selectedSport);
+      setFilteredEvents(filtered);
+    }
+  }, [selectedSport, events]);
 
   useEffect(() => {
     let total = 0;
@@ -232,17 +284,20 @@ function ExternalPricing({
         setLoadingFlights(true);
         setLoadingLoungePasses(true);
 
-        const [packagesRes, flightsRes, loungePassesRes] = await Promise.all([
-          api.get("/packages", { params: { eventId: foundEvent.event_id } }),
-          api.get("/flights", { params: { eventId: foundEvent.event_id } }),
-          api.get("/lounge-passes", {
-            params: { eventId: foundEvent.event_id },
-          }),
-        ]);
+        const [packagesRes, flightsRes, loungePassesRes, salesTeamsRes] =
+          await Promise.all([
+            api.get("/packages", { params: { eventId: foundEvent.event_id } }),
+            api.get("/flights", { params: { eventId: foundEvent.event_id } }),
+            api.get("/lounge-passes", {
+              params: { eventId: foundEvent.event_id },
+            }),
+            api.get("/salesTeam", { params: { eventId: foundEvent.event_id } }),
+          ]);
 
         setPackages(packagesRes.data);
         setFlights(flightsRes.data);
         setLoungePasses(loungePassesRes.data);
+        setSalesTeams(salesTeamsRes.data);
 
         // ⚡ AUTO SELECT FIRST PACKAGE based on the response directly
         if (packagesRes.data.length > 0) {
@@ -292,10 +347,12 @@ function ExternalPricing({
         setPackages([]);
         setFlights([]);
         setLoungePasses([]);
+        setSalesTeams([]);
       } finally {
         setLoadingPackages(false);
         setLoadingFlights(false);
         setLoadingLoungePasses(false);
+        setLoadingSalesTeams(false);
       }
     }
   };
@@ -396,13 +453,30 @@ function ExternalPricing({
       {/* Event & Package */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
+          <h2 className="text-xs font-semibold mb-1">Select Sport</h2>
+          <Select value={selectedSport} onValueChange={setSelectedSport}>
+            <SelectTrigger className="w-full h-9 text-sm bg-white">
+              <SelectValue placeholder="All Sports" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sports</SelectItem>
+              {sports.map((sport, index) => (
+                <SelectItem key={index} value={sport}>
+                  {sport}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
           <h2 className="text-xs font-semibold mb-1">Select Event</h2>
           <Select onValueChange={handleEventSelect}>
             <SelectTrigger className="w-full h-9 text-sm bg-white">
               <SelectValue placeholder="Choose event" />
             </SelectTrigger>
             <SelectContent>
-              {events.map((event) => (
+              {filteredEvents.map((event) => (
                 <SelectItem key={event.event_id} value={event.event_id}>
                   {event.event || event.event_name}
                 </SelectItem>
@@ -581,10 +655,78 @@ function ExternalPricing({
           )}
 
           {selectedTicket && (
-            <div className="flex items-center justify-between gap-4 text-xs pt-2">
-              <div>
-                <p>Event Days: {selectedTicket.event_days}</p>
+            <div className="flex items-center justify-between gap-4 text-xs pt-2 w-full">
+              <div className="flex flex-col gap-2">
+                {/* Dialog Trigger */}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-fit text-xs bg-primary text-white pointer-events-auto"
+                    >
+                      More Ticket info
+                    </Button>
+                  </DialogTrigger>
+
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="mb-2">{selectedTicket.ticket_name}</DialogTitle>
+                      <DialogDescription>
+                        Ticket details for{" "}
+                        <strong>{selectedTicket.ticket_name}</strong>
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="text-sm text-gray-700 mt-2 space-y-2">
+                      {/* Ticket Type */}
+                      <div>
+                        <p className="font-semibold">Ticket Type: {selectedTicket.ticket_type}</p>
+                      </div>
+
+                      {/* Event Days */}
+                      <div>
+                        <p className="font-semibold">Event Days: {selectedTicket.event_days}</p>
+                          
+          
+                      </div>
+
+                      {/* Icons */}
+                      <div className="flex items-center gap-2 pt-2">
+                        {selectedTicket.video_wall && (
+                          <Badge>
+                          <div className="flex items-center gap-1 text-xs text-white">
+                            <MonitorPlay className="w-4 h-4 text-white" />
+                            <span>Video Wall</span>
+                          </div>
+                          </Badge>
+                        )}
+                        {selectedTicket.covered_seat && (
+                          <Badge>
+                          <div className="flex items-center gap-1 text-xs text-white">
+                            <Umbrella className="w-4 h-4 text-white" />
+                            <span>Covered Seat</span>
+                          </div>
+                          </Badge>
+                        )}
+                        {selectedTicket.numbered_seat && (
+                          <Badge>
+                          <div className="flex items-center gap-1 text-xs text-white">
+                            <Hash className="w-4 h-4 text-white" />
+                            <span>Numbered Seat</span>
+                          </div>
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <DialogFooter className="pt-4">
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
+
+              {/* Quantity selector */}
               <QuantitySelector
                 value={ticketQuantity}
                 onChange={setTicketQuantity}
@@ -781,6 +923,34 @@ function ExternalPricing({
             (10% Commission is payable on the total price.)
           </p>
         </div>
+        {salesTeams.length > 0 ? (
+          <div className="mt-4 p-4 space-y-2 rounded-md border shadow-sm bg-white ">
+            <h3 className="text-sm">For more info contact our sales team:</h3>
+            <p className="text-sm font-semibold">
+              Name: {salesTeams[0].first_name} {salesTeams[0].last_name}
+            </p>
+            <p className="text-sm font-semibold">
+              Email:{" "}
+              <a
+                href={`mailto:${salesTeams[0].email}`}
+                className="text-primary underline"
+              >
+                {salesTeams[0].email}
+              </a>
+            </p>
+            <p className="text-sm font-semibold">
+              Phone:{" "}
+              <a
+                href={`tel:${salesTeams[0].phone}`}
+                className="text-primary underline"
+              >
+                {salesTeams[0].phone}
+              </a>
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic"></p>
+        )}
       </div>
     </div>
   );
