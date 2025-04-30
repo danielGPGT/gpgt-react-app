@@ -29,6 +29,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useTheme } from "@/components/theme-provider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
+import PropTypes from 'prop-types';
 
 const formSchema = z.object({
   booker_name: z.string().min(1),
@@ -46,9 +59,31 @@ const formSchema = z.object({
   guest_traveller_names: z.array(z.string().min(1)),
   acquisition: z.string(),
   booking_type: z.string(),
+  atol_abtot: z.string(),
+  payment1_date: z.coerce.date(),
+  payment2_date: z.coerce.date(),
+  payment3_date: z.coerce.date(),
 });
 
-function BookingForm({ numberOfAdults, totalPrice }) {
+const currencySymbols = {
+  GBP: "£",
+  USD: "$",
+  EUR: "€",
+  AUD: "A$",
+  CAD: "C$",
+};
+
+function BookingForm({ 
+  numberOfAdults, 
+  totalPrice, 
+  selectedCurrency,
+  onSubmit 
+}) {
+  const { theme } = useTheme();
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState("error");
+
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -57,26 +92,34 @@ function BookingForm({ numberOfAdults, totalPrice }) {
     },
   });
 
-  function onSubmit(values) {
+  const handleSubmit = async (values) => {
     try {
-      console.log(values);
-      toast(
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(values, null, 2)}</code>
-        </pre>
-      );
+      if (!onSubmit || typeof onSubmit !== 'function') {
+        console.error('onSubmit prop is not a function');
+        setAlertMessage("Form submission error: Invalid onSubmit handler");
+        setAlertType("error");
+        setShowAlert(true);
+        return;
+      }
+
+      await onSubmit(values);
+      setAlertMessage("Booking submitted successfully!");
+      setAlertType("success");
+      setShowAlert(true);
     } catch (error) {
-      console.error("Form submission error", error);
-      toast.error("Failed to submit the form. Please try again.");
+      console.error("Form submission error:", error);
+      setAlertMessage("Failed to submit the form. Please try again.");
+      setAlertType("error");
+      setShowAlert(true);
     }
-  }
+  };
 
   return (
     <Form {...form}>
       <div className="w-8/12 max-w-6xl mx-auto">
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="p-4 space-y-4 bg-white rounded-md border-[1px] border-primary shadow-sm w-full max-w-6xl mx-auto"
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className="p-4 space-y-4 bg-card rounded-md border-[1px] border shadow-sm w-full max-w-6xl mx-auto"
         >
           {/* Booker Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -85,9 +128,9 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="booker_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Booker Name</FormLabel>
+                  <FormLabel className="text-foreground">Booker Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter booker's name" {...field} />
+                    <Input placeholder="Enter booker's name" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -98,12 +141,13 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="booker_email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Booker Email</FormLabel>
+                  <FormLabel className="text-foreground">Booker Email</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
                       placeholder="Enter booker's email"
                       {...field}
+                      className="bg-background"
                     />
                   </FormControl>
                   <FormMessage />
@@ -115,9 +159,9 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="booker_phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Booker Phone</FormLabel>
+                  <FormLabel className="text-foreground">Booker Phone</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter booker's phone" {...field} />
+                    <Input placeholder="Enter booker's phone" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -126,15 +170,15 @@ function BookingForm({ numberOfAdults, totalPrice }) {
           </div>
 
           {/* Address Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
             <FormField
               control={form.control}
               name="address_line_1"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 1</FormLabel>
+                  <FormLabel className="text-foreground">Address Line 1</FormLabel>
                   <FormControl>
-                    <Input placeholder="Address Line 1" {...field} />
+                    <Input placeholder="Address Line 1" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -145,9 +189,9 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="address_line_2"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 2</FormLabel>
+                  <FormLabel className="text-foreground">Address Line 2</FormLabel>
                   <FormControl>
-                    <Input placeholder="Optional Address Line 2" {...field} />
+                    <Input placeholder="Optional Address Line 2" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -158,9 +202,9 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="city"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>City</FormLabel>
+                  <FormLabel className="text-foreground">City</FormLabel>
                   <FormControl>
-                    <Input placeholder="City" {...field} />
+                    <Input placeholder="City" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -171,9 +215,9 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="postcode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Postcode</FormLabel>
+                  <FormLabel className="text-foreground">Postcode</FormLabel>
                   <FormControl>
-                    <Input placeholder="Postcode" {...field} />
+                    <Input placeholder="Postcode" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -184,9 +228,9 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="country"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Country</FormLabel>
+                  <FormLabel className="text-foreground">Country</FormLabel>
                   <FormControl>
-                    <Input placeholder="Country" {...field} />
+                    <Input placeholder="Country" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -195,15 +239,15 @@ function BookingForm({ numberOfAdults, totalPrice }) {
           </div>
 
           {/* Traveller Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
             <FormField
               control={form.control}
               name="lead_traveller_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Lead Traveller Name</FormLabel>
+                  <FormLabel className="text-foreground">Lead Traveller Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Lead Traveller" {...field} />
+                    <Input placeholder="Lead Traveller" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -215,9 +259,9 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="lead_traveller_phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Lead Traveller Phone</FormLabel>
+                  <FormLabel className="text-foreground">Lead Traveller Phone</FormLabel>
                   <FormControl>
-                    <Input placeholder="Phone Number" {...field} />
+                    <Input placeholder="Phone Number" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -229,16 +273,16 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="lead_traveller_email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Lead Traveller Email</FormLabel>
+                  <FormLabel className="text-foreground">Lead Traveller Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="Email Address" {...field} />
+                    <Input placeholder="Email Address" {...field} className="bg-background" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
             {Array.from({ length: Math.max(0, numberOfAdults - 1) }).map(
               (_, index) => (
                 <FormField
@@ -247,11 +291,12 @@ function BookingForm({ numberOfAdults, totalPrice }) {
                   name={`guest_traveller_names.${index}`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Guest Traveller {index + 1} Name</FormLabel>
+                      <FormLabel className="text-foreground">Guest Traveller {index + 1} Name</FormLabel>
                       <FormControl>
                         <Input
                           placeholder={`Guest Traveller ${index + 1}`}
                           {...field}
+                          className="bg-background"
                         />
                       </FormControl>
                       <FormMessage />
@@ -262,20 +307,20 @@ function BookingForm({ numberOfAdults, totalPrice }) {
             )}
           </div>
           {/* Booking Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-t border-border pt-4">
             <FormField
               control={form.control}
               name="booking_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Booking Date</FormLabel>
+                  <FormLabel className="text-foreground">Booking Date</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start text-left font-normal",
+                            "w-full justify-start text-left font-normal bg-background",
                             !field.value && "text-muted-foreground"
                           )}
                         >
@@ -307,13 +352,13 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="acquisition"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Acquisition</FormLabel>
+                  <FormLabel className="text-foreground">Acquisition</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full bg-background">
                         <SelectValue placeholder="Select acquisition source" />
                       </SelectTrigger>
                     </FormControl>
@@ -337,13 +382,13 @@ function BookingForm({ numberOfAdults, totalPrice }) {
               name="booking_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Booking Type</FormLabel>
+                  <FormLabel className="text-foreground">Booking Type</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full bg-background">
                         <SelectValue placeholder="Select booking type" />
                       </SelectTrigger>
                     </FormControl>
@@ -356,19 +401,44 @@ function BookingForm({ numberOfAdults, totalPrice }) {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="atol_abtot"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-foreground">ATOL/ABTOT</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full bg-background">
+                        <SelectValue placeholder="Select ATOL/ABTOT" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="abtot">ABTOT</SelectItem>
+                      <SelectItem value="atol">ATOL (Package)</SelectItem>
+                      <SelectItem value="na">N/A (Non EU)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           {/* Payment Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-border pt-4">
             {/* Deposit Payment */}
             <div className="space-y-2">
-              <FormLabel>Deposit Payment</FormLabel>
-              <div className="text-sm font-semibold">
-                £{(totalPrice / 3).toFixed(2)}
+              <FormLabel className="text-foreground">Deposit Payment</FormLabel>
+              <div className="text-sm font-semibold text-foreground">
+                {currencySymbols[selectedCurrency] || "£"}{(totalPrice / 3).toFixed(2)}
               </div>
               <FormField
                 control={form.control}
-                name="deposit_date"
+                name="payment1_date"
                 render={({ field }) => (
                   <FormItem>
                     <Popover>
@@ -377,7 +447,7 @@ function BookingForm({ numberOfAdults, totalPrice }) {
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full justify-start text-left font-normal",
+                              "w-full justify-start text-left font-normal bg-background",
                               !field.value && "text-muted-foreground"
                             )}
                           >
@@ -406,9 +476,9 @@ function BookingForm({ numberOfAdults, totalPrice }) {
 
             {/* Payment 2 */}
             <div className="space-y-2">
-              <FormLabel>Payment 2</FormLabel>
-              <div className="text-sm font-semibold">
-                £{(totalPrice / 3).toFixed(2)}
+              <FormLabel className="text-foreground">Payment 2</FormLabel>
+              <div className="text-sm font-semibold text-foreground">
+                {currencySymbols[selectedCurrency] || "£"}{(totalPrice / 3).toFixed(2)}
               </div>
               <FormField
                 control={form.control}
@@ -421,7 +491,7 @@ function BookingForm({ numberOfAdults, totalPrice }) {
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full justify-start text-left font-normal",
+                              "w-full justify-start text-left font-normal bg-background",
                               !field.value && "text-muted-foreground"
                             )}
                           >
@@ -450,13 +520,13 @@ function BookingForm({ numberOfAdults, totalPrice }) {
 
             {/* Final Payment */}
             <div className="space-y-2">
-              <FormLabel>Final Payment</FormLabel>
-              <div className="text-sm font-semibold">
-                £{(totalPrice / 3).toFixed(2)}
+              <FormLabel className="text-foreground">Final Payment</FormLabel>
+              <div className="text-sm font-semibold text-foreground">
+                {currencySymbols[selectedCurrency] || "£"}{(totalPrice / 3).toFixed(2)}
               </div>
               <FormField
                 control={form.control}
-                name="final_payment_date"
+                name="payment3_date"
                 render={({ field }) => (
                   <FormItem>
                     <Popover>
@@ -465,7 +535,7 @@ function BookingForm({ numberOfAdults, totalPrice }) {
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full justify-start text-left font-normal",
+                              "w-full justify-start text-left font-normal bg-background",
                               !field.value && "text-muted-foreground"
                             )}
                           >
@@ -500,8 +570,33 @@ function BookingForm({ numberOfAdults, totalPrice }) {
           </div>
         </form>
       </div>
+
+      <AlertDialog open={showAlert} onOpenChange={setShowAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {alertType === "success" ? "Success" : "Error"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {alertMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowAlert(false)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Form>
   );
 }
+
+BookingForm.propTypes = {
+  numberOfAdults: PropTypes.number.isRequired,
+  totalPrice: PropTypes.number.isRequired,
+  selectedCurrency: PropTypes.string.isRequired,
+  onSubmit: PropTypes.func.isRequired
+};
 
 export { BookingForm };

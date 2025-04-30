@@ -28,6 +28,7 @@ import {
   } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTheme } from "@/components/theme-provider";
 
 const roles = [
   "Admin",
@@ -37,6 +38,7 @@ const roles = [
 ];
 
 function UsersTable() {
+  const { theme } = useTheme();
   const [users, setUsers] = useState([]);
   const [editingUserId, setEditingUserId] = useState(null);
   const [editFormData, setEditFormData] = useState({});
@@ -140,24 +142,24 @@ function UsersTable() {
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
-            setCurrentPage(1); // Reset to first page when filtering
+            setCurrentPage(1);
           }}
-          className="w-1/3"
+          className="w-1/3 bg-background"
         />
-        <Button variant="outline">Columns</Button>
+        <Button variant="outline" className="bg-background">Columns</Button>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border border-border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Login Count</TableHead>
-              <TableHead>Last Login</TableHead>
-
+              <TableHead className="text-foreground">Name</TableHead>
+              <TableHead className="text-foreground">Email</TableHead>
+              <TableHead className="text-foreground">Role</TableHead>
+              <TableHead className="text-foreground">Company</TableHead>
+              <TableHead className="text-foreground">Login Count</TableHead>
+              <TableHead className="text-foreground">Last Login</TableHead>
+              <TableHead className="text-foreground"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -173,12 +175,14 @@ function UsersTable() {
                             value={editFormData.first_name}
                             onChange={handleInputChange}
                             placeholder="First Name"
+                            className="bg-background"
                           />
                           <Input
                             name="last_name"
                             value={editFormData.last_name}
                             onChange={handleInputChange}
                             placeholder="Last Name"
+                            className="bg-background"
                           />
                         </div>
                       </TableCell>
@@ -188,11 +192,12 @@ function UsersTable() {
                           value={editFormData.email}
                           onChange={handleInputChange}
                           placeholder="Email"
+                          className="bg-background"
                         />
                       </TableCell>
                       <TableCell>
                         <Select value={editFormData.role} onValueChange={handleRoleChange}>
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-background">
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                           <SelectContent>
@@ -210,45 +215,46 @@ function UsersTable() {
                           value={editFormData.company}
                           onChange={handleInputChange}
                           placeholder="Company"
+                          className="bg-background"
                         />
                       </TableCell>
-                      <TableCell>{user.login_count}</TableCell>
-                      <TableCell>{user.last_login}</TableCell>
+                      <TableCell className="text-foreground">{user.login_count}</TableCell>
+                      <TableCell className="text-foreground">{user.last_login}</TableCell>
                       <TableCell className="flex gap-2 justify-end">
                         <Button size="sm" onClick={() => handleSaveClick(user.user_id)}>
                           Save
                         </Button>
-                        <Button size="sm" variant="outline" onClick={handleCancelClick}>
+                        <Button size="sm" variant="outline" onClick={handleCancelClick} className="bg-background">
                           Cancel
                         </Button>
                       </TableCell>
                     </>
                   ) : (
                     <>
-                      <TableCell>{user.first_name} {user.last_name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role}</TableCell>
-                      <TableCell>{user.company}</TableCell>
-                      <TableCell>{user.login_count}</TableCell>
-                      <TableCell>{user.last_login}</TableCell>
+                      <TableCell className="text-foreground">{user.first_name} {user.last_name}</TableCell>
+                      <TableCell className="text-foreground">{user.email}</TableCell>
+                      <TableCell className="text-foreground">{user.role}</TableCell>
+                      <TableCell className="text-foreground">{user.company}</TableCell>
+                      <TableCell className="text-foreground">{user.login_count}</TableCell>
+                      <TableCell className="text-foreground">{user.last_login}</TableCell>
                       <TableCell className="w-0 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
                               <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
+                              <MoreHorizontal className="h-4 w-4 text-foreground" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleEditClick(user)}>
+                          <DropdownMenuContent align="end" className="bg-card">
+                            <DropdownMenuLabel className="text-foreground">Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleEditClick(user)} className="text-foreground">
                               Edit User
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => alert(JSON.stringify(user, null, 2))}>
+                            <DropdownMenuItem onClick={() => alert(JSON.stringify(user, null, 2))} className="text-foreground">
                               View User
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDeleteUser(user.user_id)}>
+                            <DropdownMenuItem onClick={() => handleDeleteUser(user.user_id)} className="text-destructive">
                               Remove User
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -260,7 +266,7 @@ function UsersTable() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   No users found.
                 </TableCell>
               </TableRow>
@@ -269,16 +275,28 @@ function UsersTable() {
         </Table>
       </div>
 
-      {/* Pagination controls 🔥 */}
+      {/* Pagination controls */}
       <div className="flex items-center justify-between text-sm text-muted-foreground p-2">
         <div>
           Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage === 1}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handlePrevPage} 
+            disabled={currentPage === 1}
+            className="bg-background"
+          >
             Previous
           </Button>
-          <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage === totalPages}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleNextPage} 
+            disabled={currentPage === totalPages}
+            className="bg-background"
+          >
             Next
           </Button>
         </div>

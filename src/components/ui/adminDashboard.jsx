@@ -18,8 +18,10 @@ import {
 } from "@/components/ui/card";
 
 import { UsersTable } from "@/components/ui/user-table";
+import { useTheme } from "@/components/theme-provider";
 
 function AdminDashboard() {
+  const { theme } = useTheme();
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
@@ -35,12 +37,12 @@ function AdminDashboard() {
   }, []);
 
   return (
-    <Card className="w-full bg-neutral-50">
+    <Card className="w-full bg-card">
       <CardHeader>
-        <h2 className="text-lg font-bold">Users</h2>
-        <p className="text-sm text-muted-foreground">
+        <CardTitle className="text-foreground">Users</CardTitle>
+        <CardDescription className="text-muted-foreground">
           View, edit and add more users to collaborate
-        </p>
+        </CardDescription>
       </CardHeader>
 
       <CardContent>

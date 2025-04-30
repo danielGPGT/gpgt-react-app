@@ -3,6 +3,7 @@ import api from "@/lib/api";
 import { MonitorPlay, Umbrella, Hash, CheckCircle } from "lucide-react";
 import { parse } from "date-fns";
 import { differenceInCalendarDays } from "date-fns";
+import { useTheme } from "@/components/theme-provider";
 
 import {
   Select,
@@ -69,6 +70,7 @@ function ExternalPricing({
   selectedCurrency,
   setSelectedCurrency
 }) {
+  const { theme } = useTheme();
   const [selectedSport, setSelectedSport] = useState("");
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [sports, setSports] = useState([]);
@@ -427,13 +429,13 @@ function ExternalPricing({
   }
 
   return (
-    <div className="p-4 space-y-4 bg-neutral-50 rounded-md border shadow-sm w-full max-w-6xl mx-auto">
+    <div className="p-4 space-y-4 bg-card rounded-md border shadow-sm w-full max-w-6xl mx-auto">
       {/* Event & Package */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <h2 className="text-xs font-semibold mb-1">Select Sport</h2>
+          <h2 className="text-xs font-semibold mb-1 text-foreground">Select Sport</h2>
           <Select value={selectedSport} onValueChange={setSelectedSport}>
-            <SelectTrigger className="w-full h-9 text-sm bg-white">
+            <SelectTrigger className="w-full h-9 text-sm bg-background">
               <SelectValue placeholder="All Sports" />
             </SelectTrigger>
             <SelectContent>
@@ -448,9 +450,9 @@ function ExternalPricing({
         </div>
 
         <div>
-          <h2 className="text-xs font-semibold mb-1">Select Event</h2>
+          <h2 className="text-xs font-semibold mb-1 text-foreground">Select Event</h2>
           <Select onValueChange={handleEventSelect}>
-            <SelectTrigger className="w-full h-9 text-sm bg-white">
+            <SelectTrigger className="w-full h-9 text-sm bg-background">
               <SelectValue placeholder="Choose event" />
             </SelectTrigger>
             <SelectContent>
@@ -464,15 +466,15 @@ function ExternalPricing({
         </div>
         {selectedEvent && (
           <div>
-            <h2 className="text-xs font-semibold mb-1">Select Package</h2>
+            <h2 className="text-xs font-semibold mb-1 text-foreground">Select Package</h2>
             {loadingPackages ? (
-              <div className="text-xs">Loading packages...</div>
+              <div className="text-xs text-muted-foreground">Loading packages...</div>
             ) : (
               <Select
                 onValueChange={handlePackageSelect}
-                value={selectedPackage?.package_id} // 👈 THIS LINE: make the Select controlled
+                value={selectedPackage?.package_id}
               >
-                <SelectTrigger className="w-full bg-white">
+                <SelectTrigger className="w-full bg-background">
                   <SelectValue placeholder="Choose a package..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -491,18 +493,18 @@ function ExternalPricing({
       <div className="flex w-full justify-between items-end gap-4">
         {/* Hotel */}
         {selectedPackage && (
-          <div className=" gap-4 w-full">
+          <div className="gap-4 w-full">
             <div>
-              <h2 className="text-xs font-semibold mb-1">Select Hotel</h2>
+              <h2 className="text-xs font-semibold mb-1 text-foreground">Select Hotel</h2>
               {loadingHotels ? (
-                <div className="text-xs">Loading hotels...</div>
+                <div className="text-xs text-muted-foreground">Loading hotels...</div>
               ) : (
                 <Select onValueChange={(id) => handleHotelSelect(id)}>
-                  <SelectTrigger className="w-full h-9 text-sm bg-white">
+                  <SelectTrigger className="w-full h-9 text-sm bg-background">
                     <SelectValue placeholder="Choose hotel" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="none">No Hotel</SelectItem>
                     {hotels.map((hotel) => (
                       <SelectItem key={hotel.hotel_id} value={hotel.hotel_id}>
                         {hotel.hotel_name}{" "}
@@ -520,7 +522,7 @@ function ExternalPricing({
         {/* Adults */}
         {selectedPackage && (
           <div className="flex items-center gap-4 w-full justify-end">
-            <h2 className="text-xs font-semibold">Adults</h2>
+            <h2 className="text-xs font-semibold text-foreground">Adults</h2>
             <QuantitySelector
               value={numberOfAdults}
               onChange={setNumberOfAdults}
@@ -532,8 +534,8 @@ function ExternalPricing({
       </div>
 
       {selectedHotel && (
-        <div className="p-3 border rounded-md space-y-1 bg-white">
-          <h2 className="text-xs font-semibold">Select Room</h2>
+        <div className="p-3 border rounded-md space-y-1 bg-card">
+          <h2 className="text-xs font-semibold text-foreground">Select Room</h2>
 
           {loadingRooms ? (
             <div className="text-xs text-muted-foreground">
@@ -541,7 +543,7 @@ function ExternalPricing({
             </div>
           ) : (
             <Select onValueChange={handleRoomSelect}>
-              <SelectTrigger className="w-full h-8 text-xs bg-white">
+              <SelectTrigger className="w-full h-8 text-xs bg-background">
                 <SelectValue placeholder="Choose a room..." />
               </SelectTrigger>
               <SelectContent>
@@ -550,7 +552,7 @@ function ExternalPricing({
                     key={room.room_id}
                     value={room.room_id}
                     className="text-xs"
-                    disabled={parseInt(room.remaining) <= 0} // Disable if no remaining
+                    disabled={parseInt(room.remaining) <= 0}
                   >
                     {room.room_category} - {room.room_type}
                     {parseInt(room.remaining) > 0
@@ -563,16 +565,14 @@ function ExternalPricing({
           )}
 
           {selectedRoom && (
-            <div className="flex justify-between gap-4 pt-3 text-xs align-bottom items-end ">
-              {/* Left Info */}
+            <div className="flex justify-between gap-4 pt-3 text-xs align-bottom items-end">
               <div className="space-y-0">
-                {/* Dialog Trigger */}
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-fit text-xs bg-primary text-white pointer-events-auto"
+                      className="w-fit text-xs bg-primary text-primary-foreground pointer-events-auto"
                     >
                       More Room info
                     </Button>
@@ -580,28 +580,27 @@ function ExternalPricing({
 
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle className="mb-2">{selectedRoom.room_category} - {selectedRoom.room_type}</DialogTitle>
+                      <DialogTitle className="mb-2 text-foreground">{selectedRoom.room_category} - {selectedRoom.room_type}</DialogTitle>
                       <DialogDescription>
                         Room details for{" "}
-                        <strong>{selectedRoom.hotel_name}</strong>
+                        <strong className="text-foreground">{selectedRoom.hotel_name}</strong>
                       </DialogDescription>
                     </DialogHeader>
 
-                    <div className="text-sm text-gray-700 mt-2 space-y-2">
-                      {/* Room Details */}
+                    <div className="text-sm text-muted-foreground mt-2 space-y-2">
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2">
-                          <p className="font-semibold">Room Category:</p>
+                          <p className="font-semibold text-foreground">Room Category:</p>
                           <p>{selectedRoom.room_category}</p>
-                          <p className="font-semibold">Room Type:</p>
+                          <p className="font-semibold text-foreground">Room Type:</p>
                           <p>{selectedRoom.room_type}</p>
-                          <p className="font-semibold">Flexibility:</p>
+                          <p className="font-semibold text-foreground">Flexibility:</p>
                           <p>{selectedRoom.room_flexibility}</p>
-                          <p className="font-semibold">Max Guests:</p>
+                          <p className="font-semibold text-foreground">Max Guests:</p>
                           <p>{selectedRoom.max_guests}</p>
-                          <p className="font-semibold">Breakfast:</p>
+                          <p className="font-semibold text-foreground">Breakfast:</p>
                           <p>{selectedRoom["breakfast_(2_people)"]}</p>
-                          <p className="font-semibold">Rooms Available:</p>
+                          <p className="font-semibold text-foreground">Rooms Available:</p>
                           <p>{selectedRoom.remaining}</p>
                         </div>
                       </div>
@@ -612,7 +611,7 @@ function ExternalPricing({
                   </DialogContent>
                 </Dialog>
                 <div className="pt-2">
-                  <p className="font-semibold mb-1">Check in - Check out:</p>
+                  <p className="font-semibold mb-1 text-foreground">Check in - Check out:</p>
                   <DatePickerWithRange
                     date={dateRange}
                     setDate={handleDateChange}
@@ -620,11 +619,10 @@ function ExternalPricing({
                 </div>
               </div>
 
-              {/* Right Quantity + Pricing */}
               <div className="space-y-2">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 mb-4">
-                    <p className="font-semibold">Room Quantity</p>
+                    <p className="font-semibold text-foreground">Room Quantity</p>
                     <p className="text-muted-foreground">(Max {selectedRoom.max_guests} guests per room)</p>
                   </div>
                   <QuantitySelector
@@ -642,10 +640,10 @@ function ExternalPricing({
 
       {/* Ticket */}
       {selectedPackage && (
-        <div className="p-3 border rounded-md space-y-2 bg-white">
-          <h2 className="text-xs font-semibold">Select Ticket</h2>
+        <div className="p-3 border rounded-md space-y-2 bg-card">
+          <h2 className="text-xs font-semibold text-foreground">Select Ticket</h2>
           {loadingTickets ? (
-            <div className="text-xs">Loading tickets...</div>
+            <div className="text-xs text-muted-foreground">Loading tickets...</div>
           ) : (
             <Select
               onValueChange={(ticketId) => {
@@ -653,18 +651,18 @@ function ExternalPricing({
                 setSelectedTicket(found);
               }}
             >
-              <SelectTrigger className="w-full h-9 text-sm bg-white">
+              <SelectTrigger className="w-full h-9 text-sm bg-background">
                 <SelectValue placeholder="Choose ticket" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="none">No Ticket</SelectItem>
                 {tickets.map((ticket) => (
                   <SelectItem
                     key={ticket.ticket_id}
                     value={ticket.ticket_id}
-                    disabled={parseInt(ticket.remaining) <= 0} // Disable if no remaining
+                    disabled={parseInt(ticket.remaining) <= 0}
                     className={`text-xs ${
-                      parseInt(ticket.remaining) <= 0 ? "text-gray-400" : ""
+                      parseInt(ticket.remaining) <= 0 ? "text-muted-foreground" : ""
                     }`}
                   >
                     {ticket.ticket_name}{" "}
@@ -680,13 +678,12 @@ function ExternalPricing({
           {selectedTicket && (
             <div className="flex items-center justify-between gap-4 text-xs pt-2 w-full">
               <div className="flex flex-col gap-2">
-                {/* Dialog Trigger */}
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-fit text-xs bg-primary text-white pointer-events-auto"
+                      className="w-fit text-xs bg-primary text-primary-foreground pointer-events-auto"
                     >
                       More Ticket info
                     </Button>
@@ -694,50 +691,45 @@ function ExternalPricing({
 
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle className="mb-2">{selectedTicket.ticket_name}</DialogTitle>
+                      <DialogTitle className="mb-2 text-foreground">{selectedTicket.ticket_name}</DialogTitle>
                       <DialogDescription>
                         Ticket details for{" "}
-                        <strong>{selectedTicket.ticket_name}</strong>
+                        <strong className="text-foreground">{selectedTicket.ticket_name}</strong>
                       </DialogDescription>
                     </DialogHeader>
 
-                    <div className="text-sm text-gray-700 mt-2 space-y-2">
-                      {/* Ticket Type */}
+                    <div className="text-sm text-muted-foreground mt-2 space-y-2">
                       <div>
-                        <p className="font-semibold">Ticket Type: {selectedTicket.ticket_type}</p>
+                        <p className="font-semibold text-foreground">Ticket Type: {selectedTicket.ticket_type}</p>
                       </div>
 
-                      {/* Event Days */}
                       <div>
-                        <p className="font-semibold">Event Days: {selectedTicket.event_days}</p>
-                          
-          
+                        <p className="font-semibold text-foreground">Event Days: {selectedTicket.event_days}</p>
                       </div>
 
-                      {/* Icons */}
                       <div className="flex items-center gap-2 pt-2">
                         {selectedTicket.video_wall && (
                           <Badge>
-                          <div className="flex items-center gap-1 text-xs text-white">
-                            <MonitorPlay className="w-4 h-4 text-white" />
-                            <span>Video Wall</span>
-                          </div>
+                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
+                              <MonitorPlay className="w-4 h-4 text-primary-foreground" />
+                              <span>Video Wall</span>
+                            </div>
                           </Badge>
                         )}
                         {selectedTicket.covered_seat && (
                           <Badge>
-                          <div className="flex items-center gap-1 text-xs text-white">
-                            <Umbrella className="w-4 h-4 text-white" />
-                            <span>Covered Seat</span>
-                          </div>
+                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
+                              <Umbrella className="w-4 h-4 text-primary-foreground" />
+                              <span>Covered Seat</span>
+                            </div>
                           </Badge>
                         )}
                         {selectedTicket.numbered_seat && (
                           <Badge>
-                          <div className="flex items-center gap-1 text-xs text-white">
-                            <Hash className="w-4 h-4 text-white" />
-                            <span>Numbered Seat</span>
-                          </div>
+                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
+                              <Hash className="w-4 h-4 text-primary-foreground" />
+                              <span>Numbered Seat</span>
+                            </div>
                           </Badge>
                         )}
                       </div>
@@ -749,7 +741,6 @@ function ExternalPricing({
                 </Dialog>
               </div>
 
-              {/* Quantity selector */}
               <QuantitySelector
                 value={ticketQuantity}
                 onChange={setTicketQuantity}
@@ -762,10 +753,10 @@ function ExternalPricing({
       )}
 
       {selectedHotel && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Circuit Transfer */}
-          <div className="p-3 border rounded-md space-y-2 bg-white">
-            <h2 className="text-xs font-semibold">Circuit Transfer</h2>
+          <div className="p-3 border rounded-md space-y-2 bg-card">
+            <h2 className="text-xs font-semibold text-foreground">Circuit Transfer</h2>
             {loadingCircuitTransfers ? (
               <div className="text-xs text-muted-foreground">Loading...</div>
             ) : (
@@ -777,11 +768,11 @@ function ExternalPricing({
                   setSelectedCircuitTransfer(found);
                 }}
               >
-                <SelectTrigger className="w-full h-8 text-xs bg-white">
+                <SelectTrigger className="w-full h-8 text-xs bg-background">
                   <SelectValue placeholder="Select circuit transfer" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">No Circuit Transfer</SelectItem>
                   {circuitTransfers.map((transfer) => (
                     <SelectItem
                       key={transfer.circuit_transfer_id}
@@ -797,8 +788,8 @@ function ExternalPricing({
           </div>
 
           {/* Airport Transfer */}
-          <div className="p-3 border rounded-md space-y-2 bg-white">
-            <h2 className="text-xs font-semibold">Airport Transfer</h2>
+          <div className="p-3 border rounded-md space-y-2 bg-card">
+            <h2 className="text-xs font-semibold text-foreground">Airport Transfer</h2>
             {loadingAirportTransfers ? (
               <div className="text-xs text-muted-foreground">Loading...</div>
             ) : (
@@ -810,11 +801,11 @@ function ExternalPricing({
                   setSelectedAirportTransfer(found);
                 }}
               >
-                <SelectTrigger className="w-full h-8 text-xs bg-white">
+                <SelectTrigger className="w-full h-8 text-xs bg-background">
                   <SelectValue placeholder="Select airport transfer" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">No Airport Transfer</SelectItem>
                   {airportTransfers.map((transfer) => (
                     <SelectItem
                       key={transfer.airport_transfer_id}
@@ -829,7 +820,7 @@ function ExternalPricing({
             )}
 
             {selectedAirportTransfer && (
-              <p className="text-xs pt-1">
+              <p className="text-xs pt-1 text-foreground">
                 Transfers Needed:{" "}
                 {Math.ceil(
                   numberOfAdults / (selectedAirportTransfer.max_capacity || 1)
@@ -842,10 +833,10 @@ function ExternalPricing({
 
       {/* Flights */}
       {selectedEvent && (
-        <div className="p-3 border rounded-md space-y-2 bg-white">
-          <h2 className="text-xs font-semibold">Flight</h2>
+        <div className="p-3 border rounded-md space-y-2 bg-card">
+          <h2 className="text-xs font-semibold text-foreground">Flight</h2>
           {loadingFlights ? (
-            <div className="text-xs">Loading flights...</div>
+            <div className="text-xs text-muted-foreground">Loading flights...</div>
           ) : (
             <Select
               onValueChange={(id) => {
@@ -853,14 +844,14 @@ function ExternalPricing({
                 setSelectedFlight(found);
               }}
             >
-              <SelectTrigger className="w-full h-9 text-sm bg-white">
+              <SelectTrigger className="w-full h-9 text-sm bg-background">
                 <SelectValue placeholder="Select flight" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="none">No Flights</SelectItem>
                 {flights.map((flight) => (
                   <SelectItem key={flight.flight_id} value={flight.flight_id}>
-                    {flight.airline} • {flight.class} • £{flight.price}
+                    {flight.airline} • {flight.class} • {currencySymbols[selectedCurrency]}{flight.price}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -869,9 +860,9 @@ function ExternalPricing({
 
           {selectedFlight && (
             <div className="text-xs space-y-1 pt-1">
-              <p>Outbound: {selectedFlight.outbound_flight}</p>
-              <p>Inbound: {selectedFlight.inbound_flight}</p>
-              <p>Price (pp): £{selectedFlight.price}</p>
+              <p className="text-foreground">Outbound: {selectedFlight.outbound_flight}</p>
+              <p className="text-foreground">Inbound: {selectedFlight.inbound_flight}</p>
+              <p className="text-foreground">Price (pp): {currencySymbols[selectedCurrency]}{selectedFlight.price}</p>
             </div>
           )}
         </div>
@@ -879,10 +870,10 @@ function ExternalPricing({
 
       {/* Lounge Pass */}
       {selectedEvent && (
-        <div className="p-3 border rounded-md space-y-2 bg-white">
-          <h2 className="text-xs font-semibold">Lounge Pass</h2>
+        <div className="p-3 border rounded-md space-y-2 bg-card">
+          <h2 className="text-xs font-semibold text-foreground">Lounge Pass</h2>
           {loadingLoungePasses ? (
-            <div className="text-xs">Loading lounge passes...</div>
+            <div className="text-xs text-muted-foreground">Loading lounge passes...</div>
           ) : (
             <Select
               onValueChange={(id) => {
@@ -893,11 +884,11 @@ function ExternalPricing({
                 setLoungePassQuantity(1);
               }}
             >
-              <SelectTrigger className="w-full h-9 text-sm bg-white">
+              <SelectTrigger className="w-full h-9 text-sm bg-background">
                 <SelectValue placeholder="Select lounge pass" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="none">No Lounge Pass</SelectItem>
                 {loungePasses.map((lp) => (
                   <SelectItem key={lp.lounge_pass_id} value={lp.lounge_pass_id}>
                     {lp.variant}
@@ -909,7 +900,7 @@ function ExternalPricing({
 
           {selectedLoungePass && (
             <div className="flex items-center justify-between pt-1 text-xs">
-              <span>Quantity:</span>
+              <span className="text-foreground">Quantity:</span>
               <QuantitySelector
                 value={loungePassQuantity}
                 onChange={setLoungePassQuantity}
@@ -925,7 +916,7 @@ function ExternalPricing({
       <div className="pt-4 space-y-2">
         <div className="flex gap-6 items-center">
           <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-            <SelectTrigger className="text-xs bg-white">
+            <SelectTrigger className="text-xs bg-background">
               <SelectValue placeholder="Select currency" />
             </SelectTrigger>
             <SelectContent>
@@ -937,22 +928,21 @@ function ExternalPricing({
             </SelectContent>
           </Select>
 
-          <h2 className="text-lg font-bold">
+          <h2 className="text-lg font-bold text-foreground">
             Total: {currencySymbols[selectedCurrency]}
             {Number(totalPrice).toFixed(0)}
           </h2>
-          <p className="text-xs font-normal">
-            {" "}
+          <p className="text-xs font-normal text-muted-foreground">
             (10% Commission is payable on the total price.)
           </p>
         </div>
         {salesTeams.length > 0 ? (
-          <div className="mt-4 p-4 space-y-2 rounded-md border shadow-sm bg-white ">
-            <h3 className="text-sm">For more info contact our sales team:</h3>
-            <p className="text-sm font-semibold">
+          <div className="mt-4 p-4 space-y-2 rounded-md border shadow-sm bg-card">
+            <h3 className="text-sm text-foreground">For more info contact our sales team:</h3>
+            <p className="text-sm font-semibold text-foreground">
               Name: {salesTeams[0].first_name} {salesTeams[0].last_name}
             </p>
-            <p className="text-sm font-semibold">
+            <p className="text-sm font-semibold text-foreground">
               Email:{" "}
               <a
                 href={`mailto:${salesTeams[0].email}`}
@@ -961,7 +951,7 @@ function ExternalPricing({
                 {salesTeams[0].email}
               </a>
             </p>
-            <p className="text-sm font-semibold">
+            <p className="text-sm font-semibold text-foreground">
               Phone:{" "}
               <a
                 href={`tel:${salesTeams[0].phone}`}

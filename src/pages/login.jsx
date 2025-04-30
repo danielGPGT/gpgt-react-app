@@ -95,10 +95,10 @@ function Login() {
               type="password"
               required
             />
-            {error && <div className="text-red-500 text-sm">{error}</div>}
+            {error && <div className="text-primary text-sm">{error}</div>}
             <Button
               type="submit"
-              className="w-full bg-red-600 hover:bg-red-700"
+              className="w-full"
             >
               Sign In
             </Button>

@@ -3,6 +3,18 @@ import api from "@/lib/api";
 import { Star } from "lucide-react";
 import { parse } from "date-fns";
 import { differenceInCalendarDays } from "date-fns";
+import { MonitorPlay, Umbrella, Hash, CheckCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 import {
   Select,
@@ -13,29 +25,81 @@ import {
 } from "@/components/ui/select";
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { DatePickerWithRange } from "@/components/ui/date-picker-range";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useTheme } from "@/components/theme-provider";
 
 function InternalPricing({
   numberOfAdults,
   setNumberOfAdults,
   totalPrice,
   setTotalPrice,
+  selectedCurrency,
+  setSelectedCurrency,
+  selectedEvent,
+  setSelectedEvent,
+  selectedPackage,
+  setSelectedPackage,
+  selectedHotel,
+  setSelectedHotel,
+  selectedRoom,
+  setSelectedRoom,
+  selectedTicket,
+  setSelectedTicket,
+  selectedFlight,
+  setSelectedFlight,
+  selectedLoungePass,
+  setSelectedLoungePass,
+  selectedCircuitTransfer,
+  setSelectedCircuitTransfer,
+  selectedAirportTransfer,
+  setSelectedAirportTransfer,
+  roomQuantity,
+  setRoomQuantity,
+  ticketQuantity,
+  setTicketQuantity,
+  loungePassQuantity,
+  setLoungePassQuantity,
+  circuitTransferQuantity,
+  setCircuitTransferQuantity,
+  airportTransferQuantity,
+  setAirportTransferQuantity,
+  createFlightBooking,
+  setCreateFlightBooking,
+  flightPNR,
+  setFlightPNR,
+  ticketingDeadline,
+  setTicketingDeadline,
+  paymentStatus,
+  setPaymentStatus,
+  createLoungeBooking,
+  setCreateLoungeBooking,
+  loungeBookingRef,
+  setLoungeBookingRef,
 }) {
+  const { theme } = useTheme();
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState(null);
 
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState(null);
 
   const [hotels, setHotels] = useState([]);
   const [loadingHotels, setLoadingHotels] = useState(false);
-  const [selectedHotel, setSelectedHotel] = useState(null);
-  const [roomQuantity, setRoomQuantity] = useState(1);
 
   const [rooms, setRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
-  const [selectedRoom, setSelectedRoom] = useState(null);
   const [dateRange, setDateRange] = useState({
     from: null,
     to: null,
@@ -43,27 +107,18 @@ function InternalPricing({
 
   const [tickets, setTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [ticketQuantity, setTicketQuantity] = useState(1);
 
   const [circuitTransfers, setCircuitTransfers] = useState([]);
   const [loadingCircuitTransfers, setLoadingCircuitTransfers] = useState(false);
-  const [selectedCircuitTransfer, setSelectedCircuitTransfer] = useState(null);
-  const [circuitTransferQuantity, setCircuitTransferQuantity] = useState(1);
 
   const [airportTransfers, setAirportTransfers] = useState([]);
   const [loadingAirportTransfers, setLoadingAirportTransfers] = useState(false);
-  const [selectedAirportTransfer, setSelectedAirportTransfer] = useState(null);
-  const [airportTransferQuantity, setAirportTransferQuantity] = useState(1);
 
   const [flights, setFlights] = useState([]);
   const [loadingFlights, setLoadingFlights] = useState(false);
-  const [selectedFlight, setSelectedFlight] = useState(null);
 
   const [loungePasses, setLoungePasses] = useState([]);
   const [loadingLoungePasses, setLoadingLoungePasses] = useState(false);
-  const [selectedLoungePass, setSelectedLoungePass] = useState(null);
-  const [loungePassQuantity, setLoungePassQuantity] = useState(1);
 
   const [originalNights, setOriginalNights] = useState(0);
 
@@ -81,7 +136,6 @@ function InternalPricing({
   const ASK_SPREAD = 0.5 * 0.1; // 0.5% ask added to every exchange rate
 
   // Inside your Events component
-  const [selectedCurrency, setSelectedCurrency] = useState("GBP");
   const [exchangeRate, setExchangeRate] = useState(1);
 
   async function fetchExchangeRate(base = "GBP", target = "USD") {
@@ -216,79 +270,31 @@ function InternalPricing({
     setSelectedPackage(null);
     setSelectedHotel(null);
     setSelectedRoom(null);
+    setSelectedTicket(null);
+    setSelectedCircuitTransfer(null);
+    setSelectedAirportTransfer(null);
     setSelectedFlight(null);
-    setPackages([]);
-    setHotels([]);
-    setRooms([]);
-    setFlights([]);
-    setLoungePasses([]);
+    setSelectedLoungePass(null);
+    setDateRange({ from: null, to: null });
+    setOriginalNights(0);
 
     if (foundEvent) {
       try {
         setLoadingPackages(true);
+        const res = await api.get("/packages", { params: { eventId: foundEvent.event_id } });
+        setPackages(res.data);
+
+        // Fetch flights and lounge passes for this event
         setLoadingFlights(true);
         setLoadingLoungePasses(true);
-
-        const [packagesRes, flightsRes, loungePassesRes] = await Promise.all([
-          api.get("/packages", { params: { eventId: foundEvent.event_id } }),
+        const [flightsRes, loungeRes] = await Promise.all([
           api.get("/flights", { params: { eventId: foundEvent.event_id } }),
-          api.get("/lounge-passes", {
-            params: { eventId: foundEvent.event_id },
-          }),
+          api.get("/lounge-passes", { params: { eventId: foundEvent.event_id } })
         ]);
-
-        setPackages(packagesRes.data);
         setFlights(flightsRes.data);
-        setLoungePasses(loungePassesRes.data);
-
-        // ⚡ AUTO SELECT FIRST PACKAGE based on the response directly
-        if (packagesRes.data.length > 0) {
-          const firstPackage = packagesRes.data[0];
-          setSelectedPackage(firstPackage);
-
-          // 🔥 Instead of calling handlePackageSelect immediately, replicate its logic here
-          const foundPackage = firstPackage;
-          setSelectedHotel(null);
-          setSelectedRoom(null);
-          setHotels([]);
-          setRooms([]);
-          setTickets([]);
-          setSelectedTicket(null);
-
-          if (foundPackage) {
-            try {
-              setLoadingHotels(true);
-              setLoadingTickets(true);
-
-              const [hotelsRes, ticketsRes] = await Promise.all([
-                api.get("/hotels", {
-                  params: { packageId: foundPackage.package_id },
-                }),
-                api.get("/tickets", {
-                  params: { packageId: foundPackage.package_id },
-                }),
-              ]);
-
-              setHotels(hotelsRes.data);
-              setTickets(ticketsRes.data);
-            } catch (error) {
-              console.error(
-                "Failed to fetch hotels or tickets:",
-                error.message
-              );
-              setHotels([]);
-              setTickets([]);
-            } finally {
-              setLoadingHotels(false);
-              setLoadingTickets(false);
-            }
-          }
-        }
+        setLoungePasses(loungeRes.data);
       } catch (error) {
-        console.error("Failed to fetch packages or flights:", error.message);
-        setPackages([]);
-        setFlights([]);
-        setLoungePasses([]);
+        console.error("Failed to fetch event data:", error.message);
       } finally {
         setLoadingPackages(false);
         setLoadingFlights(false);
@@ -300,33 +306,30 @@ function InternalPricing({
   const handlePackageSelect = async (packageId) => {
     const foundPackage = packages.find((pkg) => pkg.package_id === packageId);
     setSelectedPackage(foundPackage);
+
+    // Reset dependent states
     setSelectedHotel(null);
     setSelectedRoom(null);
-    setHotels([]);
-    setRooms([]);
-    setTickets([]);
     setSelectedTicket(null);
+    setSelectedCircuitTransfer(null);
+    setSelectedAirportTransfer(null);
+    setSelectedFlight(null);
+    setSelectedLoungePass(null);
+    setDateRange({ from: null, to: null });
+    setOriginalNights(0);
 
     if (foundPackage) {
       try {
         setLoadingHotels(true);
         setLoadingTickets(true);
-
         const [hotelsRes, ticketsRes] = await Promise.all([
-          api.get("/hotels", {
-            params: { packageId: foundPackage.package_id },
-          }),
-          api.get("/tickets", {
-            params: { packageId: foundPackage.package_id },
-          }),
+          api.get("/hotels", { params: { packageId: foundPackage.package_id } }),
+          api.get("/tickets", { params: { packageId: foundPackage.package_id } })
         ]);
-
         setHotels(hotelsRes.data);
         setTickets(ticketsRes.data);
       } catch (error) {
-        console.error("Failed to fetch hotels or tickets:", error.message);
-        setHotels([]);
-        setTickets([]);
+        console.error("Failed to fetch package data:", error.message);
       } finally {
         setLoadingHotels(false);
         setLoadingTickets(false);
@@ -337,40 +340,32 @@ function InternalPricing({
   const handleHotelSelect = async (hotelId) => {
     const foundHotel = hotels.find((hotel) => hotel.hotel_id === hotelId);
     setSelectedHotel(foundHotel);
+
+    // Reset dependent states
     setSelectedRoom(null);
+    setSelectedTicket(null);
     setSelectedCircuitTransfer(null);
-    setRooms([]);
-    setCircuitTransfers([]);
-    setAirportTransfers([]);
+    setSelectedAirportTransfer(null);
+    setDateRange({ from: null, to: null });
+    setOriginalNights(0);
 
     if (foundHotel) {
       try {
         setLoadingRooms(true);
+        const res = await api.get("/rooms", { params: { hotelId: foundHotel.hotel_id } });
+        setRooms(res.data);
+
+        // Fetch circuit and airport transfers for this hotel
         setLoadingCircuitTransfers(true);
         setLoadingAirportTransfers(true);
-
-        const [roomsRes, circuitTransfersRes, airportTransfersRes] =
-          await Promise.all([
-            api.get("/rooms", { params: { hotelId: foundHotel.hotel_id } }),
-            api.get("/circuit-transfers", {
-              params: { hotelId: foundHotel.hotel_id },
-            }),
-            api.get("/airport-transfers", {
-              params: { hotelId: foundHotel.hotel_id },
-            }),
-          ]);
-
-        setRooms(roomsRes.data);
-        setCircuitTransfers(circuitTransfersRes.data);
-        setAirportTransfers(airportTransfersRes.data);
+        const [circuitRes, airportRes] = await Promise.all([
+          api.get("/circuit-transfers", { params: { hotelId: foundHotel.hotel_id } }),
+          api.get("/airport-transfers", { params: { hotelId: foundHotel.hotel_id } })
+        ]);
+        setCircuitTransfers(circuitRes.data);
+        setAirportTransfers(airportRes.data);
       } catch (error) {
-        console.error(
-          "Failed to fetch rooms, circuit transfers, or airport transfers found:",
-          error.message
-        );
-        setRooms([]);
-        setCircuitTransfers([]);
-        setAirportTransfers([]);
+        console.error("Failed to fetch hotel data:", error.message);
       } finally {
         setLoadingRooms(false);
         setLoadingCircuitTransfers(false);
@@ -379,9 +374,75 @@ function InternalPricing({
     }
   };
 
-  const handleRoomSelect = (roomId) => {
+  const handleRoomSelect = async (roomId) => {
     const foundRoom = rooms.find((room) => room.room_id === roomId);
     setSelectedRoom(foundRoom);
+
+    // Reset dependent states
+    setSelectedTicket(null);
+    setSelectedCircuitTransfer(null);
+    setSelectedAirportTransfer(null);
+    setDateRange({ from: null, to: null });
+    setOriginalNights(0);
+  };
+
+  const handleTicketSelect = async (ticketId) => {
+    const foundTicket = tickets.find((ticket) => ticket.ticket_id === ticketId);
+    setSelectedTicket(foundTicket);
+
+    // Reset dependent states
+    setSelectedCircuitTransfer(null);
+    setSelectedAirportTransfer(null);
+  };
+
+  const handleCircuitTransferSelect = async (transferId) => {
+    const foundTransfer = circuitTransfers.find(
+      (transfer) => transfer.circuit_transfer_id === transferId
+    );
+    setSelectedCircuitTransfer(foundTransfer);
+
+    // Reset dependent states
+    setSelectedAirportTransfer(null);
+    setSelectedFlight(null);
+    setSelectedLoungePass(null);
+  };
+
+  const handleAirportTransferSelect = async (transferId) => {
+    const foundTransfer = airportTransfers.find(
+      (transfer) => transfer.airport_transfer_id === transferId
+    );
+    setSelectedAirportTransfer(foundTransfer);
+
+    // Reset dependent states
+    setSelectedFlight(null);
+    setSelectedLoungePass(null);
+  };
+
+  const handleFlightSelect = async (flightId) => {
+    const foundFlight = flights.find((flight) => flight.flight_id === flightId);
+    setSelectedFlight(foundFlight);
+
+    // Reset dependent states
+    setSelectedLoungePass(null);
+
+    if (foundFlight) {
+      try {
+        setLoadingLoungePasses(true);
+        const res = await api.get("/lounge-passes", { params: { eventId: selectedEvent.event_id } });
+        setLoungePasses(res.data);
+      } catch (error) {
+        console.error("Failed to fetch lounge passes:", error.message);
+      } finally {
+        setLoadingLoungePasses(false);
+      }
+    }
+  };
+
+  const handleLoungePassSelect = (passId) => {
+    const foundPass = loungePasses.find(
+      (pass) => pass.lounge_pass_id === passId
+    );
+    setSelectedLoungePass(foundPass);
   };
 
   if (loadingEvents) {
@@ -389,13 +450,13 @@ function InternalPricing({
   }
 
   return (
-    <div className="p-4 space-y-4 bg-neutral-50 rounded-md border shadow-sm w-full max-w-6xl mx-auto">
+    <div className="p-4 space-y-4 bg-card rounded-md border shadow-sm w-full max-w-6xl mx-auto">
       {/* Event & Package */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <h2 className="text-xs font-semibold mb-1">Select Event</h2>
+          <h2 className="text-xs font-semibold mb-1 text-foreground">Select Event</h2>
           <Select onValueChange={handleEventSelect}>
-            <SelectTrigger className="w-full h-9 text-sm bg-white">
+            <SelectTrigger className="w-full h-9 text-sm bg-background">
               <SelectValue placeholder="Choose event" />
             </SelectTrigger>
             <SelectContent>
@@ -409,15 +470,15 @@ function InternalPricing({
         </div>
         {selectedEvent && (
           <div>
-            <h2 className="text-xs font-semibold mb-1">Select Package</h2>
+            <h2 className="text-xs font-semibold mb-1 text-foreground">Select Package</h2>
             {loadingPackages ? (
-              <div className="text-xs">Loading packages...</div>
+              <div className="text-xs text-muted-foreground">Loading packages...</div>
             ) : (
               <Select
                 onValueChange={handlePackageSelect}
-                value={selectedPackage?.package_id} // 👈 THIS LINE: make the Select controlled
+                value={selectedPackage?.package_id}
               >
-                <SelectTrigger className="w-full bg-white">
+                <SelectTrigger className="w-full bg-background">
                   <SelectValue placeholder="Choose a package..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -438,12 +499,12 @@ function InternalPricing({
         {selectedPackage && (
           <div className=" gap-4 w-full">
             <div>
-              <h2 className="text-xs font-semibold mb-1">Select Hotel</h2>
+              <h2 className="text-xs font-semibold mb-1 text-foreground">Select Hotel</h2>
               {loadingHotels ? (
-                <div className="text-xs">Loading hotels...</div>
+                <div className="text-xs text-muted-foreground">Loading hotels...</div>
               ) : (
                 <Select onValueChange={(id) => handleHotelSelect(id)}>
-                  <SelectTrigger className="w-full h-9 text-sm bg-white">
+                  <SelectTrigger className="w-full h-9 text-sm bg-background">
                     <SelectValue placeholder="Choose hotel" />
                   </SelectTrigger>
                   <SelectContent>
@@ -477,8 +538,8 @@ function InternalPricing({
       </div>
 
       {selectedHotel && (
-        <div className="p-3 border rounded-md space-y-1 bg-white">
-          <h2 className="text-xs font-semibold">Select Room</h2>
+        <div className="p-3 border rounded-md space-y-1 bg-card">
+          <h2 className="text-xs font-semibold text-foreground">Select Room</h2>
 
           {loadingRooms ? (
             <div className="text-xs text-muted-foreground">
@@ -486,7 +547,7 @@ function InternalPricing({
             </div>
           ) : (
             <Select onValueChange={handleRoomSelect}>
-              <SelectTrigger className="w-full h-8 text-xs bg-white">
+              <SelectTrigger className="w-full h-8 text-xs bg-background">
                 <SelectValue placeholder="Choose a room..." />
               </SelectTrigger>
               <SelectContent>
@@ -510,12 +571,54 @@ function InternalPricing({
           {selectedRoom && (
             <div className="flex justify-between gap-4 pt-3 text-xs align-bottom items-end ">
               {/* Left Info */}
-              <div className="space-y-2">
-                <p>
-                  <span className="font-semibold">Max Guests (per room):</span>{" "}
-                  {selectedRoom.max_guests}
-                </p>
+              <div className="space-y-0">
+                {/* Dialog Trigger */}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-fit text-xs bg-primary text-primary-foreground pointer-events-auto"
+                    >
+                      More Room info
+                    </Button>
+                  </DialogTrigger>
+
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="mb-2 text-foreground">{selectedRoom.room_category} - {selectedRoom.room_type}</DialogTitle>
+                      <DialogDescription>
+                        Room details for{" "}
+                        <strong className="text-foreground">{selectedRoom.hotel_name}</strong>
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="text-sm text-muted-foreground mt-2 space-y-2">
+                      {/* Room Details */}
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <p className="font-semibold text-foreground">Room Category:</p>
+                          <p>{selectedRoom.room_category}</p>
+                          <p className="font-semibold text-foreground">Room Type:</p>
+                          <p>{selectedRoom.room_type}</p>
+                          <p className="font-semibold text-foreground">Flexibility:</p>
+                          <p>{selectedRoom.room_flexibility}</p>
+                          <p className="font-semibold text-foreground">Max Guests:</p>
+                          <p>{selectedRoom.max_guests}</p>
+                          <p className="font-semibold text-foreground">Breakfast:</p>
+                          <p>{selectedRoom["breakfast_(2_people)"]}</p>
+                          <p className="font-semibold text-foreground">Rooms Available:</p>
+                          <p>{selectedRoom.remaining}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <DialogFooter className="pt-4">
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 <div className="pt-2">
+                  <p className="font-semibold mb-1 text-foreground">Check in - Check out:</p>
                   <DatePickerWithRange
                     date={dateRange}
                     setDate={handleDateChange}
@@ -526,7 +629,10 @@ function InternalPricing({
               {/* Right Quantity + Pricing */}
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <p className="font-semibold">Room Quantity</p>
+                  <div className="flex items-center gap-2 mb-4 align-items-end">
+                    <p className="font-semibold text-foreground">Room Quantity</p>
+                    <p className="text-muted-foreground">(Max {selectedRoom.max_guests} guests per room)</p>
+                  </div>
                   <QuantitySelector
                     value={roomQuantity}
                     onChange={setRoomQuantity}
@@ -542,29 +648,26 @@ function InternalPricing({
 
       {/* Ticket */}
       {selectedPackage && (
-        <div className="p-3 border rounded-md space-y-2 bg-white">
-          <h2 className="text-xs font-semibold">Select Ticket</h2>
+        <div className="p-3 border rounded-md space-y-2 bg-card">
+          <h2 className="text-xs font-semibold text-foreground">Select Ticket</h2>
           {loadingTickets ? (
-            <div className="text-xs">Loading tickets...</div>
+            <div className="text-xs text-muted-foreground">Loading tickets...</div>
           ) : (
             <Select
-              onValueChange={(ticketId) => {
-                const found = tickets.find((t) => t.ticket_id === ticketId);
-                setSelectedTicket(found);
-              }}
+              onValueChange={handleTicketSelect}
             >
-              <SelectTrigger className="w-full h-9 text-sm bg-white">
+              <SelectTrigger className="w-full h-9 text-sm bg-background">
                 <SelectValue placeholder="Choose ticket" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="none">No Ticket</SelectItem>
                 {tickets.map((ticket) => (
                   <SelectItem
                     key={ticket.ticket_id}
                     value={ticket.ticket_id}
                     disabled={parseInt(ticket.remaining) <= 0} // Disable if no remaining
                     className={`text-xs ${
-                      parseInt(ticket.remaining) <= 0 ? "text-gray-400" : ""
+                      parseInt(ticket.remaining) <= 0 ? "text-muted-foreground" : ""
                     }`}
                   >
                     {ticket.ticket_name}{" "}
@@ -578,10 +681,76 @@ function InternalPricing({
           )}
 
           {selectedTicket && (
-            <div className="flex items-center justify-between gap-4 text-xs pt-2">
-              <div>
-                <p>Event Days: {selectedTicket.event_days}</p>
+            <div className="flex items-center justify-between gap-4 text-xs pt-2 w-full">
+              <div className="flex flex-col gap-2">
+                {/* Dialog Trigger */}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-fit text-xs bg-primary text-primary-foreground pointer-events-auto"
+                    >
+                      More Ticket info
+                    </Button>
+                  </DialogTrigger>
+
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="mb-2 text-foreground">{selectedTicket.ticket_name}</DialogTitle>
+                      <DialogDescription>
+                        Ticket details for{" "}
+                        <strong className="text-foreground">{selectedTicket.ticket_name}</strong>
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="text-sm text-muted-foreground mt-2 space-y-2">
+                      {/* Ticket Type */}
+                      <div>
+                        <p className="font-semibold text-foreground">Ticket Type: {selectedTicket.ticket_type}</p>
+                      </div>
+
+                      {/* Event Days */}
+                      <div>
+                        <p className="font-semibold text-foreground">Event Days: {selectedTicket.event_days}</p>
+                      </div>
+
+                      {/* Icons */}
+                      <div className="flex items-center gap-2 pt-2">
+                        {selectedTicket.video_wall && (
+                          <Badge>
+                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
+                              <MonitorPlay className="w-4 h-4 text-primary-foreground" />
+                              <span>Video Wall</span>
+                            </div>
+                          </Badge>
+                        )}
+                        {selectedTicket.covered_seat && (
+                          <Badge>
+                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
+                              <Umbrella className="w-4 h-4 text-primary-foreground" />
+                              <span>Covered Seat</span>
+                            </div>
+                          </Badge>
+                        )}
+                        {selectedTicket.numbered_seat && (
+                          <Badge>
+                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
+                              <Hash className="w-4 h-4 text-primary-foreground" />
+                              <span>Numbered Seat</span>
+                            </div>
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <DialogFooter className="pt-4">
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
+
+              {/* Quantity selector */}
               <QuantitySelector
                 value={ticketQuantity}
                 onChange={setTicketQuantity}
@@ -596,20 +765,15 @@ function InternalPricing({
       {selectedHotel && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
           {/* Circuit Transfer */}
-          <div className="p-3 border rounded-md space-y-2 bg-white">
-            <h2 className="text-xs font-semibold">Circuit Transfer</h2>
+          <div className="p-3 border rounded-md space-y-2 bg-card">
+            <h2 className="text-xs font-semibold text-foreground">Circuit Transfer</h2>
             {loadingCircuitTransfers ? (
               <div className="text-xs text-muted-foreground">Loading...</div>
             ) : (
               <Select
-                onValueChange={(id) => {
-                  const found = circuitTransfers.find(
-                    (t) => t.circuit_transfer_id === id
-                  );
-                  setSelectedCircuitTransfer(found);
-                }}
+                onValueChange={handleCircuitTransferSelect}
               >
-                <SelectTrigger className="w-full h-8 text-xs bg-white">
+                <SelectTrigger className="w-full h-8 text-xs bg-background">
                   <SelectValue placeholder="Select circuit transfer" />
                 </SelectTrigger>
                 <SelectContent>
@@ -629,20 +793,15 @@ function InternalPricing({
           </div>
 
           {/* Airport Transfer */}
-          <div className="p-3 border rounded-md space-y-2 bg-white">
-            <h2 className="text-xs font-semibold">Airport Transfer</h2>
+          <div className="p-3 border rounded-md space-y-2 bg-card">
+            <h2 className="text-xs font-semibold text-foreground">Airport Transfer</h2>
             {loadingAirportTransfers ? (
               <div className="text-xs text-muted-foreground">Loading...</div>
             ) : (
               <Select
-                onValueChange={(id) => {
-                  const found = airportTransfers.find(
-                    (t) => t.airport_transfer_id === id
-                  );
-                  setSelectedAirportTransfer(found);
-                }}
+                onValueChange={handleAirportTransferSelect}
               >
-                <SelectTrigger className="w-full h-8 text-xs bg-white">
+                <SelectTrigger className="w-full h-8 text-xs bg-background">
                   <SelectValue placeholder="Select airport transfer" />
                 </SelectTrigger>
                 <SelectContent>
@@ -674,25 +833,22 @@ function InternalPricing({
 
       {/* Flights */}
       {selectedEvent && (
-        <div className="p-3 border rounded-md space-y-2 bg-white">
-          <h2 className="text-xs font-semibold">Flight</h2>
+        <div className="p-3 border rounded-md space-y-2 bg-card">
+          <h2 className="text-xs font-semibold text-foreground">Flight</h2>
           {loadingFlights ? (
-            <div className="text-xs">Loading flights...</div>
+            <div className="text-xs text-muted-foreground">Loading flights...</div>
           ) : (
             <Select
-              onValueChange={(id) => {
-                const found = flights.find((f) => f.flight_id === id);
-                setSelectedFlight(found);
-              }}
+              onValueChange={handleFlightSelect}
             >
-              <SelectTrigger className="w-full h-9 text-sm bg-white">
+              <SelectTrigger className="w-full h-9 text-sm bg-background">
                 <SelectValue placeholder="Select flight" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
                 {flights.map((flight) => (
                   <SelectItem key={flight.flight_id} value={flight.flight_id}>
-                    {flight.airline} • {flight.class} • £{flight.price}
+                    {flight.airline} • {flight.class} • {currencySymbols[selectedCurrency]}{flight.price}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -701,9 +857,76 @@ function InternalPricing({
 
           {selectedFlight && (
             <div className="text-xs space-y-1 pt-1">
-              <p>Outbound: {selectedFlight.outbound_flight}</p>
-              <p>Inbound: {selectedFlight.inbound_flight}</p>
-              <p>Price (pp): £{selectedFlight.price}</p>
+              <p className="text-foreground">Outbound: {selectedFlight.outbound_flight}</p>
+              <p className="text-foreground">Inbound: {selectedFlight.inbound_flight}</p>
+              <p className="text-foreground">Price (pp): {currencySymbols[selectedCurrency]}{selectedFlight.price}</p>
+              
+              <div className="flex items-center space-x-2 pt-2">
+                <Switch
+                  id="create-flight-booking"
+                  checked={createFlightBooking}
+                  onCheckedChange={(checked) => setCreateFlightBooking(checked)}
+                />
+                <Label htmlFor="create-flight-booking" className="text-sm font-medium text-foreground">
+                  Create Booking
+                </Label>
+              </div>
+
+              {createFlightBooking && (
+                <div className="space-y-2 pt-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-foreground">Flight PNR</Label>
+                    <Input
+                      placeholder="Enter PNR"
+                      value={flightPNR}
+                      onChange={(e) => setFlightPNR(e.target.value)}
+                      className="h-8 text-xs bg-background"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-foreground">Ticketing Deadline</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal h-8 text-xs bg-background",
+                            !ticketingDeadline && "text-muted-foreground"
+                          )}
+                        >
+                          {ticketingDeadline ? (
+                            format(ticketingDeadline, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={ticketingDeadline}
+                          onSelect={setTicketingDeadline}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-foreground">Payment Status</Label>
+                    <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                      <SelectTrigger className="h-8 text-xs bg-background">
+                        <SelectValue placeholder="Select payment status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="booked_ticketed_paid">Booked - Ticketed - Paid</SelectItem>
+                        <SelectItem value="booked_ticketed_not_paid">Booked - Ticketed - Not Paid</SelectItem>
+                        <SelectItem value="booked_not_ticketed">Booked - Not Ticketed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -711,28 +934,22 @@ function InternalPricing({
 
       {/* Lounge Pass */}
       {selectedEvent && (
-        <div className="p-3 border rounded-md space-y-2 bg-white">
-          <h2 className="text-xs font-semibold">Lounge Pass</h2>
+        <div className="p-3 border rounded-md space-y-2 bg-card">
+          <h2 className="text-xs font-semibold text-foreground">Lounge Pass</h2>
           {loadingLoungePasses ? (
-            <div className="text-xs">Loading lounge passes...</div>
+            <div className="text-xs text-muted-foreground">Loading lounge passes...</div>
           ) : (
             <Select
-              onValueChange={(id) => {
-                const found = loungePasses.find(
-                  (lp) => lp.lounge_pass_id === id
-                );
-                setSelectedLoungePass(found);
-                setLoungePassQuantity(1);
-              }}
+              onValueChange={handleLoungePassSelect}
             >
-              <SelectTrigger className="w-full h-9 text-sm bg-white">
+              <SelectTrigger className="w-full h-9 text-sm bg-background">
                 <SelectValue placeholder="Select lounge pass" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
                 {loungePasses.map((lp) => (
                   <SelectItem key={lp.lounge_pass_id} value={lp.lounge_pass_id}>
-                    {lp.variant} • £{lp.price}
+                    {lp.variant} • {currencySymbols[selectedCurrency]}{lp.price}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -740,14 +957,39 @@ function InternalPricing({
           )}
 
           {selectedLoungePass && (
-            <div className="flex items-center justify-between pt-1 text-xs">
-              <span>Quantity:</span>
-              <QuantitySelector
-                value={loungePassQuantity}
-                onChange={setLoungePassQuantity}
-                min={1}
-                max={10}
-              />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-foreground">Quantity:</span>
+                <QuantitySelector
+                  value={loungePassQuantity}
+                  onChange={setLoungePassQuantity}
+                  min={1}
+                  max={10}
+                />
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="create-lounge-booking"
+                  checked={createLoungeBooking}
+                  onCheckedChange={(checked) => setCreateLoungeBooking(checked)}
+                />
+                <Label htmlFor="create-lounge-booking" className="text-sm font-medium text-foreground">
+                  Create Booking
+                </Label>
+              </div>
+
+              {createLoungeBooking && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-foreground">Booking Reference</Label>
+                  <Input
+                    placeholder="Enter booking reference"
+                    value={loungeBookingRef}
+                    onChange={(e) => setLoungeBookingRef(e.target.value)}
+                    className="h-8 text-xs bg-background"
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -757,7 +999,7 @@ function InternalPricing({
       <div className="pt-4 space-y-2">
         <div className="flex gap-6 items-center">
           <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-            <SelectTrigger className="text-xs bg-white">
+            <SelectTrigger className="text-xs bg-background">
               <SelectValue placeholder="Select currency" />
             </SelectTrigger>
             <SelectContent>
@@ -769,7 +1011,7 @@ function InternalPricing({
             </SelectContent>
           </Select>
 
-          <h2 className="text-lg font-bold">
+          <h2 className="text-lg font-bold text-foreground">
             Total: {currencySymbols[selectedCurrency]}
             {Number(totalPrice).toFixed(0)}
           </h2>

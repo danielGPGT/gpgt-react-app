@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useTheme } from "@/components/theme-provider";
 
 import { jwtDecode } from "jwt-decode";
 import api from "@/lib/api";
@@ -40,10 +42,9 @@ const items = [
   },
 ];
 
-
-
 function AppSidebar() {
   const location = useLocation();
+  const { theme } = useTheme();
   const [user, setUser] = useState({
     first_name: "",
     last_name: "",
@@ -69,27 +70,27 @@ function AppSidebar() {
   };
 
   return (
-    <Sidebar>
-      <SidebarHeader className="flex flex-col mt-5 items-start gap-2 px-4 py-3 border-b border-gray-300">
+    <Sidebar className="bg-background border-r">
+      <SidebarHeader className="flex flex-col mt-5 items-start gap-2 px-4 py-3 border-b">
         <img
-          src="/src/assets/imgs/gpgt_logo_dark.svg"
+          src={theme === "dark" ? "/src/assets/imgs/gpgt_logo_light.svg" : "/src/assets/imgs/gpgt_logo_dark.svg"}
           alt="Grand Prix Logo"
           className="w-full hover:opacity-90 transition"
         />
-        <div className="text-left pt-2">
-          <h2 className="text-sm font-bold">
+        <div className="text-left pt-4">
+          <h2 className="text-sm font-bold text-foreground">
             {user.first_name} {user.last_name}
           </h2>
           <p className="text-sm text-primary font-semibold capitalize pt-3">
             {user.role}
           </p>
-          <p className="text-sm text-gray-500">{user.company}</p>
+          <p className="text-sm text-muted-foreground">{user.company}</p>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Quick Links</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-muted-foreground">Quick Links</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
@@ -99,7 +100,9 @@ function AppSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
-                      className={isActive ? "text-primary" : ""}
+                      className={`flex items-center gap-2 hover:bg-accent ${
+                        isActive ? "text-primary bg-accent" : "text-muted-foreground"
+                      }`}
                     >
                       <a href={item.url} className="flex items-center gap-2">
                         <item.icon className="w-4 h-4" />
@@ -114,15 +117,17 @@ function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer at the very bottom */}
       <SidebarFooter>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-primary rounded transition"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Logout</span>
-        </button>
+        <div className="flex flex-col gap-2">
+          <ThemeToggle />
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded transition"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

@@ -45,6 +45,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 
 // Initialize EmailJS with your public key
 emailjs.init("QzVZTjwyU9dQUmSDq");
@@ -96,6 +97,7 @@ function RequestBooking({
   dateRange,
   selectedCurrency
 }) {
+  const { theme } = useTheme();
   console.log('Transfer data:', {
     circuitTransfer: {
       fullObject: selectedCircuitTransfer,
@@ -359,17 +361,17 @@ function RequestBooking({
     <div className="w-8/12 space-y-4">
       {alertDialog && (
         <AlertDialog open={!!alertDialog} onOpenChange={() => setAlertDialog(null)}>
-          <AlertDialogContent className="max-w-2xl">
+          <AlertDialogContent className="max-w-2xl bg-card">
             <AlertDialogHeader>
-              <AlertDialogTitle>{alertDialog.title}</AlertDialogTitle>
-              <AlertDialogDescription className="text-left">
+              <AlertDialogTitle className="text-foreground">{alertDialog.title}</AlertDialogTitle>
+              <AlertDialogDescription className="text-left text-muted-foreground">
                 {alertDialog.description}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Close</AlertDialogCancel>
+              <AlertDialogCancel className="bg-background text-foreground">Close</AlertDialogCancel>
               {alertDialog.type === "error" && (
-                <AlertDialogAction onClick={() => setAlertDialog(null)}>
+                <AlertDialogAction onClick={() => setAlertDialog(null)} className="bg-primary text-primary-foreground">
                   Try Again
                 </AlertDialogAction>
               )}
@@ -382,10 +384,10 @@ function RequestBooking({
         <div className="w-full mx-auto">
           <form
             onSubmit={onSubmit}
-            className="p-4 space-y-4 bg-white rounded-md border-[1px] border-primary shadow-sm w-full max-w-6xl mx-auto"
+            className="p-4 space-y-4 bg-card rounded-md border-[1px] border shadow-sm w-full max-w-6xl mx-auto"
           >
             {/* Booker Details */}
-            <h2 className="max-w-150 pb-6">To create a booking with us, fill out the form below with the travellers details. 
+            <h2 className="max-w-150 pb-6 text-foreground">To create a booking with us, fill out the form below with the travellers details. 
               Once the request is created our sales team will be notified to process your booking.
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -394,9 +396,9 @@ function RequestBooking({
                 name="booker_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Booker Name</FormLabel>
+                    <FormLabel className="text-foreground">Booker Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter booker's name" {...field} />
+                      <Input placeholder="Enter booker's name" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -407,12 +409,13 @@ function RequestBooking({
                 name="booker_email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Booker Email</FormLabel>
+                    <FormLabel className="text-foreground">Booker Email</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
                         placeholder="Enter booker's email"
                         {...field}
+                        className="bg-background"
                       />
                     </FormControl>
                     <FormMessage />
@@ -424,9 +427,9 @@ function RequestBooking({
                 name="booker_phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Booker Phone</FormLabel>
+                    <FormLabel className="text-foreground">Booker Phone</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter booker's phone" {...field} />
+                      <Input placeholder="Enter booker's phone" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -435,15 +438,15 @@ function RequestBooking({
             </div>
 
             {/* Address Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
               <FormField
                 control={form.control}
                 name="address_line_1"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address Line 1</FormLabel>
+                    <FormLabel className="text-foreground">Address Line 1</FormLabel>
                     <FormControl>
-                      <Input placeholder="Address Line 1" {...field} />
+                      <Input placeholder="Address Line 1" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -454,9 +457,9 @@ function RequestBooking({
                 name="address_line_2"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address Line 2</FormLabel>
+                    <FormLabel className="text-foreground">Address Line 2</FormLabel>
                     <FormControl>
-                      <Input placeholder="Optional Address Line 2" {...field} />
+                      <Input placeholder="Optional Address Line 2" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -467,9 +470,9 @@ function RequestBooking({
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
+                    <FormLabel className="text-foreground">City</FormLabel>
                     <FormControl>
-                      <Input placeholder="City" {...field} />
+                      <Input placeholder="City" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -480,9 +483,9 @@ function RequestBooking({
                 name="postcode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Postcode</FormLabel>
+                    <FormLabel className="text-foreground">Postcode</FormLabel>
                     <FormControl>
-                      <Input placeholder="Postcode" {...field} />
+                      <Input placeholder="Postcode" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -493,9 +496,9 @@ function RequestBooking({
                 name="country"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Country</FormLabel>
+                    <FormLabel className="text-foreground">Country</FormLabel>
                     <FormControl>
-                      <Input placeholder="Country" {...field} />
+                      <Input placeholder="Country" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -504,15 +507,15 @@ function RequestBooking({
             </div>
 
             {/* Traveller Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
               <FormField
                 control={form.control}
                 name="lead_traveller_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Lead Traveller Name</FormLabel>
+                    <FormLabel className="text-foreground">Lead Traveller Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Lead Traveller" {...field} />
+                      <Input placeholder="Lead Traveller" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -524,9 +527,9 @@ function RequestBooking({
                 name="lead_traveller_phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Lead Traveller Phone</FormLabel>
+                    <FormLabel className="text-foreground">Lead Traveller Phone</FormLabel>
                     <FormControl>
-                      <Input placeholder="Phone Number" {...field} />
+                      <Input placeholder="Phone Number" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -538,16 +541,16 @@ function RequestBooking({
                 name="lead_traveller_email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Lead Traveller Email</FormLabel>
+                    <FormLabel className="text-foreground">Lead Traveller Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="Email Address" {...field} />
+                      <Input placeholder="Email Address" {...field} className="bg-background" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
               {Array.from({ length: Math.max(0, numberOfAdults - 1) }).map(
                 (_, index) => (
                   <FormField
@@ -556,11 +559,12 @@ function RequestBooking({
                     name={`guest_traveller_names.${index}`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Guest Traveller {index + 1} Name</FormLabel>
+                        <FormLabel className="text-foreground">Guest Traveller {index + 1} Name</FormLabel>
                         <FormControl>
                           <Input
                             placeholder={`Guest Traveller ${index + 1}`}
                             {...field}
+                            className="bg-background"
                           />
                         </FormControl>
                         <FormMessage />
@@ -571,20 +575,20 @@ function RequestBooking({
               )}
             </div>
             {/* Booking Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
               <FormField
                 control={form.control}
                 name="booking_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Booking Date</FormLabel>
+                    <FormLabel className="text-foreground">Booking Date</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full justify-start text-left font-normal",
+                              "w-full justify-start text-left font-normal bg-background",
                               !field.value && "text-muted-foreground"
                             )}
                           >
@@ -597,7 +601,7 @@ function RequestBooking({
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 bg-card" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}
@@ -611,19 +615,18 @@ function RequestBooking({
                 )}
               />
 
-              
               <FormField
                 control={form.control}
                 name="booking_type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Booking Type</FormLabel>
+                    <FormLabel className="text-foreground">Booking Type</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full bg-background">
                           <SelectValue placeholder="Select booking type" />
                         </SelectTrigger>
                       </FormControl>
