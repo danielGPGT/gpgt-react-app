@@ -12,6 +12,7 @@ import { jwtDecode } from "jwt-decode"; // Import this
 import api from "@/lib/api"; // Import your api
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { format, differenceInCalendarDays } from "date-fns";
 
 function PricingSheet() {
   const [numberOfAdults, setNumberOfAdults] = useState(2);
@@ -32,6 +33,7 @@ function PricingSheet() {
     from: null,
     to: null,
   });
+  const [originalNights, setOriginalNights] = useState(0);
   const [selectedCurrency, setSelectedCurrency] = useState("GBP"); // Add currency state
   const [salesTeams, setSalesTeams] = useState([]);
   const [selectedCircuitTransfer, setSelectedCircuitTransfer] = useState(null);
@@ -44,6 +46,7 @@ function PricingSheet() {
   const [paymentStatus, setPaymentStatus] = useState("");
   const [createLoungeBooking, setCreateLoungeBooking] = useState(false);
   const [loungeBookingRef, setLoungeBookingRef] = useState("");
+  const [flightQuantity, setFlightQuantity] = useState(0);
 
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -53,6 +56,11 @@ function PricingSheet() {
 
         const decoded = jwtDecode(token);
         setRole(decoded.role);
+        // Set the current user as the consultant
+        setSalesTeam({
+          first_name: decoded.first_name,
+          last_name: decoded.last_name
+        });
       } catch (error) {
         console.error("Failed to fetch current user:", error);
       }
@@ -68,12 +76,7 @@ function PricingSheet() {
       // Format dates for the API
       const formatDate = (date) => {
         if (!date) return '';
-        const d = new Date(date);
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const day = d.getDate().toString().padStart(2, '0');
-        const month = months[d.getMonth()];
-        const year = d.getFullYear();
-        return `${day}-${month}-${year}`;
+        return format(new Date(date), "dd-LLL-y");
       };
 
       // Prepare the booking data according to API requirements
@@ -100,7 +103,12 @@ function PricingSheet() {
         hotel_id: selectedHotel?.hotel_id || '',
         room_id: selectedRoom?.room_id || '',
         room_quantity: roomQuantity,
-        room_price: selectedRoom ? selectedRoom.price * roomQuantity : 0,
+        extra_nights: dateRange?.from && dateRange?.to ? 
+          Math.max(differenceInCalendarDays(dateRange.to, dateRange.from) - originalNights, 0) : 0,
+        room_price: selectedRoom ? 
+          (Number(selectedRoom.price) + 
+           (Math.max(differenceInCalendarDays(dateRange.to, dateRange.from) - originalNights, 0) * Number(selectedRoom.extra_night_price))) * 
+          roomQuantity : 0,
         airport_transfer_id: selectedAirportTransfer?.airport_transfer_id || '',
         airport_transfer_quantity: airportTransferQuantity,
         airport_transfer_price: selectedAirportTransfer ? selectedAirportTransfer.price * airportTransferQuantity : 0,
@@ -111,7 +119,8 @@ function PricingSheet() {
         flight_booking_reference: flightPNR || '',
         ticketing_deadline: formatDate(ticketingDeadline),
         flight_status: paymentStatus || '',
-        flight_price: selectedFlight ? selectedFlight.price * numberOfAdults : 0,
+        flight_quantity: selectedFlight ? flightQuantity : 0,
+        flight_price: selectedFlight ? selectedFlight.price * flightQuantity : 0,
         lounge_pass_id: selectedLoungePass?.lounge_pass_id || '',
         lounge_pass_quantity: loungePassQuantity,
         lounge_pass_price: selectedLoungePass ? selectedLoungePass.price * loungePassQuantity : 0,
@@ -125,7 +134,13 @@ function PricingSheet() {
         guest_traveller_names: formData.guest_traveller_names.join(', '),
         acquisition: formData.acquisition,
         booking_type: formData.booking_type,
-        atol_abtot: formData.atol_abtot
+        atol_abtot: formData.atol_abtot,
+        consultant: salesTeam ? `${salesTeam.first_name} ${salesTeam.last_name}` : '',
+        check_in_date: dateRange?.from ? formatDate(dateRange.from) : '',
+        check_out_date: dateRange?.to ? formatDate(dateRange.to) : '',
+        nights: dateRange?.from && dateRange?.to ? 
+          Math.ceil((dateRange.to - dateRange.from) / (1000 * 60 * 60 * 24)) : 0,
+        adults: numberOfAdults
       };
 
       // Log the data being sent
@@ -215,11 +230,18 @@ function PricingSheet() {
                   setCircuitTransferQuantity={setCircuitTransferQuantity}
                   airportTransferQuantity={airportTransferQuantity}
                   setAirportTransferQuantity={setAirportTransferQuantity}
+                  dateRange={dateRange}
+                  setDateRange={setDateRange}
+                  originalNights={originalNights}
+                  setOriginalNights={setOriginalNights}
+                  flightQuantity={flightQuantity}
+                  setFlightQuantity={setFlightQuantity}
                 />
                 <BookingForm
                   numberOfAdults={numberOfAdults}
                   totalPrice={totalPrice}
                   selectedCurrency={selectedCurrency}
+                  dateRange={dateRange}
                   onSubmit={handleBookingSubmit}
                 />
               </div>
@@ -283,11 +305,18 @@ function PricingSheet() {
                         setCreateLoungeBooking={setCreateLoungeBooking}
                         loungeBookingRef={loungeBookingRef}
                         setLoungeBookingRef={setLoungeBookingRef}
+                        dateRange={dateRange}
+                        setDateRange={setDateRange}
+                        originalNights={originalNights}
+                        setOriginalNights={setOriginalNights}
+                        flightQuantity={flightQuantity}
+                        setFlightQuantity={setFlightQuantity}
                       />
                       <BookingForm
                         numberOfAdults={numberOfAdults}
                         totalPrice={totalPrice}
                         selectedCurrency={selectedCurrency}
+                        dateRange={dateRange}
                         onSubmit={handleBookingSubmit}
                       />
                     </div>

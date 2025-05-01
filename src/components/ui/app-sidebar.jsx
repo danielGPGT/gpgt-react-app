@@ -70,7 +70,7 @@ function AppSidebar() {
   };
 
   return (
-    <Sidebar className="bg-background border-r">
+    <Sidebar className="bg-card border-r">
       <SidebarHeader className="flex flex-col mt-5 items-start gap-2 px-4 py-3 border-b">
         <img
           src={theme === "dark" ? "/src/assets/imgs/gpgt_logo_light.svg" : "/src/assets/imgs/gpgt_logo_dark.svg"}
@@ -118,8 +118,16 @@ function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="flex flex-col gap-2">
-          <ThemeToggle />
+        <div className="flex flex-col gap-4 p-4">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Appearance</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Dark mode</span>
+                <ThemeToggle />
+              </div>
+            </div>
+          </div>
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded transition"

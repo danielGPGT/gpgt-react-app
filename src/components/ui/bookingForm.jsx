@@ -21,7 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -77,12 +77,14 @@ function BookingForm({
   numberOfAdults, 
   totalPrice, 
   selectedCurrency,
+  dateRange,
   onSubmit 
 }) {
   const { theme } = useTheme();
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState("error");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -93,7 +95,11 @@ function BookingForm({
   });
 
   const handleSubmit = async (values) => {
+    if (isSubmitting) return; // Prevent double submission
+
     try {
+      setIsSubmitting(true);
+
       if (!onSubmit || typeof onSubmit !== 'function') {
         console.error('onSubmit prop is not a function');
         setAlertMessage("Form submission error: Invalid onSubmit handler");
@@ -111,6 +117,8 @@ function BookingForm({
       setAlertMessage("Failed to submit the form. Please try again.");
       setAlertType("error");
       setShowAlert(true);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -359,7 +367,7 @@ function BookingForm({
                   >
                     <FormControl>
                       <SelectTrigger className="w-full bg-background">
-                        <SelectValue placeholder="Select acquisition source" />
+                        <SelectValue placeholder="Acquisition source" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -389,7 +397,7 @@ function BookingForm({
                   >
                     <FormControl>
                       <SelectTrigger className="w-full bg-background">
-                        <SelectValue placeholder="Select booking type" />
+                        <SelectValue placeholder="Booking type" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -413,7 +421,7 @@ function BookingForm({
                   >
                     <FormControl>
                       <SelectTrigger className="w-full bg-background">
-                        <SelectValue placeholder="Select ATOL/ABTOT" />
+                        <SelectValue placeholder="ATOL/ABTOT" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -564,8 +572,20 @@ function BookingForm({
           </div>
 
           <div className="pt-4">
-            <Button type="submit" size="lg" className="w-full">
-              Submit Booking
+            <Button 
+              type="submit" 
+              size="lg" 
+              className="w-full"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Booking"
+              )}
             </Button>
           </div>
         </form>
@@ -596,6 +616,10 @@ BookingForm.propTypes = {
   numberOfAdults: PropTypes.number.isRequired,
   totalPrice: PropTypes.number.isRequired,
   selectedCurrency: PropTypes.string.isRequired,
+  dateRange: PropTypes.shape({
+    from: PropTypes.instanceOf(Date),
+    to: PropTypes.instanceOf(Date)
+  }),
   onSubmit: PropTypes.func.isRequired
 };
 
