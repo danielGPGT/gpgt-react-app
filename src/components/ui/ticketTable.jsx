@@ -74,29 +74,35 @@ function TicketTable() {
 
   // Form state
   const initialTicketState = {
-    ticket_id: "",
-    event_id: "",
     event: "",
-    package_id: "",
     package_type: "",
     ticket_name: "",
     supplier: "",
     ref: "",
     actual_stock: 0,
     used: 0,
-    remaining: 0,
-    "currency_(bought_in)": "EUR",
-    "unit_cost_(local)": 0,
-    "unit_cost_(gbp)": 0,
-    "total_cost_(local)": 0,
-    "total_cost_(gbp)": 0,
+    currency_bought_in: "EUR",
+    total_cost_local: 0,
+    unit_cost_gbp: 0,
     is_provsional: false,
     ordered: false,
     paid: false,
     tickets_received: false,
-    markup: "0%"
+    markup: "0%",
+    event_days: "",
+    ticket_type: "",
+    video_wall: false,
+    covered_seat: false,
+    numbered_seat: false,
+    delivery_days: "",
+    ticket_description: "",
+    ticket_image_1: "",
+    ticket_image_2: ""
   };
   const [newTicket, setNewTicket] = useState(initialTicketState);
+
+  const [editingCell, setEditingCell] = useState({ rowId: null, field: null });
+  const [cellValue, setCellValue] = useState("");
 
   useEffect(() => {
     fetchInitialData();
@@ -202,17 +208,23 @@ function TicketTable() {
     });
   };
 
-  const handleAddTicket = async () => {
+  const handleAddTicket = async (formData) => {
     try {
-      // Calculate remaining stock
-      const remaining = newTicket.actual_stock - newTicket.used;
+      console.log('Adding ticket with form data:', formData);
       
-      // Create the ticket data
+      // Calculate remaining stock
+      const remaining = formData.actual_stock - formData.used;
+      
+      // Create the ticket data without ticket_id
       const ticketData = {
-        ...newTicket,
-        remaining,
-        ticket_id: crypto.randomUUID()
+        ...formData,
+        remaining
       };
+
+      // Remove ticket_id from the data
+      delete ticketData.ticket_id;
+
+      console.log('Sending to API:', ticketData);
 
       await api.post("Stock%20-%20tickets", ticketData);
       toast.success("Ticket added successfully");
@@ -238,29 +250,6 @@ function TicketTable() {
     }
   };
 
-  const handleEditTicket = async () => {
-    try {
-      // Calculate remaining stock
-      const remaining = editingTicket.actual_stock - editingTicket.used;
-      
-      // Create the ticket data
-      const ticketData = {
-        ...editingTicket,
-        remaining
-      };
-
-      await api.put(`Stock%20-%20tickets/${editingTicket.ticket_id}`, ticketData);
-      toast.success("Ticket updated successfully");
-      setIsEditDialogOpen(false);
-      setEditingTicket(null);
-      fetchInitialData(); // Refresh all data
-    } catch (error) {
-      console.error("Failed to update ticket:", error);
-      toast.error("Failed to update ticket");
-    }
-  };
-
-  // Function to open edit dialog with proper initialization
   const openEditDialog = (ticket) => {
     // Find the corresponding event from events array
     const eventObj = events.find(e => e.event === ticket.event);
@@ -274,10 +263,160 @@ function TicketTable() {
       event: ticket.event || "",
       // Package data is already in the ticket object
       package_id: ticket.package_id || "",
-      package_type: ticket.package_type || ""
+      package_type: ticket.package_type || "",
+      // Ensure numeric fields are numbers
+      actual_stock: Number(ticket.actual_stock) || 0,
+      used: Number(ticket.used) || 0,
+      total_cost_local: Number(ticket.total_cost_local) || 0,
+      unit_cost_gbp: Number(ticket['unit_cost_(gbp)']) || 0,
+      // Ensure boolean fields are booleans
+      is_provsional: Boolean(ticket.is_provsional),
+      ordered: Boolean(ticket.ordered),
+      paid: Boolean(ticket.paid),
+      tickets_received: Boolean(ticket.tickets_received),
+      video_wall: Boolean(ticket.video_wall),
+      covered_seat: Boolean(ticket.covered_seat),
+      numbered_seat: Boolean(ticket.numbered_seat)
     };
+    
+    console.log('Prepared ticket for editing:', preparedTicket);
     setEditingTicket(preparedTicket);
     setIsEditDialogOpen(true);
+  };
+
+  const handleEditTicket = async () => {
+    try {
+      console.log('Current editingTicket state:', editingTicket);
+      
+      // Get the original ticket data
+      const originalTicket = stock.find(t => t.ticket_id === editingTicket.ticket_id);
+      
+      // Create a diff of only changed fields
+      const changedFields = {};
+      Object.keys(editingTicket).forEach(key => {
+        if (key === 'ticket_id') return; // Skip ticket_id
+        if (editingTicket[key] !== originalTicket[key]) {
+          changedFields[key] = editingTicket[key];
+        }
+      });
+
+      // If no fields were changed, show a message and return
+      if (Object.keys(changedFields).length === 0) {
+        toast.info("No changes were made");
+        setIsEditDialogOpen(false);
+        setEditingTicket(null);
+        return;
+      }
+
+      // Calculate remaining stock if stock or used fields were changed
+      if (changedFields.actual_stock !== undefined || changedFields.used !== undefined) {
+        const newStock = changedFields.actual_stock ?? originalTicket.actual_stock;
+        const newUsed = changedFields.used ?? originalTicket.used;
+        changedFields.remaining = newStock - newUsed;
+      }
+
+      // Calculate unit cost if total cost or stock was changed
+      if (changedFields.total_cost_local !== undefined || changedFields.actual_stock !== undefined) {
+        const newTotal = changedFields.total_cost_local ?? originalTicket.total_cost_local;
+        const newStock = changedFields.actual_stock ?? originalTicket.actual_stock;
+        changedFields['unit_cost_(gbp)'] = newStock > 0 ? (newTotal / newStock).toFixed(2) : 0;
+      }
+
+      console.log('Sending only changed fields to API:', changedFields);
+
+      // Map the fields to match the API's expected format
+      const mappedFields = {
+        event: changedFields.event,
+        package_type: changedFields.package_type,
+        ticket_name: changedFields.ticket_name,
+        supplier: changedFields.supplier,
+        ref: changedFields.ref,
+        actual_stock: changedFields.actual_stock,
+        used: changedFields.used,
+        remaining: changedFields.remaining,
+        currency_bought_in: changedFields.currency_bought_in,
+        total_cost_local: changedFields.total_cost_local,
+        is_provsional: changedFields.is_provsional,
+        ordered: changedFields.ordered,
+        paid: changedFields.paid,
+        tickets_received: changedFields.tickets_received,
+        markup: changedFields.markup,
+        event_days: changedFields.event_days,
+        ticket_type: changedFields.ticket_type,
+        video_wall: changedFields.video_wall,
+        covered_seat: changedFields.covered_seat,
+        numbered_seat: changedFields.numbered_seat,
+        delivery_days: changedFields.delivery_days,
+        ticket_description: changedFields.ticket_description,
+        ticket_image_1: changedFields.ticket_image_1,
+        ticket_image_2: changedFields.ticket_image_2
+      };
+
+      // Remove undefined values
+      Object.keys(mappedFields).forEach(key => {
+        if (mappedFields[key] === undefined) {
+          delete mappedFields[key];
+        }
+      });
+
+      // Update the ticket
+      await api.put(`Stock%20-%20tickets/${editingTicket.ticket_id}`, mappedFields);
+
+      toast.success("Ticket updated successfully");
+      setIsEditDialogOpen(false);
+      setEditingTicket(null);
+      fetchInitialData(); // Refresh all data
+    } catch (error) {
+      console.error("Failed to update ticket:", error);
+      toast.error("Failed to update ticket");
+    }
+  };
+
+  const handleCellEdit = (rowId, field, value) => {
+    setEditingCell({ rowId, field });
+    setCellValue(value);
+  };
+
+  const handleCellSave = async (rowId, field) => {
+    try {
+      const ticket = stock.find(t => t.ticket_id === rowId);
+      if (!ticket) return;
+
+      // Only update the specific field
+      const updateData = {
+        [field]: cellValue
+      };
+
+      // If updating stock or used, calculate remaining
+      if (field === 'actual_stock' || field === 'used') {
+        const newStock = field === 'actual_stock' ? cellValue : ticket.actual_stock;
+        const newUsed = field === 'used' ? cellValue : ticket.used;
+        updateData.remaining = newStock - newUsed;
+      }
+
+      // If updating total cost or stock, calculate unit cost
+      if (field === 'total_cost_local' || field === 'actual_stock') {
+        const newTotal = field === 'total_cost_local' ? cellValue : ticket.total_cost_local;
+        const newStock = field === 'actual_stock' ? cellValue : ticket.actual_stock;
+        updateData['unit_cost_(gbp)'] = newStock > 0 ? (newTotal / newStock).toFixed(2) : 0;
+      }
+
+      console.log('Updating field:', field, 'with value:', cellValue);
+      await api.put(`Stock%20-%20tickets/${rowId}`, updateData);
+      toast.success("Field updated successfully");
+      fetchInitialData();
+    } catch (error) {
+      console.error("Failed to update field:", error);
+      toast.error("Failed to update field");
+    } finally {
+      setEditingCell({ rowId: null, field: null });
+      setCellValue("");
+    }
+  };
+
+  const handleCellCancel = () => {
+    setEditingCell({ rowId: null, field: null });
+    setCellValue("");
   };
 
   // Apply filters and calculate pagination
@@ -323,20 +462,596 @@ function TicketTable() {
     return pages;
   };
 
+  const TicketForm = ({ formData, setFormData, events, packages, filteredPackages, handleSubmit, onCancel }) => {
+    const [editingField, setEditingField] = useState(null);
+    const [fieldValue, setFieldValue] = useState("");
+
+    const handleFieldEdit = (field, value) => {
+      setEditingField(field);
+      setFieldValue(value);
+    };
+
+    const handleFieldSave = (field) => {
+      // Handle numeric fields
+      if (['actual_stock', 'used', 'total_cost_local', 'unit_cost_gbp'].includes(field)) {
+        setFormData(prev => ({
+          ...prev,
+          [field]: Number(fieldValue) || 0
+        }));
+      }
+      // Handle boolean fields
+      else if (['is_provsional', 'ordered', 'paid', 'tickets_received', 'video_wall', 'covered_seat', 'numbered_seat'].includes(field)) {
+        setFormData(prev => ({
+          ...prev,
+          [field]: Boolean(fieldValue)
+        }));
+      }
+      // Handle all other fields
+      else {
+        setFormData(prev => ({
+          ...prev,
+          [field]: fieldValue
+        }));
+      }
+
+      // Calculate unit cost when total cost or stock changes
+      if (field === 'total_cost_local' || field === 'actual_stock') {
+        const unitCostGBP = formData.actual_stock > 0 
+          ? (formData.total_cost_local / formData.actual_stock).toFixed(2)
+          : 0;
+        setFormData(prev => ({
+          ...prev,
+          unit_cost_gbp: parseFloat(unitCostGBP)
+        }));
+      }
+
+      setEditingField(null);
+      setFieldValue("");
+    };
+
+    const handleFieldCancel = () => {
+      setEditingField(null);
+      setFieldValue("");
+    };
+
+    return (
+      <div className="grid gap-4 py-4">
+        {/* Event and Package Selection */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="event">Event</Label>
+            <Select
+              value={formData?.event || ""}
+              onValueChange={(value) => {
+                console.log('Selected event:', value);
+                setFormData(prev => ({
+                  ...prev,
+                  event: value,
+                  package_type: '' // Reset package type when event changes
+                }));
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select an event" />
+              </SelectTrigger>
+              <SelectContent>
+                {events.map((event) => (
+                  <SelectItem 
+                    key={event?.event_id || crypto.randomUUID()}
+                    value={event?.event || ""}
+                  >
+                    {event?.event || "Unnamed Event"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="package">Package Type</Label>
+            <Select
+              value={formData?.package_type || ""}
+              onValueChange={(value) => {
+                console.log('Selected package type:', value);
+                setFormData(prev => ({
+                  ...prev,
+                  package_type: value
+                }));
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a package" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredPackages.map((pkg) => (
+                  <SelectItem 
+                    key={pkg?.package_id || crypto.randomUUID()}
+                    value={pkg?.package_type || ""}
+                  >
+                    {pkg?.package_type || "Unnamed Package"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Ticket Details */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Ticket Details</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="ticket_name">Ticket Name</Label>
+              {editingField === 'ticket_name' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('ticket_name')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('ticket_name');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('ticket_name', formData.ticket_name)}
+                >
+                  {formData.ticket_name || "Click to edit"}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="supplier">Supplier</Label>
+              {editingField === 'supplier' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('supplier')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('supplier');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('supplier', formData.supplier)}
+                >
+                  {formData.supplier || "Click to edit"}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="ref">Reference</Label>
+              {editingField === 'ref' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('ref')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('ref');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('ref', formData.ref)}
+                >
+                  {formData.ref || "Click to edit"}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="markup">Markup</Label>
+              {editingField === 'markup' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('markup')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('markup');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('markup', formData.markup)}
+                >
+                  {formData.markup || "Click to edit"}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="event_days">Event Days</Label>
+              {editingField === 'event_days' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('event_days')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('event_days');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('event_days', formData.event_days)}
+                >
+                  {formData.event_days || "Click to edit"}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ticket_type">Ticket Type</Label>
+              {editingField === 'ticket_type' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('ticket_type')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('ticket_type');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('ticket_type', formData.ticket_type)}
+                >
+                  {formData.ticket_type || "Click to edit"}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="delivery_days">Delivery Days</Label>
+              {editingField === 'delivery_days' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('delivery_days')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('delivery_days');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('delivery_days', formData.delivery_days)}
+                >
+                  {formData.delivery_days || "Click to edit"}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ticket_description">Ticket Description</Label>
+              {editingField === 'ticket_description' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('ticket_description')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('ticket_description');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('ticket_description', formData.ticket_description)}
+                >
+                  {formData.ticket_description || "Click to edit"}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="ticket_image_1">Ticket Image 1</Label>
+              {editingField === 'ticket_image_1' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('ticket_image_1')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('ticket_image_1');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('ticket_image_1', formData.ticket_image_1)}
+                >
+                  {formData.ticket_image_1 || "Click to edit"}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ticket_image_2">Ticket Image 2</Label>
+              {editingField === 'ticket_image_2' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('ticket_image_2')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('ticket_image_2');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('ticket_image_2', formData.ticket_image_2)}
+                >
+                  {formData.ticket_image_2 || "Click to edit"}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stock and Cost Information */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Stock & Cost Information</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="actual_stock">Stock</Label>
+              {editingField === 'actual_stock' ? (
+                <Input
+                  type="number"
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('actual_stock')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('actual_stock');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('actual_stock', formData.actual_stock)}
+                >
+                  {formData.actual_stock}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="used">Used Tickets</Label>
+              {editingField === 'used' ? (
+                <Input
+                  type="number"
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('used')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('used');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('used', formData.used)}
+                >
+                  {formData.used}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="currency_bought_in">Currency</Label>
+              {editingField === 'currency_bought_in' ? (
+                <Input
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('currency_bought_in')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('currency_bought_in');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('currency_bought_in', formData.currency_bought_in)}
+                >
+                  {formData.currency_bought_in || "Click to edit"}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="total_cost_local">Total Cost (Local)</Label>
+              {editingField === 'total_cost_local' ? (
+                <Input
+                  type="number"
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('total_cost_local')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('total_cost_local');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('total_cost_local', formData.total_cost_local)}
+                >
+                  {formData.total_cost_local}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="unit_cost_gbp">Unit Cost (GBP)</Label>
+              {editingField === 'unit_cost_gbp' ? (
+                <Input
+                  type="number"
+                  value={fieldValue}
+                  onChange={(e) => setFieldValue(e.target.value)}
+                  onBlur={() => handleFieldSave('unit_cost_gbp')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleFieldSave('unit_cost_gbp');
+                    if (e.key === 'Escape') handleFieldCancel();
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
+                  onClick={() => handleFieldEdit('unit_cost_gbp', formData.unit_cost_gbp)}
+                >
+                  {formData.unit_cost_gbp}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Seat Features */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Seat Features</h4>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="video_wall"
+                checked={formData?.video_wall || false}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, video_wall: checked }))}
+              />
+              <Label htmlFor="video_wall">Video Wall</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="covered_seat"
+                checked={formData?.covered_seat || false}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, covered_seat: checked }))}
+              />
+              <Label htmlFor="covered_seat">Covered Seat</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="numbered_seat"
+                checked={formData?.numbered_seat || false}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, numbered_seat: checked }))}
+              />
+              <Label htmlFor="numbered_seat">Numbered Seat</Label>
+            </div>
+          </div>
+        </div>
+
+        {/* Status Information */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Status</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="ordered"
+                checked={formData?.ordered || false}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, ordered: checked }))}
+              />
+              <Label htmlFor="ordered">Ordered</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="paid"
+                checked={formData?.paid || false}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, paid: checked }))}
+              />
+              <Label htmlFor="paid">Paid</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="received"
+                checked={formData?.tickets_received || false}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, tickets_received: checked }))}
+              />
+              <Label htmlFor="received">Received</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="provisional"
+                checked={formData?.is_provsional || false}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_provsional: checked }))}
+              />
+              <Label htmlFor="provisional">Provisional</Label>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const TicketDialog = ({ isOpen, onOpenChange, mode = "add", ticket = null }) => {
     const isEdit = mode === "edit";
     const dialogTitle = isEdit ? "Edit Ticket" : "Add New Ticket";
     const dialogDescription = isEdit ? "Update the ticket details" : "Fill in the details for the new ticket";
     const buttonText = isEdit ? "Update Ticket" : "Add Ticket";
-    const handleSubmit = isEdit ? handleEditTicket : handleAddTicket;
     
-    // Ensure formData is properly initialized with current values
-    const formData = isEdit ? editingTicket || initialTicketState : newTicket;
-    const setFormData = isEdit ? setEditingTicket : setNewTicket;
+    // Initialize form data with the current ticket data
+    const [formData, setFormData] = useState(() => {
+      if (isEdit && editingTicket) {
+        return { ...editingTicket };
+      }
+      return { ...initialTicketState };
+    });
+
+    // Update form data when editingTicket or newTicket changes
+    useEffect(() => {
+      if (isEdit && editingTicket) {
+        setFormData({ ...editingTicket });
+      } else if (!isEdit) {
+        setFormData({ ...initialTicketState });
+      }
+    }, [isEdit, editingTicket]);
 
     // Safe package filtering based on selected event
     const filteredPackages = packages
-      .filter(pkg => !formData?.event_id || pkg?.event_id === formData.event_id);
+      .filter(pkg => !formData?.event || pkg?.event === formData.event);
+
+    const handleFormSubmit = () => {
+      console.log('Submitting form with data:', formData);
+      
+      // Create a clean copy of the form data without ticket_id for new tickets
+      const cleanFormData = { ...formData };
+      if (!isEdit) {
+        delete cleanFormData.ticket_id;
+      }
+
+      if (isEdit) {
+        setEditingTicket(cleanFormData);
+        handleEditTicket();
+      } else {
+        // Pass form data directly to handleAddTicket
+        handleAddTicket(cleanFormData);
+      }
+    };
 
     return (
       <Dialog open={isOpen} onOpenChange={(open) => {
@@ -348,212 +1063,25 @@ function TicketTable() {
         }
         onOpenChange(open);
       }}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-6 py-4">
-            {/* Event and Package Selection */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="event">Event</Label>
-                <Select
-                  value={formData?.event_id || ""}
-                  onValueChange={(value) => {
-                    const selectedEvent = events.find(e => e?.event_id === value);
-                    setFormData({ 
-                      ...formData, 
-                      event_id: value,
-                      event: selectedEvent?.event || "",
-                      package_id: "",
-                      package_type: ""
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an event" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {events.map((event) => (
-                      <SelectItem 
-                        key={event?.event_id || crypto.randomUUID()}
-                        value={event?.event_id || ""}
-                      >
-                        {event?.event || "Unnamed Event"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="package">Package</Label>
-                <Select
-                  value={formData?.package_id || ""}
-                  onValueChange={(value) => {
-                    const selectedPackage = packages.find(p => p?.package_id === value);
-                    setFormData({ 
-                      ...formData, 
-                      package_id: value,
-                      package_type: selectedPackage?.package_type || ""
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a package" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredPackages.map((pkg) => (
-                      <SelectItem 
-                        key={pkg?.package_id || crypto.randomUUID()}
-                        value={pkg?.package_id || ""}
-                      >
-                        {pkg?.package_type || "Unnamed Package"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Ticket Details */}
-            <div className="space-y-4">
-              <h4 className="font-medium">Ticket Details</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ticket_name">Ticket Name</Label>
-                  <Input
-                    id="ticket_name"
-                    value={formData?.ticket_name || ""}
-                    onChange={(e) => setFormData({ ...formData, ticket_name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="supplier">Supplier</Label>
-                  <Input
-                    id="supplier"
-                    value={formData?.supplier || ""}
-                    onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ref">Reference</Label>
-                  <Input
-                    id="ref"
-                    value={formData?.ref || ""}
-                    onChange={(e) => setFormData({ ...formData, ref: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="markup">Markup</Label>
-                  <Input
-                    id="markup"
-                    value={formData?.markup || "0%"}
-                    onChange={(e) => setFormData({ ...formData, markup: e.target.value })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Stock and Cost Information */}
-            <div className="space-y-4">
-              <h4 className="font-medium">Stock & Cost Information</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="actual_stock">Stock</Label>
-                  <Input
-                    id="actual_stock"
-                    type="number"
-                    value={formData?.actual_stock || 0}
-                    onChange={(e) => setFormData({ ...formData, actual_stock: parseInt(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="used">Used Tickets</Label>
-                  <Input
-                    id="used"
-                    type="number"
-                    value={formData?.used || 0}
-                    onChange={(e) => setFormData({ ...formData, used: parseInt(e.target.value) })}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currency">Currency</Label>
-                  <Input
-                    id="currency"
-                    value={formData?.["currency_(bought_in)"] || ""}
-                    onChange={(e) => setFormData({ ...formData, "currency_(bought_in)": e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="unit_cost_local">Unit Cost (Local)</Label>
-                  <Input
-                    id="unit_cost_local"
-                    type="number"
-                    value={formData?.["unit_cost_(local)"] || 0}
-                    onChange={(e) => setFormData({ ...formData, "unit_cost_(local)": parseFloat(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="unit_cost_gbp">Unit Cost (GBP)</Label>
-                  <Input
-                    id="unit_cost_gbp"
-                    type="number"
-                    value={formData?.["unit_cost_(gbp)"] || 0}
-                    onChange={(e) => setFormData({ ...formData, "unit_cost_(gbp)": parseFloat(e.target.value) })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Status Information */}
-            <div className="space-y-4">
-              <h4 className="font-medium">Status</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="ordered"
-                    checked={formData?.ordered || false}
-                    onCheckedChange={(checked) => setFormData({ ...formData, ordered: checked })}
-                  />
-                  <Label htmlFor="ordered">Ordered</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="paid"
-                    checked={formData?.paid || false}
-                    onCheckedChange={(checked) => setFormData({ ...formData, paid: checked })}
-                  />
-                  <Label htmlFor="paid">Paid</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="received"
-                    checked={formData?.tickets_received || false}
-                    onCheckedChange={(checked) => setFormData({ ...formData, tickets_received: checked })}
-                  />
-                  <Label htmlFor="received">Received</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="provisional"
-                    checked={formData?.is_provsional || false}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_provsional: checked })}
-                  />
-                  <Label htmlFor="provisional">Provisional</Label>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
+          <TicketForm 
+            formData={formData}
+            setFormData={setFormData}
+            events={events}
+            packages={packages}
+            filteredPackages={filteredPackages}
+            handleSubmit={handleFormSubmit}
+            onCancel={() => onOpenChange(false)}
+          />
+          <DialogFooter className="sticky bottom-0 bg-background border-t pt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>{buttonText}</Button>
+            <Button onClick={handleFormSubmit}>{buttonText}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -675,38 +1203,116 @@ function TicketTable() {
           <TableHeader>
             <TableRow>
               <TableHead>Event</TableHead>
-              <TableHead>Ticket</TableHead>
+              <TableHead>Ticket Name</TableHead>
               <TableHead>Supplier</TableHead>
               <TableHead>Reference</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Used</TableHead>
-              <TableHead>Remaining</TableHead>
-              <TableHead>Cost (GBP)</TableHead>
+              <TableHead>Unit Cost (GBP)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.map((item) => {
-              // Find corresponding event object
-              const eventObj = events.find(e => e.event === item.event);
+              const isEditing = editingCell.rowId === item.ticket_id;
               
               return (
                 <TableRow key={item.ticket_id}>
                   <TableCell className="font-medium">{item.event}</TableCell>
-                  <TableCell>{item.ticket_name}</TableCell>
-                  <TableCell>{item.supplier}</TableCell>
-                  <TableCell>{item.ref}</TableCell>
-                  <TableCell>{item.actual_stock}</TableCell>
-                  <TableCell>{item.used}</TableCell>
                   <TableCell>
-                    <Badge variant={item.remaining > 0 ? "default" : "destructive"}>
-                      {item.remaining}
-                    </Badge>
+                    {isEditing && editingCell.field === 'ticket_name' ? (
+                      <Input
+                        value={cellValue}
+                        onChange={(e) => setCellValue(e.target.value)}
+                        onBlur={() => handleCellSave(item.ticket_id, 'ticket_name')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCellSave(item.ticket_id, 'ticket_name');
+                          if (e.key === 'Escape') handleCellCancel();
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <div onClick={() => handleCellEdit(item.ticket_id, 'ticket_name', item.ticket_name)}>
+                        {item.ticket_name}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
-                    {item["unit_cost_(gbp)"] ? `£${item["unit_cost_(gbp)"].toFixed(2)}` : 'N/A'}
+                    {isEditing && editingCell.field === 'supplier' ? (
+                      <Input
+                        value={cellValue}
+                        onChange={(e) => setCellValue(e.target.value)}
+                        onBlur={() => handleCellSave(item.ticket_id, 'supplier')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCellSave(item.ticket_id, 'supplier');
+                          if (e.key === 'Escape') handleCellCancel();
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <div onClick={() => handleCellEdit(item.ticket_id, 'supplier', item.supplier)}>
+                        {item.supplier}
+                      </div>
+                    )}
                   </TableCell>
+                  <TableCell>
+                    {isEditing && editingCell.field === 'ref' ? (
+                      <Input
+                        value={cellValue}
+                        onChange={(e) => setCellValue(e.target.value)}
+                        onBlur={() => handleCellSave(item.ticket_id, 'ref')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCellSave(item.ticket_id, 'ref');
+                          if (e.key === 'Escape') handleCellCancel();
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <div onClick={() => handleCellEdit(item.ticket_id, 'ref', item.ref)}>
+                        {item.ref}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isEditing && editingCell.field === 'actual_stock' ? (
+                      <Input
+                        type="number"
+                        value={cellValue}
+                        onChange={(e) => setCellValue(e.target.value)}
+                        onBlur={() => handleCellSave(item.ticket_id, 'actual_stock')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCellSave(item.ticket_id, 'actual_stock');
+                          if (e.key === 'Escape') handleCellCancel();
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <div onClick={() => handleCellEdit(item.ticket_id, 'actual_stock', item.actual_stock)}>
+                        {item.actual_stock}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isEditing && editingCell.field === 'used' ? (
+                      <Input
+                        type="number"
+                        value={cellValue}
+                        onChange={(e) => setCellValue(e.target.value)}
+                        onBlur={() => handleCellSave(item.ticket_id, 'used')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCellSave(item.ticket_id, 'used');
+                          if (e.key === 'Escape') handleCellCancel();
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <div onClick={() => handleCellEdit(item.ticket_id, 'used', item.used)}>
+                        {item.used}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>£{typeof item['unit_cost_(gbp)'] === 'number' ? item['unit_cost_(gbp)'].toFixed(2) : '0.00'}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {item.ordered && (
@@ -740,10 +1346,13 @@ function TicketTable() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => openEditDialog({
-                          ...item,
-                          event_id: eventObj?.event_id
-                        })}
+                        onClick={() => {
+                          const eventObj = events.find(e => e.event === item.event);
+                          openEditDialog({
+                            ...item,
+                            event_id: eventObj?.event_id
+                          });
+                        }}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
