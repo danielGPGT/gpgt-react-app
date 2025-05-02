@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UsersTable } from "@/components/ui/user-table";
 import { Inventory } from "@/components/ui/inventory";
 import { useTheme } from "@/components/theme-provider";
+import { BookingsChart } from "@/components/ui/bookingsChart";
 
 function AdminDashboard() {
   const { theme } = useTheme();
@@ -63,8 +64,8 @@ function AdminDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center text-muted-foreground">
-                Overview dashboard content coming soon...
+              <div className="">
+                <BookingsChart />
               </div>
             </CardContent>
           </Card>
@@ -110,7 +111,7 @@ function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                <Inventory />
+                {/* Operations content will go here */}
               </div>
             </CardContent>
           </Card>

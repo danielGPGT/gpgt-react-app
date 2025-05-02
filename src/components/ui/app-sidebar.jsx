@@ -7,6 +7,8 @@ import {
   Gauge,
   Settings,
   LogOut,
+  Package,
+  ClipboardList,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -39,6 +41,16 @@ const items = [
     title: "Pricing",
     url: "/pricing",
     icon: BadgePoundSterling,
+  },
+  {
+    title: "Inventory",
+    url: "/inventory",
+    icon: Package,
+  },
+  {
+    title: "Bookings",
+    url: "/bookings",
+    icon: ClipboardList,
   },
 ];
 

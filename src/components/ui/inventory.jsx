@@ -7,7 +7,7 @@ import { Ticket, Bed, Bus, Plane, Coffee, Hotel } from "lucide-react";
 
 function Inventory() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       <Tabs defaultValue="tickets" className="w-full">
         <TabsList className="grid grid-cols-7 w-full">
           <TabsTrigger value="tickets" className="flex items-center gap-2">
@@ -41,15 +41,45 @@ function Inventory() {
         </TabsList>
 
         <TabsContent value="tickets" className="mt-6">
-          <TicketTable />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">Ticket Inventory</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Manage and track your ticket inventory, including stock levels and status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TicketTable />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="hotels" className="mt-6">
-          <HotelsTable />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">Hotel Inventory</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                View and manage hotel information, including ratings and package types
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <HotelsTable />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="rooms" className="mt-6">
-          <RoomsTable />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">Room Inventory</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Track room availability, bookings, and pricing information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RoomsTable />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="circuits" className="mt-6">

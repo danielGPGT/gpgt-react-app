@@ -243,6 +243,26 @@ function PricingSheet() {
                   selectedCurrency={selectedCurrency}
                   dateRange={dateRange}
                   onSubmit={handleBookingSubmit}
+                  selectedEvent={selectedEvent}
+                  selectedPackage={selectedPackage}
+                  selectedHotel={selectedHotel}
+                  selectedRoom={selectedRoom}
+                  selectedTicket={selectedTicket}
+                  selectedFlight={selectedFlight}
+                  selectedLoungePass={selectedLoungePass}
+                  selectedCircuitTransfer={selectedCircuitTransfer}
+                  selectedAirportTransfer={selectedAirportTransfer}
+                  ticketQuantity={ticketQuantity}
+                  roomQuantity={roomQuantity}
+                  loungePassQuantity={loungePassQuantity}
+                  circuitTransferQuantity={circuitTransferQuantity}
+                  airportTransferQuantity={airportTransferQuantity}
+                  flightQuantity={flightQuantity}
+                  flightPNR={flightPNR}
+                  ticketingDeadline={ticketingDeadline}
+                  paymentStatus={paymentStatus}
+                  originalNights={originalNights}
+                  salesTeam={salesTeam}
                 />
               </div>
             )}
@@ -318,6 +338,26 @@ function PricingSheet() {
                         selectedCurrency={selectedCurrency}
                         dateRange={dateRange}
                         onSubmit={handleBookingSubmit}
+                        selectedEvent={selectedEvent}
+                        selectedPackage={selectedPackage}
+                        selectedHotel={selectedHotel}
+                        selectedRoom={selectedRoom}
+                        selectedTicket={selectedTicket}
+                        selectedFlight={selectedFlight}
+                        selectedLoungePass={selectedLoungePass}
+                        selectedCircuitTransfer={selectedCircuitTransfer}
+                        selectedAirportTransfer={selectedAirportTransfer}
+                        ticketQuantity={ticketQuantity}
+                        roomQuantity={roomQuantity}
+                        loungePassQuantity={loungePassQuantity}
+                        circuitTransferQuantity={circuitTransferQuantity}
+                        airportTransferQuantity={airportTransferQuantity}
+                        flightQuantity={flightQuantity}
+                        flightPNR={flightPNR}
+                        ticketingDeadline={ticketingDeadline}
+                        paymentStatus={paymentStatus}
+                        originalNights={originalNights}
+                        salesTeam={salesTeam}
                       />
                     </div>
                   </TabsContent>

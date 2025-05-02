@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Plus, Trash2, Search, Filter, Pencil } from "lucide-react";
+import { CheckCircle2, XCircle, Plus, Trash2, Search, Filter, Pencil, Loader2 } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -46,6 +46,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { Combobox } from "@/components/ui/combobox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function TicketTable() {
   const [stock, setStock] = useState([]);
@@ -80,10 +91,8 @@ function TicketTable() {
     supplier: "",
     ref: "",
     actual_stock: 0,
-    used: 0,
     currency_bought_in: "EUR",
     total_cost_local: 0,
-    unit_cost_gbp: 0,
     is_provsional: false,
     ordered: false,
     paid: false,
@@ -103,6 +112,43 @@ function TicketTable() {
 
   const [editingCell, setEditingCell] = useState({ rowId: null, field: null });
   const [cellValue, setCellValue] = useState("");
+
+  // Field mappings for the API
+  const fieldMappings = {
+    event: 'Event',
+    package_type: 'Package Type',
+    ticket_name: 'Ticket Name',
+    supplier: 'Supplier',
+    ref: 'Ref',
+    actual_stock: 'Actual stock',
+    used: 'Used',
+    currency_bought_in: 'Currency (Bought in)',
+    total_cost_local: 'Total Cost  (Local)',
+    is_provsional: 'Is Provsional',
+    ordered: 'Ordered',
+    paid: 'Paid',
+    tickets_received: 'Tickets Received',
+    markup: 'Markup',
+    event_days: 'Event Days',
+    ticket_type: 'Ticket Type',
+    video_wall: 'Video Wall',
+    covered_seat: 'Covered Seat',
+    numbered_seat: 'Numbered Seat',
+    delivery_days: 'Delivery days',
+    ticket_description: 'Ticket Description',
+    ticket_image_1: 'Ticket image 1',
+    ticket_image_2: 'Ticket Image 2'
+  };
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -208,86 +254,86 @@ function TicketTable() {
     });
   };
 
+  // Add ticket
   const handleAddTicket = async (formData) => {
     try {
-      console.log('Adding ticket with form data:', formData);
-      
+      setIsAdding(true);
       // Calculate remaining stock
       const remaining = formData.actual_stock - formData.used;
       
-      // Create the ticket data without ticket_id
+      // Create the ticket data with the correct field mappings
       const ticketData = {
         ...formData,
-        remaining
+        remaining,
+        // Map the fields to match the API's expected format
+        event: formData.event,
+        package_type: formData.package_type,
+        ticket_name: formData.ticket_name,
+        supplier: formData.supplier,
+        ref: formData.ref,
+        actual_stock: formData.actual_stock,
+        used: formData.used,
+        currency_bought_in: formData.currency_bought_in,
+        total_cost_local: formData.total_cost_local,
+        is_provsional: formData.is_provsional,
+        ordered: formData.ordered,
+        paid: formData.paid,
+        tickets_received: formData.tickets_received,
+        markup: formData.markup,
+        event_days: formData.event_days,
+        ticket_type: formData.ticket_type,
+        video_wall: formData.video_wall,
+        covered_seat: formData.covered_seat,
+        numbered_seat: formData.numbered_seat,
+        delivery_days: formData.delivery_days,
+        ticket_description: formData.ticket_description,
+        ticket_image_1: formData.ticket_image_1,
+        ticket_image_2: formData.ticket_image_2
       };
 
-      // Remove ticket_id from the data
-      delete ticketData.ticket_id;
-
-      console.log('Sending to API:', ticketData);
-
       await api.post("Stock%20-%20tickets", ticketData);
-      toast.success("Ticket added successfully");
+      setSuccessMessage("Ticket added successfully!");
+      setShowSuccessDialog(true);
       setIsAddDialogOpen(false);
       fetchInitialData(); // Refresh all data
-      
-      // Reset form
-      setNewTicket(initialTicketState);
     } catch (error) {
       console.error("Failed to add ticket:", error);
-      toast.error("Failed to add ticket");
+      toast.error("Failed to add ticket. Please try again.");
+    } finally {
+      setIsAdding(false);
     }
   };
 
+  // Delete ticket
   const handleDeleteTicket = async (ticketId) => {
+    setTicketToDelete(ticketId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
     try {
-      await api.delete(`Stock%20-%20tickets/${ticketId}`);
-      toast.success("Ticket deleted successfully");
-      fetchInitialData(); // Refresh all data
+      setIsDeleting(true);
+      await api.delete(`Stock - tickets/ticket_id/${ticketToDelete}`);
+      
+      // Update the stock state directly instead of refreshing
+      setStock(prevStock => prevStock.filter(ticket => ticket.ticket_id !== ticketToDelete));
+      
+      setSuccessMessage("Ticket deleted successfully!");
+      setShowSuccessDialog(true);
     } catch (error) {
       console.error("Failed to delete ticket:", error);
-      toast.error("Failed to delete ticket");
+      toast.error("Failed to delete ticket. Please try again.");
+    } finally {
+      setShowDeleteConfirm(false);
+      setTicketToDelete(null);
+      setIsDeleting(false);
     }
   };
 
-  const openEditDialog = (ticket) => {
-    // Find the corresponding event from events array
-    const eventObj = events.find(e => e.event === ticket.event);
-    
-    // Ensure all required fields are present and properly initialized
-    const preparedTicket = {
-      ...initialTicketState,
-      ...ticket,
-      // Map the event data correctly
-      event_id: eventObj?.event_id || "",
-      event: ticket.event || "",
-      // Package data is already in the ticket object
-      package_id: ticket.package_id || "",
-      package_type: ticket.package_type || "",
-      // Ensure numeric fields are numbers
-      actual_stock: Number(ticket.actual_stock) || 0,
-      used: Number(ticket.used) || 0,
-      total_cost_local: Number(ticket.total_cost_local) || 0,
-      unit_cost_gbp: Number(ticket['unit_cost_(gbp)']) || 0,
-      // Ensure boolean fields are booleans
-      is_provsional: Boolean(ticket.is_provsional),
-      ordered: Boolean(ticket.ordered),
-      paid: Boolean(ticket.paid),
-      tickets_received: Boolean(ticket.tickets_received),
-      video_wall: Boolean(ticket.video_wall),
-      covered_seat: Boolean(ticket.covered_seat),
-      numbered_seat: Boolean(ticket.numbered_seat)
-    };
-    
-    console.log('Prepared ticket for editing:', preparedTicket);
-    setEditingTicket(preparedTicket);
-    setIsEditDialogOpen(true);
-  };
-
+  // Update ticket
   const handleEditTicket = async () => {
     try {
-      console.log('Current editingTicket state:', editingTicket);
-      
+      setIsEditing(true);
       // Get the original ticket data
       const originalTicket = stock.find(t => t.ticket_id === editingTicket.ticket_id);
       
@@ -322,53 +368,27 @@ function TicketTable() {
         changedFields['unit_cost_(gbp)'] = newStock > 0 ? (newTotal / newStock).toFixed(2) : 0;
       }
 
-      console.log('Sending only changed fields to API:', changedFields);
-
       // Map the fields to match the API's expected format
-      const mappedFields = {
-        event: changedFields.event,
-        package_type: changedFields.package_type,
-        ticket_name: changedFields.ticket_name,
-        supplier: changedFields.supplier,
-        ref: changedFields.ref,
-        actual_stock: changedFields.actual_stock,
-        used: changedFields.used,
-        remaining: changedFields.remaining,
-        currency_bought_in: changedFields.currency_bought_in,
-        total_cost_local: changedFields.total_cost_local,
-        is_provsional: changedFields.is_provsional,
-        ordered: changedFields.ordered,
-        paid: changedFields.paid,
-        tickets_received: changedFields.tickets_received,
-        markup: changedFields.markup,
-        event_days: changedFields.event_days,
-        ticket_type: changedFields.ticket_type,
-        video_wall: changedFields.video_wall,
-        covered_seat: changedFields.covered_seat,
-        numbered_seat: changedFields.numbered_seat,
-        delivery_days: changedFields.delivery_days,
-        ticket_description: changedFields.ticket_description,
-        ticket_image_1: changedFields.ticket_image_1,
-        ticket_image_2: changedFields.ticket_image_2
-      };
-
-      // Remove undefined values
-      Object.keys(mappedFields).forEach(key => {
-        if (mappedFields[key] === undefined) {
-          delete mappedFields[key];
+      const mappedFields = {};
+      Object.entries(changedFields).forEach(([key, value]) => {
+        if (fieldMappings[key]) {
+          mappedFields[fieldMappings[key]] = value;
         }
       });
 
       // Update the ticket
-      await api.put(`Stock%20-%20tickets/${editingTicket.ticket_id}`, mappedFields);
+      await api.put(`Stock%20-%20tickets/ticket_id/${editingTicket.ticket_id}`, mappedFields);
 
-      toast.success("Ticket updated successfully");
+      setSuccessMessage("Ticket updated successfully!");
+      setShowSuccessDialog(true);
       setIsEditDialogOpen(false);
       setEditingTicket(null);
       fetchInitialData(); // Refresh all data
     } catch (error) {
       console.error("Failed to update ticket:", error);
-      toast.error("Failed to update ticket");
+      toast.error("Failed to update ticket. Please try again.");
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -462,9 +482,48 @@ function TicketTable() {
     return pages;
   };
 
-  const TicketForm = ({ formData, setFormData, events, packages, filteredPackages, handleSubmit, onCancel }) => {
+  const TicketForm = ({ formData, setFormData, events, packages, filteredPackages, handleSubmit, onCancel, isLoading = false }) => {
     const [editingField, setEditingField] = useState(null);
     const [fieldValue, setFieldValue] = useState("");
+
+    // Event day options
+    const eventDayOptions = [
+      "Fri - Sun",
+      "Sat - Sun",
+      "Thu - Sun",
+      "Friday",
+      "Saturday",
+      "Sunday",
+      "Thursday"
+    ];
+
+    // Ticket type options
+    const ticketTypeOptions = [
+      "E-ticket",
+      "Collection Ticket",
+      "Paper Ticket",
+      "App Ticket"
+    ];
+
+    // Currency options (common currencies)
+    const currencyOptions = [
+      "GBP",
+      "EUR",
+      "USD",
+      "AUD",
+      "CAD",
+      "CHF",
+      "CNY",
+      "JPY",
+      "NZD",
+      "SGD"
+    ];
+
+    // Format events for Combobox
+    const eventOptions = events.map(event => ({
+      value: event?.event || "",
+      label: event?.event || "Unnamed Event"
+    }));
 
     const handleFieldEdit = (field, value) => {
       setEditingField(field);
@@ -515,50 +574,36 @@ function TicketTable() {
     };
 
     return (
-      <div className="grid gap-4 py-4">
+      <div className="grid gap-6 py-4">
         {/* Event and Package Selection */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="event">Event</Label>
-            <Select
+            <Combobox
+              options={eventOptions}
               value={formData?.event || ""}
-              onValueChange={(value) => {
-                console.log('Selected event:', value);
+              onChange={(value) => {
                 setFormData(prev => ({
                   ...prev,
                   event: value,
                   package_type: '' // Reset package type when event changes
                 }));
               }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select an event" />
-              </SelectTrigger>
-              <SelectContent>
-                {events.map((event) => (
-                  <SelectItem 
-                    key={event?.event_id || crypto.randomUUID()}
-                    value={event?.event || ""}
-                  >
-                    {event?.event || "Unnamed Event"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Search for an event..."
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="package">Package Type</Label>
             <Select
               value={formData?.package_type || ""}
               onValueChange={(value) => {
-                console.log('Selected package type:', value);
                 setFormData(prev => ({
                   ...prev,
                   package_type: value
                 }));
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a package" />
               </SelectTrigger>
               <SelectContent>
@@ -576,368 +621,163 @@ function TicketTable() {
         </div>
 
         {/* Ticket Details */}
-        <div className="space-y-2">
-          <h4 className="font-medium">Ticket Details</h4>
+        <div className="space-y-4">
+          <h4 className="font-medium text-lg">Ticket Details</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="ticket_name">Ticket Name</Label>
-              {editingField === 'ticket_name' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('ticket_name')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('ticket_name');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('ticket_name', formData.ticket_name)}
-                >
-                  {formData.ticket_name || "Click to edit"}
-                </div>
-              )}
+              <Input
+                id="ticket_name"
+                value={formData.ticket_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, ticket_name: e.target.value }))}
+                placeholder="Enter ticket name"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="supplier">Supplier</Label>
-              {editingField === 'supplier' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('supplier')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('supplier');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('supplier', formData.supplier)}
-                >
-                  {formData.supplier || "Click to edit"}
-                </div>
-              )}
+              <Input
+                id="supplier"
+                value={formData.supplier}
+                onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
+                placeholder="Enter supplier name"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="ref">Reference</Label>
-              {editingField === 'ref' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('ref')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('ref');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('ref', formData.ref)}
-                >
-                  {formData.ref || "Click to edit"}
-                </div>
-              )}
+              <Input
+                id="ref"
+                value={formData.ref}
+                onChange={(e) => setFormData(prev => ({ ...prev, ref: e.target.value }))}
+                placeholder="Enter reference"
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="markup">Markup</Label>
-              {editingField === 'markup' ? (
+              <Label htmlFor="markup">Markup (%)</Label>
+              <div className="flex items-center gap-2">
                 <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('markup')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('markup');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
+                  id="markup"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.markup?.replace('%', '') || 0}
+                  onChange={(e) => setFormData(prev => ({ ...prev, markup: `${e.target.value}%` }))}
+                  className="w-full"
                 />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('markup', formData.markup)}
-                >
-                  {formData.markup || "Click to edit"}
-                </div>
-              )}
+                <span className="text-muted-foreground">%</span>
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="event_days">Event Days</Label>
-              {editingField === 'event_days' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('event_days')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('event_days');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('event_days', formData.event_days)}
-                >
-                  {formData.event_days || "Click to edit"}
-                </div>
-              )}
+              <Select
+                value={formData.event_days}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, event_days: value }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select event days" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eventDayOptions.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="ticket_type">Ticket Type</Label>
-              {editingField === 'ticket_type' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('ticket_type')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('ticket_type');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('ticket_type', formData.ticket_type)}
-                >
-                  {formData.ticket_type || "Click to edit"}
-                </div>
-              )}
+              <Select
+                value={formData.ticket_type}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, ticket_type: value }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select ticket type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ticketTypeOptions.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="delivery_days">Delivery Days</Label>
-              {editingField === 'delivery_days' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('delivery_days')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('delivery_days');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('delivery_days', formData.delivery_days)}
-                >
-                  {formData.delivery_days || "Click to edit"}
-                </div>
-              )}
+              <Input
+                id="delivery_days"
+                value={formData.delivery_days}
+                onChange={(e) => setFormData(prev => ({ ...prev, delivery_days: e.target.value }))}
+                placeholder="Enter delivery days"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ticket_description">Ticket Description</Label>
-              {editingField === 'ticket_description' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('ticket_description')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('ticket_description');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('ticket_description', formData.ticket_description)}
-                >
-                  {formData.ticket_description || "Click to edit"}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="ticket_image_1">Ticket Image 1</Label>
-              {editingField === 'ticket_image_1' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('ticket_image_1')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('ticket_image_1');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('ticket_image_1', formData.ticket_image_1)}
-                >
-                  {formData.ticket_image_1 || "Click to edit"}
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ticket_image_2">Ticket Image 2</Label>
-              {editingField === 'ticket_image_2' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('ticket_image_2')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('ticket_image_2');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('ticket_image_2', formData.ticket_image_2)}
-                >
-                  {formData.ticket_image_2 || "Click to edit"}
-                </div>
-              )}
+              <Input
+                id="ticket_description"
+                value={formData.ticket_description}
+                onChange={(e) => setFormData(prev => ({ ...prev, ticket_description: e.target.value }))}
+                placeholder="Enter ticket description"
+              />
             </div>
           </div>
         </div>
 
         {/* Stock and Cost Information */}
-        <div className="space-y-2">
-          <h4 className="font-medium">Stock & Cost Information</h4>
+        <div className="space-y-4">
+          <h4 className="font-medium text-lg">Stock & Cost Information</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="actual_stock">Stock</Label>
-              {editingField === 'actual_stock' ? (
-                <Input
-                  type="number"
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('actual_stock')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('actual_stock');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('actual_stock', formData.actual_stock)}
-                >
-                  {formData.actual_stock}
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="used">Used Tickets</Label>
-              {editingField === 'used' ? (
-                <Input
-                  type="number"
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('used')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('used');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('used', formData.used)}
-                >
-                  {formData.used}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="currency_bought_in">Currency</Label>
-              {editingField === 'currency_bought_in' ? (
-                <Input
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('currency_bought_in')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('currency_bought_in');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('currency_bought_in', formData.currency_bought_in)}
-                >
-                  {formData.currency_bought_in || "Click to edit"}
-                </div>
-              )}
+              <Input
+                id="actual_stock"
+                type="number"
+                min="0"
+                value={formData.actual_stock}
+                onChange={(e) => setFormData(prev => ({ ...prev, actual_stock: Number(e.target.value) }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="total_cost_local">Total Cost (Local)</Label>
-              {editingField === 'total_cost_local' ? (
+              <div className="flex gap-2">
                 <Input
+                  id="total_cost_local"
                   type="number"
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('total_cost_local')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('total_cost_local');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
+                  min="0"
+                  step="0.01"
+                  value={formData.total_cost_local}
+                  onChange={(e) => setFormData(prev => ({ ...prev, total_cost_local: Number(e.target.value) }))}
+                  className="flex-1"
                 />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('total_cost_local', formData.total_cost_local)}
+                <Select
+                  value={formData.currency_bought_in}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, currency_bought_in: value }))}
                 >
-                  {formData.total_cost_local}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="unit_cost_gbp">Unit Cost (GBP)</Label>
-              {editingField === 'unit_cost_gbp' ? (
-                <Input
-                  type="number"
-                  value={fieldValue}
-                  onChange={(e) => setFieldValue(e.target.value)}
-                  onBlur={() => handleFieldSave('unit_cost_gbp')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleFieldSave('unit_cost_gbp');
-                    if (e.key === 'Escape') handleFieldCancel();
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <div 
-                  className="p-2 border rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleFieldEdit('unit_cost_gbp', formData.unit_cost_gbp)}
-                >
-                  {formData.unit_cost_gbp}
-                </div>
-              )}
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencyOptions.map((currency) => (
+                      <SelectItem key={currency} value={currency}>
+                        {currency}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Seat Features */}
-        <div className="space-y-2">
-          <h4 className="font-medium">Seat Features</h4>
+        <div className="space-y-4">
+          <h4 className="font-medium text-lg">Seat Features</h4>
           <div className="grid grid-cols-3 gap-4">
             <div className="flex items-center space-x-2">
               <Switch
@@ -967,8 +807,8 @@ function TicketTable() {
         </div>
 
         {/* Status Information */}
-        <div className="space-y-2">
-          <h4 className="font-medium">Status</h4>
+        <div className="space-y-4">
+          <h4 className="font-medium text-lg">Status</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center space-x-2">
               <Switch
@@ -1008,7 +848,7 @@ function TicketTable() {
     );
   };
 
-  const TicketDialog = ({ isOpen, onOpenChange, mode = "add", ticket = null }) => {
+  const TicketDialog = ({ isOpen, onOpenChange, mode = "add", ticket = null, isLoading = false }) => {
     const isEdit = mode === "edit";
     const dialogTitle = isEdit ? "Edit Ticket" : "Add New Ticket";
     const dialogDescription = isEdit ? "Update the ticket details" : "Fill in the details for the new ticket";
@@ -1054,15 +894,7 @@ function TicketTable() {
     };
 
     return (
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-          if (!isEdit) {
-            setNewTicket(initialTicketState);
-          }
-          setEditingTicket(null);
-        }
-        onOpenChange(open);
-      }}>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
@@ -1076,12 +908,22 @@ function TicketTable() {
             filteredPackages={filteredPackages}
             handleSubmit={handleFormSubmit}
             onCancel={() => onOpenChange(false)}
+            isLoading={isLoading}
           />
           <DialogFooter className="sticky bottom-0 bg-background border-t pt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancel
             </Button>
-            <Button onClick={handleFormSubmit}>{buttonText}</Button>
+            <Button onClick={handleFormSubmit} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isEdit ? "Updating..." : "Adding..."}
+                </>
+              ) : (
+                buttonText
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1208,6 +1050,7 @@ function TicketTable() {
               <TableHead>Reference</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Used</TableHead>
+              <TableHead>Remaining</TableHead>
               <TableHead>Unit Cost (GBP)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
@@ -1216,6 +1059,8 @@ function TicketTable() {
           <TableBody>
             {currentItems.map((item) => {
               const isEditing = editingCell.rowId === item.ticket_id;
+              const remaining = item.remaining;
+              const isPTO = remaining === 'purchased_to_order';
               
               return (
                 <TableRow key={item.ticket_id}>
@@ -1311,6 +1156,11 @@ function TicketTable() {
                         {item.used}
                       </div>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <div className={`font-medium ${isPTO ? 'text-blue-500' : remaining < 5 ? 'text-red-500' : remaining < 10 ? 'text-yellow-500' : 'text-green-500'}`}>
+                      {isPTO ? 'PTO' : remaining}
+                    </div>
                   </TableCell>
                   <TableCell>£{typeof item['unit_cost_(gbp)'] === 'number' ? item['unit_cost_(gbp)'].toFixed(2) : '0.00'}</TableCell>
                   <TableCell>
@@ -1415,6 +1265,7 @@ function TicketTable() {
         isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         mode="add"
+        isLoading={isAdding}
       />
 
       {/* Edit Dialog */}
@@ -1423,7 +1274,54 @@ function TicketTable() {
         onOpenChange={setIsEditDialogOpen}
         mode="edit"
         ticket={editingTicket}
+        isLoading={isEditing}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this ticket? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Success Dialog */}
+      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-green-600">Success</AlertDialogTitle>
+            <AlertDialogDescription>
+              {successMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
+              Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

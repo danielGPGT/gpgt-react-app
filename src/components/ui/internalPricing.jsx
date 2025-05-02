@@ -10,6 +10,7 @@ import {
   Bus,
   CalendarDays,
   Package,
+  Trophy,
 } from "lucide-react";
 import { parse } from "date-fns";
 import { differenceInCalendarDays } from "date-fns";
@@ -117,6 +118,9 @@ function InternalPricing({
   const { theme } = useTheme();
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [selectedSport, setSelectedSport] = useState("all");
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [sports, setSports] = useState([]);
 
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
@@ -264,6 +268,11 @@ function InternalPricing({
       try {
         const res = await api.get("/event");
         setEvents(res.data);
+        setFilteredEvents(res.data);
+        
+        // Extract unique sports from events
+        const uniqueSports = [...new Set(res.data.map(event => event.sport))];
+        setSports(uniqueSports.filter(sport => sport)); // Filter out any undefined/null values
       } catch (error) {
         console.error("Failed to fetch events:", error.message);
       } finally {
@@ -273,6 +282,15 @@ function InternalPricing({
 
     fetchEvents();
   }, []);
+
+  // Update filtered events when sport selection changes
+  useEffect(() => {
+    if (selectedSport === "all") {
+      setFilteredEvents(events);
+    } else {
+      setFilteredEvents(events.filter(event => event.sport === selectedSport));
+    }
+  }, [selectedSport, events]);
 
   // Pre-fill date range when selectedRoom changes
   useEffect(() => {
@@ -606,6 +624,25 @@ function InternalPricing({
       {/* Event & Package */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
+          <h2 className="text-xs font-semibold mb-1 text-foreground">Select Sport</h2>
+          <Select value={selectedSport} onValueChange={setSelectedSport}>
+            <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
+              <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                <Trophy className="h-4 w-4" />
+              </div>
+              <SelectValue placeholder="All Sports" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sports</SelectItem>
+              {sports.map((sport, index) => (
+                <SelectItem key={index} value={sport}>
+                  {sport}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <h2 className="text-xs font-semibold mb-1 text-foreground">
             Select Event
           </h2>
@@ -617,7 +654,7 @@ function InternalPricing({
               <SelectValue placeholder="Choose event" />
             </SelectTrigger>
             <SelectContent>
-              {events.map((event) => (
+              {filteredEvents.map((event) => (
                 <SelectItem key={event.event_id} value={event.event_id}>
                   {event.event || event.event_name}
                 </SelectItem>
