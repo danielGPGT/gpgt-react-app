@@ -1,9 +1,19 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { ChartContainer } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from "recharts";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, PoundSterling, Users, CreditCard, Activity } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { RecentBookings } from "@/components/ui/recentBookings";
+import { DatePickerWithRange } from "@/components/ui/date-picker-range";
 
 function formatGBP(value) {
   return `£ ${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -37,6 +47,9 @@ function getMonthRangeString(monthlyData, year) {
   return `${first} - ${last} ${year}`;
 }
 
+// Placeholder RecentBookings component
+
+
 function BookingsChart() {
   const [monthlyData, setMonthlyData] = useState([]);
   const [summary, setSummary] = useState({ bookings: 0, totalSold: 0, totalCost: 0, pnl: 0 });
@@ -47,6 +60,13 @@ function BookingsChart() {
     pnl: { current: 0, lastMonth: 0, lastYear: 0 },
   });
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    sport: "all",
+    event: "all"
+  });
+  const [uniqueSports, setUniqueSports] = useState([]);
+  const [uniqueEvents, setUniqueEvents] = useState([]);
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
 
   const now = new Date();
   const year = now.getFullYear();
@@ -56,6 +76,27 @@ function BookingsChart() {
       try {
         const res = await api.get("bookingFile");
         const bookings = res.data || [];
+        
+        // Extract unique sports and events
+        const sports = [...new Set(bookings.map(b => b.sport).filter(Boolean))];
+        const events = [...new Set(bookings.map(b => b.event_name).filter(Boolean))];
+        setUniqueSports(sports);
+        setUniqueEvents(events);
+
+        // Filter bookings based on selected filters and date range
+        let filteredBookings = bookings.filter(booking => {
+          const sportMatch = filters.sport === "all" || booking.sport === filters.sport;
+          const eventMatch = filters.event === "all" || booking.event_name === filters.event;
+          let dateMatch = true;
+          if (dateRange.from) {
+            dateMatch = dateMatch && new Date(booking.booking_date) >= new Date(dateRange.from);
+          }
+          if (dateRange.to) {
+            dateMatch = dateMatch && new Date(booking.booking_date) <= new Date(dateRange.to);
+          }
+          return sportMatch && eventMatch && dateMatch;
+        });
+
         const month = now.getMonth();
         // Prepare monthly aggregates
         const monthly = Array.from({ length: 12 }, (_, i) => ({
@@ -71,7 +112,8 @@ function BookingsChart() {
         let soldThisMonth = 0, soldLastMonth = 0, soldLastYear = 0;
         let costThisMonth = 0, costLastMonth = 0, costLastYear = 0;
         let pnlThisMonth = 0, pnlLastMonth = 0, pnlLastYear = 0;
-        bookings.forEach(b => {
+
+        filteredBookings.forEach(b => {
           const d = new Date(b.booking_date);
           if (d.getFullYear() === year) {
             const m = d.getMonth();
@@ -124,69 +166,153 @@ function BookingsChart() {
       }
     }
     fetchData();
-  }, []);
+  }, [filters, dateRange]); // Add dateRange as dependency
 
   if (loading) return <div className="text-center text-muted-foreground">Loading charts...</div>;
 
   return (
     <div className="w-full">
-      {/* Summary metrics row */}
+      {/* Filters */}
+      <div className="flex gap-4 mb-6 flex-wrap items-center">
+        <Select
+          value={filters.sport}
+          onValueChange={(value) => setFilters(prev => ({ ...prev, sport: value }))}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by Sport" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sports</SelectItem>
+            {uniqueSports.map((sport) => (
+              <SelectItem key={sport} value={sport}>
+                {sport}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.event}
+          onValueChange={(value) => setFilters(prev => ({ ...prev, event: value }))}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by Event" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Events</SelectItem>
+            {uniqueEvents.map((event) => (
+              <SelectItem key={event} value={event}>
+                {event}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setDateRange({ from: null, to: null })}
+          className="h-9"
+        >
+          Clear
+        </Button>
+      </div>
+
+      {/* Overview cards row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
         {/* Bookings Made */}
-        <div className="rounded-lg border bg-card p-5 flex flex-col items-start">
-          <span className="text-xs text-muted-foreground mb-1">Bookings Made</span>
-          <span className="text-3xl font-bold text-foreground mb-2">{summary.bookings}</span>
-          <span className="flex items-center gap-1 text-xs font-medium mb-1">
-            <Trend value={percentChange(metrics.bookings.current, metrics.bookings.lastMonth)} />
-            <span className="ml-1 text-muted-foreground">vs last month</span>
-          </span>
-          <span className="flex items-center gap-1 text-xs font-medium">
-            <Trend value={percentChange(metrics.bookings.current, metrics.bookings.lastYear)} />
-            <span className="ml-1 text-muted-foreground">vs last year</span>
-          </span>
-        </div>
+        <Card className="p-6 flex flex-col justify-between shadow-sm border rounded-xl">
+          <div className="flex items-start justify-between">
+            <span className="text-sm text-muted-foreground font-medium">Bookings Made</span>
+            <Users className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-bold text-foreground">{summary.bookings}</div>
+            <div className="text-xs text-muted-foreground mt-1">{`${percentChange(metrics.bookings.current, metrics.bookings.lastMonth).toFixed(1)}% from last month`}</div>
+          </div>
+        </Card>
         {/* Total Costs */}
-        <div className="rounded-lg border bg-card p-5 flex flex-col items-start">
-          <span className="text-xs text-muted-foreground mb-1">Total Costs</span>
-          <span className="text-3xl font-bold text-foreground mb-2">{formatGBP(summary.totalCost)}</span>
-          <span className="flex items-center gap-1 text-xs font-medium mb-1">
-            <Trend value={percentChange(metrics.totalCost.current, metrics.totalCost.lastMonth)} />
-            <span className="ml-1 text-muted-foreground">vs last month</span>
-          </span>
-          <span className="flex items-center gap-1 text-xs font-medium">
-            <Trend value={percentChange(metrics.totalCost.current, metrics.totalCost.lastYear)} />
-            <span className="ml-1 text-muted-foreground">vs last year</span>
-          </span>
+        <Card className="p-6 flex flex-col justify-between shadow-sm border rounded-xl">
+          <div className="flex items-start justify-between">
+            <span className="text-sm text-muted-foreground font-medium">Total Costs</span>
+            <CreditCard className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-bold text-foreground">{formatGBP(summary.totalCost)}</div>
+            <div className="text-xs text-muted-foreground mt-1">{`${percentChange(metrics.totalCost.current, metrics.totalCost.lastMonth).toFixed(1)}% from last month`}</div>
+          </div>
+        </Card>
+        {/* Total Sold */}
+        <Card className="p-6 flex flex-col justify-between shadow-sm border rounded-xl">
+          <div className="flex items-start justify-between">
+            <span className="text-sm text-muted-foreground font-medium">Total Sold</span>
+            <PoundSterling className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-bold text-foreground">{formatGBP(summary.totalSold)}</div>
+            <div className="text-xs text-muted-foreground mt-1">{`${percentChange(metrics.totalSold.current, metrics.totalSold.lastMonth).toFixed(1)}% from last month`}</div>
+          </div>
+        </Card>
+        {/* Profit & Loss */}
+        <Card className="p-6 flex flex-col justify-between shadow-sm border rounded-xl">
+          <div className="flex items-start justify-between">
+            <span className="text-sm text-muted-foreground font-medium">Profit & Loss</span>
+            {summary.pnl >= 0 ? (
+              <TrendingUp className="w-5 h-5 text-green-600" />
+            ) : (
+              <TrendingDown className="w-5 h-5 text-red-600" />
+            )}
+          </div>
+          <div className="mt-4">
+            <div className={`text-3xl font-bold ${summary.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>{formatGBP(summary.pnl)}</div>
+            <div className="text-xs text-muted-foreground mt-1">{`${percentChange(metrics.pnl.current, metrics.pnl.lastMonth).toFixed(1)}% from last month`}</div>
+          </div>
+        </Card>
+      </div>
+
+      {/* P&L Chart and Recent Bookings side by side */}
+      <div className="grid grid-cols-12 gap-6 mb-6">
+        <div className="col-span-12 md:col-span-4 h-full flex flex-col">
+          <Card className="h-full flex flex-col">
+            <CardHeader>
+              <CardTitle>Profit & Loss</CardTitle>
+              <CardDescription>{getMonthRangeString(monthlyData, year)}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col justify-between">
+              <ChartContainer config={{}}>
+                <BarChart accessibilityLayer data={monthlyData}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    tickMargin={10}
+                    axisLine={false}
+                    tickFormatter={(value) => value.slice(0, 3)}
+                  />
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel formatter={formatGBP} />}
+                  />
+                  <Bar dataKey="pnl" fill="var(--primary)" radius={8} />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+            <CardFooter className="flex-col items-start gap-2 text-sm">
+              <div className="flex gap-2 font-medium leading-none">
+                <Trend value={percentChange(metrics.pnl.current, metrics.pnl.lastMonth)} />
+              </div>
+              <div className="leading-none text-muted-foreground">
+                Showing P&L for the last {monthlyData.filter(m => m.pnl !== 0).length} months
+              </div>
+            </CardFooter>
+          </Card>
         </div>
-        {/* Total Sold GBP */}
-        <div className="rounded-lg border bg-card p-5 flex flex-col items-start">
-          <span className="text-xs text-muted-foreground mb-1">Total Sold GBP</span>
-          <span className="text-3xl font-bold text-foreground mb-2">{formatGBP(summary.totalSold)}</span>
-          <span className="flex items-center gap-1 text-xs font-medium mb-1">
-            <Trend value={percentChange(metrics.totalSold.current, metrics.totalSold.lastMonth)} />
-            <span className="ml-1 text-muted-foreground">vs last month</span>
-          </span>
-          <span className="flex items-center gap-1 text-xs font-medium">
-            <Trend value={percentChange(metrics.totalSold.current, metrics.totalSold.lastYear)} />
-            <span className="ml-1 text-muted-foreground">vs last year</span>
-          </span>
-        </div>
-        {/* P&L */}
-        <div className="rounded-lg border bg-card p-5 flex flex-col items-start">
-          <span className="text-xs text-muted-foreground mb-1">P&L</span>
-          <span className={`text-3xl font-bold mb-2 ${summary.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>{formatGBP(summary.pnl)}</span>
-          <span className="flex items-center gap-1 text-xs font-medium mb-1">
-            <Trend value={percentChange(metrics.pnl.current, metrics.pnl.lastMonth)} />
-            <span className="ml-1 text-muted-foreground">vs last month</span>
-          </span>
-          <span className="flex items-center gap-1 text-xs font-medium">
-            <Trend value={percentChange(metrics.pnl.current, metrics.pnl.lastYear)} />
-            <span className="ml-1 text-muted-foreground">vs last year</span>
-          </span>
+        <div className="col-span-12 md:col-span-8 h-full flex flex-col">
+          <RecentBookings />
         </div>
       </div>
+
       {/* Charts grid */}
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Bookings Made per Month */}
         <Card>
           <CardHeader>
@@ -195,11 +321,19 @@ function BookingsChart() {
           </CardHeader>
           <CardContent>
             <ChartContainer config={{}}>
-              <BarChart data={monthlyData} margin={{ top: 20 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
+              <BarChart accessibilityLayer data={monthlyData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  tickFormatter={(value) => value.slice(0, 3)}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel />}
+                />
                 <Bar dataKey="bookings" fill="var(--primary)" radius={8}>
                   <LabelList dataKey="bookings" position="top" offset={12} className="fill-foreground" fontSize={12} />
                 </Bar>
@@ -223,11 +357,19 @@ function BookingsChart() {
           </CardHeader>
           <CardContent>
             <ChartContainer config={{}}>
-              <BarChart data={monthlyData} margin={{ top: 20 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-                <YAxis tickFormatter={formatGBP} />
-                <Tooltip formatter={formatGBP} />
+              <BarChart accessibilityLayer data={monthlyData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  tickFormatter={(value) => value.slice(0, 3)}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel formatter={formatGBP} />}
+                />
                 <Bar dataKey="totalCost" fill="var(--primary)" radius={8} />
               </BarChart>
             </ChartContainer>
@@ -249,11 +391,19 @@ function BookingsChart() {
           </CardHeader>
           <CardContent>
             <ChartContainer config={{}}>
-              <BarChart data={monthlyData} margin={{ top: 20 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-                <YAxis tickFormatter={formatGBP} />
-                <Tooltip formatter={formatGBP} />
+              <BarChart accessibilityLayer data={monthlyData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  tickFormatter={(value) => value.slice(0, 3)}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel formatter={formatGBP} />}
+                />
                 <Bar dataKey="totalSold" fill="var(--primary)" radius={8} />
               </BarChart>
             </ChartContainer>
@@ -267,35 +417,9 @@ function BookingsChart() {
             </div>
           </CardFooter>
         </Card>
-        {/* P&L per Month */}
-        <Card>
-          <CardHeader>
-            <CardTitle>P&L</CardTitle>
-            <CardDescription>{getMonthRangeString(monthlyData, year)}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={{}}>
-              <BarChart data={monthlyData} margin={{ top: 20 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-                <YAxis tickFormatter={formatGBP} />
-                <Tooltip formatter={formatGBP} />
-                <Bar dataKey="pnl" fill="var(--primary)" radius={8} />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-          <CardFooter className="flex-col items-start gap-2 text-sm">
-            <div className="flex gap-2 font-medium leading-none">
-              <Trend value={percentChange(metrics.pnl.current, metrics.pnl.lastMonth)} />
-            </div>
-            <div className="leading-none text-muted-foreground">
-              Showing P&L for the last {monthlyData.filter(m => m.pnl !== 0).length} months
-            </div>
-          </CardFooter>
-        </Card>
       </div>
     </div>
   );
 }
-
 export { BookingsChart };
+

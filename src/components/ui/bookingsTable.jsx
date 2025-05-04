@@ -155,7 +155,7 @@ function BookingsTable() {
   };
 
   // Apply filters and calculate pagination
-  const filteredBookings = filterBookings(bookings);
+  const filteredBookings = filterBookings(bookings).reverse();
   const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -285,7 +285,7 @@ function BookingsTable() {
               <TableRow key={booking.booking_ref}>
                 <TableCell className="font-medium">{booking.booking_ref}</TableCell>
                 <TableCell>
-                  <Badge variant={booking.status === "New" ? "default" : "secondary"}>
+                  <Badge variant={booking.status === "Future" ? "default" : "secondary"}>
                     {booking.status}
                   </Badge>
                 </TableCell>

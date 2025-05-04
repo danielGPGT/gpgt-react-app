@@ -440,7 +440,7 @@ function TicketTable() {
   };
 
   // Apply filters and calculate pagination
-  const filteredStock = filterStock(stock);
+  const filteredStock = filterStock(stock).reverse();
   const totalPages = Math.ceil(filteredStock.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;

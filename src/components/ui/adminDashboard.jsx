@@ -56,19 +56,11 @@ function AdminDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-foreground">Dashboard Overview</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Key metrics and quick actions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="">
-                <BookingsChart />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mb-4">
+            <h3 className="text-xl font-semibold text-foreground mb-4">Dashboard Overview</h3>
+            <p className="text-muted-foreground">Key metrics and quick actions</p>
+          </div>
+          <BookingsChart />
         </TabsContent>
 
         <TabsContent value="users" className="mt-6">
