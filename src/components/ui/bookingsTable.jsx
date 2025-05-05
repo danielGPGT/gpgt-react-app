@@ -1087,7 +1087,7 @@ function BookingsTable() {
                       <Badge 
                         className={`ml-2 ${
                           viewingBooking.payment_status === "Paid" ? "bg-[#4CAF50] text-white" : 
-                          viewingBooking.payment_status === "Cancelled" ? "bg-secondary text-white" : 
+                          viewingBooking.payment_status === "Cancelled" ? "bg-secondary text-black" : 
                           "bg-[#DE3B3D] text-white"
                         }`}
                       >

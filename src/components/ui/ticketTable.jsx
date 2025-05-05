@@ -1211,7 +1211,7 @@ function TicketTable() {
           </div>
 
           {/* Ticket Details */}
-          <div className="space-y-4">
+          <div className="space-y-4 pt-6">
             <h4 className="font-medium text-lg">Ticket Details</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1339,7 +1339,7 @@ function TicketTable() {
           </div>
 
           {/* Stock and Cost Information */}
-          <div className="space-y-4">
+          <div className="space-y-4 pt-6">
             <h4 className="font-medium text-lg">Stock & Cost Information</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1390,7 +1390,7 @@ function TicketTable() {
           </div>
 
           {/* Seat Features */}
-          <div className="space-y-4">
+          <div className="space-y-4 pt-6">
             <h4 className="font-medium text-lg">Seat Features</h4>
             <div className="grid grid-cols-3 gap-4">
               <div className="flex items-center space-x-2">
@@ -1424,7 +1424,7 @@ function TicketTable() {
           </div>
 
           {/* Status Information */}
-          <div className="space-y-4">
+          <div className="space-y-4 pt-6">
             <h4 className="font-medium text-lg">Status</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center space-x-2">
