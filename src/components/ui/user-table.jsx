@@ -151,7 +151,7 @@ function UsersTable() {
 
       <div className="rounded-md border border-border">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead className="text-foreground">Name</TableHead>
               <TableHead className="text-foreground">Email</TableHead>

@@ -4,7 +4,7 @@ import { PricingSheet } from "@/pages/pricing";
 import { InventoryPage } from "@/pages/inventory";
 import { BookingsPage } from "@/pages/bookings";
 import { Routes, Route } from "react-router-dom";
-import PrivateRoute from "./components/privateRoute"; // <-- Protects pages
+import RoleBasedRoute from "./components/roleBasedRoute";
 import { ThemeProvider } from "@/components/theme-provider";
 
 function App() {
@@ -12,37 +12,37 @@ function App() {
     <ThemeProvider>
       <Routes>
         <Route path="/" element={<Login />} />
-        {/* Protected Routes */}
+        {/* Protected Routes with Role-Based Access */}
         <Route
           path="/dashboard"
           element={
-            <PrivateRoute>
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
               <Dashboard />
-            </PrivateRoute>
+            </RoleBasedRoute>
           }
         />
         <Route
           path="/pricing"
           element={
-            <PrivateRoute>
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales"]}>
               <PricingSheet />
-            </PrivateRoute>
+            </RoleBasedRoute>
           }
         />
         <Route
           path="/inventory"
           element={
-            <PrivateRoute>
+            <RoleBasedRoute allowedRoles={["Admin", "Operations"]}>
               <InventoryPage />
-            </PrivateRoute>
+            </RoleBasedRoute>
           }
         />
         <Route
           path="/bookings"
           element={
-            <PrivateRoute>
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
               <BookingsPage />
-            </PrivateRoute>
+            </RoleBasedRoute>
           }
         />
       </Routes>

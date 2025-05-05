@@ -541,11 +541,11 @@ function RoomsTable() {
       {/* Table */}
       <div className="rounded-md border">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead>Hotel</TableHead>
-              <TableHead>Room Type</TableHead>
               <TableHead>Category</TableHead>
+              <TableHead>Room Type</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Check-in</TableHead>
               <TableHead>Check-out</TableHead>
@@ -561,8 +561,8 @@ function RoomsTable() {
             {currentItems.map((item) => (
               <TableRow key={item.room_id}>
                 <TableCell className="font-medium">{item.hotel_name}</TableCell>
-                <TableCell>{item.room_type}</TableCell>
                 <TableCell>{item.room_category}</TableCell>
+                <TableCell>{item.room_type}</TableCell>
                 <TableCell>{item.source}</TableCell>
                 <TableCell>{item.check_in_date}</TableCell>
                 <TableCell>{item.check_out_date}</TableCell>
@@ -573,7 +573,7 @@ function RoomsTable() {
                     {item.remaining}
                   </Badge>
                 </TableCell>
-                <TableCell>£{item["per_night_price_(gbp)"]}</TableCell>
+                <TableCell>£{item["price_per_night_(gbp)"]}</TableCell>
                 <TableCell>{item.nights}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">

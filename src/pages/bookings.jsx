@@ -36,7 +36,7 @@ function BookingsPage() {
 
           <div className="mt-6">
             <h2 className="text-2xl font-bold">
-              {user ? `${user.first_name}'s Bookings` : "Loading..."}
+              GPGT's Bookings
             </h2>
           </div>
 

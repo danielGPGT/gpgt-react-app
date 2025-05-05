@@ -36,7 +36,7 @@ function InventoryPage() {
 
           <div className="mt-6">
             <h2 className="text-2xl font-bold">
-              {user ? `${user.first_name}'s Inventory` : "Loading..."}
+              GPGT's Inventory
             </h2>
           </div>
 

@@ -9,7 +9,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Plus, Trash2, Search, Filter, Pencil, Eye } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Plus,
+  Trash2,
+  Search,
+  Filter,
+  Pencil,
+  Eye,
+} from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -83,6 +92,40 @@ function BookingsTable() {
     bookingDateRange: { from: null, to: null },
   });
 
+  const currencySymbols = {
+    GBP: "£",
+    USD: "$",
+    EUR: "€",
+    AUD: "A$",
+    CAD: "C$",
+    NZD: "NZ$",
+    JPY: "¥",
+    CHF: "Fr",
+    CNY: "¥",
+    INR: "₹",
+    BRL: "R$",
+    ZAR: "R",
+    SGD: "S$",
+    HKD: "HK$",
+    SEK: "kr",
+    NOK: "kr",
+    DKK: "kr",
+    PLN: "zł",
+    MXN: "Mex$",
+    RUB: "₽",
+    TRY: "₺",
+    KRW: "₩",
+    THB: "฿",
+    IDR: "Rp",
+    MYR: "RM",
+    PHP: "₱",
+    VND: "₫",
+  };
+
+  const getCurrencySymbol = (currencyCode) => {
+    return currencySymbols[currencyCode] || currencyCode;
+  };
+
   useEffect(() => {
     fetchBookings();
   }, []);
@@ -102,32 +145,54 @@ function BookingsTable() {
 
   // Get unique values for filters
   const getUniqueValues = (field) => {
-    return [...new Set(bookings.map(booking => booking[field]).filter(Boolean))];
+    return [
+      ...new Set(bookings.map((booking) => booking[field]).filter(Boolean)),
+    ];
   };
 
   // Filter functions
   const filterBookings = (items) => {
-    return items.filter(item => {
-      const searchMatch = filters.search === "" || 
-        Object.values(item).some(val => 
+    return items.filter((item) => {
+      const searchMatch =
+        filters.search === "" ||
+        Object.values(item).some((val) =>
           String(val).toLowerCase().includes(filters.search.toLowerCase())
         );
 
-      const statusMatch = filters.status === "all" || item.status === filters.status;
-      const eventMatch = filters.event === "all" || item.event_name === filters.event;
-      const packageMatch = filters.package === "all" || item.package_type === filters.package;
-      const bookingTypeMatch = filters.bookingType === "all" || item.booking_type === filters.bookingType;
-      const consultantMatch = filters.consultant === "all" || item.consultant === filters.consultant;
+      const statusMatch =
+        filters.status === "all" || item.status === filters.status;
+      const eventMatch =
+        filters.event === "all" || item.event_name === filters.event;
+      const packageMatch =
+        filters.package === "all" || item.package_type === filters.package;
+      const bookingTypeMatch =
+        filters.bookingType === "all" ||
+        item.booking_type === filters.bookingType;
+      const consultantMatch =
+        filters.consultant === "all" || item.consultant === filters.consultant;
       // Date range filter using DatePickerWithRange
       let dateMatch = true;
       if (filters.bookingDateRange.from) {
-        dateMatch = dateMatch && new Date(item.booking_date) >= new Date(filters.bookingDateRange.from);
+        dateMatch =
+          dateMatch &&
+          new Date(item.booking_date) >=
+            new Date(filters.bookingDateRange.from);
       }
       if (filters.bookingDateRange.to) {
-        dateMatch = dateMatch && new Date(item.booking_date) <= new Date(filters.bookingDateRange.to);
+        dateMatch =
+          dateMatch &&
+          new Date(item.booking_date) <= new Date(filters.bookingDateRange.to);
       }
 
-      return searchMatch && statusMatch && eventMatch && packageMatch && bookingTypeMatch && consultantMatch && dateMatch;
+      return (
+        searchMatch &&
+        statusMatch &&
+        eventMatch &&
+        packageMatch &&
+        bookingTypeMatch &&
+        consultantMatch &&
+        dateMatch
+      );
     });
   };
 
@@ -141,7 +206,11 @@ function BookingsTable() {
     try {
       setIsDeleting(true);
       await api.delete(`bookingFile/${bookingToDelete}`);
-      setBookings(prevBookings => prevBookings.filter(booking => booking.booking_ref !== bookingToDelete));
+      setBookings((prevBookings) =>
+        prevBookings.filter(
+          (booking) => booking.booking_ref !== bookingToDelete
+        )
+      );
       setSuccessMessage("Booking deleted successfully!");
       setShowSuccessDialog(true);
     } catch (error) {
@@ -162,13 +231,17 @@ function BookingsTable() {
   const currentItems = filteredBookings.slice(startIndex, endIndex);
 
   if (loading) {
-    return <div className="text-center text-muted-foreground">Loading bookings...</div>;
+    return (
+      <div className="text-center text-muted-foreground">
+        Loading bookings...
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4 w-full">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Bookings</h3>
+        <h3 className="text-lg font-semibold">View and edit Bookings</h3>
       </div>
 
       {/* Filters */}
@@ -179,7 +252,9 @@ function BookingsTable() {
             <Input
               placeholder="Search bookings..."
               value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              onChange={(e) =>
+                setFilters({ ...filters, search: e.target.value })
+              }
               className="pl-8"
             />
           </div>
@@ -193,7 +268,7 @@ function BookingsTable() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            {getUniqueValues('status').map((status) => (
+            {getUniqueValues("status").map((status) => (
               <SelectItem key={status} value={status}>
                 {status}
               </SelectItem>
@@ -209,7 +284,7 @@ function BookingsTable() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Events</SelectItem>
-            {getUniqueValues('event_name').map((event) => (
+            {getUniqueValues("event_name").map((event) => (
               <SelectItem key={event} value={event}>
                 {event}
               </SelectItem>
@@ -225,7 +300,7 @@ function BookingsTable() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Packages</SelectItem>
-            {getUniqueValues('package_type').map((pkg) => (
+            {getUniqueValues("package_type").map((pkg) => (
               <SelectItem key={pkg} value={pkg}>
                 {pkg}
               </SelectItem>
@@ -234,14 +309,16 @@ function BookingsTable() {
         </Select>
         <Select
           value={filters.consultant}
-          onValueChange={(value) => setFilters({ ...filters, consultant: value })}
+          onValueChange={(value) =>
+            setFilters({ ...filters, consultant: value })
+          }
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by Consultant" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Consultants</SelectItem>
-            {getUniqueValues('consultant').map((consultant) => (
+            {getUniqueValues("consultant").map((consultant) => (
               <SelectItem key={consultant} value={consultant}>
                 {consultant}
               </SelectItem>
@@ -252,12 +329,19 @@ function BookingsTable() {
           <Label>Booking Date:</Label>
           <DatePickerWithRange
             date={filters.bookingDateRange}
-            setDate={range => setFilters({ ...filters, bookingDateRange: range })}
+            setDate={(range) =>
+              setFilters({ ...filters, bookingDateRange: range })
+            }
           />
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setFilters({ ...filters, bookingDateRange: { from: null, to: null } })}
+            onClick={() =>
+              setFilters({
+                ...filters,
+                bookingDateRange: { from: null, to: null },
+              })
+            }
           >
             Clear
           </Button>
@@ -266,7 +350,7 @@ function BookingsTable() {
 
       <div className="rounded-md border">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead>Booking Ref</TableHead>
               <TableHead>Status</TableHead>
@@ -277,15 +361,21 @@ function BookingsTable() {
               <TableHead>Total Cost</TableHead>
               <TableHead>Total Sold (GBP)</TableHead>
               <TableHead>P&L</TableHead>
+              <TableHead>Payment Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.map((booking) => (
               <TableRow key={booking.booking_ref}>
-                <TableCell className="font-medium">{booking.booking_ref}</TableCell>
+                <TableCell className="font-medium">
+                  {booking.booking_ref}
+                </TableCell>
                 <TableCell>
-                  <Badge variant={booking.status === "Future" ? "default" : "secondary"}>
+                  <Badge
+                    variant="secondary"
+                    
+                  >
                     {booking.status}
                   </Badge>
                 </TableCell>
@@ -293,16 +383,29 @@ function BookingsTable() {
                 <TableCell>{booking.package_type}</TableCell>
                 <TableCell>{booking.booker_name}</TableCell>
                 <TableCell>{booking.booking_date}</TableCell>
-                <TableCell>
-                  £ {booking.total_cost.toLocaleString()}
-                </TableCell>
+                <TableCell>£ {booking.total_cost.toLocaleString()}</TableCell>
                 <TableCell>
                   £ {booking.total_sold_gbp.toLocaleString()}
                 </TableCell>
                 <TableCell>
-                  <span className={booking["p&l"] >= 0 ? "text-green-500" : "text-red-500"}>
+                  <span
+                    className={
+                      booking["p&l"] >= 0 ? "text-green-500" : "text-red-500"
+                    }
+                  >
                     £ {booking["p&l"].toLocaleString()}
                   </span>
+                </TableCell>
+                <TableCell>
+                  <Badge 
+                    className={`${
+                      booking.payment_status === "Paid" ? "bg-[#4CAF50] text-white" : 
+                      booking.payment_status === "Cancelled" ? "bg-secondary text-black" : 
+                      "bg-[#DE3B3D] text-white"
+                    }`}
+                  >
+                    {booking.payment_status}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
@@ -344,14 +447,18 @@ function BookingsTable() {
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {startIndex + 1} to {Math.min(endIndex, filteredBookings.length)} of {filteredBookings.length} items
+          Showing {startIndex + 1} to{" "}
+          {Math.min(endIndex, filteredBookings.length)} of{" "}
+          {filteredBookings.length} items
         </div>
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious 
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+              <PaginationPrevious
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                }
               />
             </PaginationItem>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
@@ -365,9 +472,15 @@ function BookingsTable() {
               </PaginationItem>
             ))}
             <PaginationItem>
-              <PaginationNext 
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+              <PaginationNext
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
               />
             </PaginationItem>
           </PaginationContent>
@@ -380,13 +493,14 @@ function BookingsTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Booking</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this booking? This action cannot be undone.
+              Are you sure you want to delete this booking? This action cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDelete} 
+            <AlertDialogAction
+              onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={isDeleting}
             >
@@ -407,10 +521,10 @@ function BookingsTable() {
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-green-600">Success</AlertDialogTitle>
-            <AlertDialogDescription>
-              {successMessage}
-            </AlertDialogDescription>
+            <AlertDialogTitle className="text-green-600">
+              Success
+            </AlertDialogTitle>
+            <AlertDialogDescription>{successMessage}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
@@ -438,21 +552,40 @@ function BookingsTable() {
                   <h3 className="font-semibold text-lg">Basic Information</h3>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
+                      <span className="text-muted-foreground">
+                        Booking Reference:
+                      </span>
+                      <span className="ml-2">{viewingBooking.booking_ref}</span>
+                    </div>
+                    <div>
                       <span className="text-muted-foreground">Status:</span>
-                      <Badge variant={viewingBooking.status === "New" ? "default" : "secondary"} className="ml-2">
+                      <Badge
+                        variant={
+                          viewingBooking.status === "Future"
+                            ? "default"
+                            : "secondary"
+                        }
+                        className="ml-2"
+                      >
                         {viewingBooking.status}
                       </Badge>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Booking Type:</span>
-                      <span className="ml-2">{viewingBooking.booking_type}</span>
+                      <span className="text-muted-foreground">
+                        Booking Type:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.booking_type}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Consultant:</span>
                       <span className="ml-2">{viewingBooking.consultant}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Acquisition:</span>
+                      <span className="text-muted-foreground">
+                        Acquisition:
+                      </span>
                       <span className="ml-2">{viewingBooking.acquisition}</span>
                     </div>
                     <div>
@@ -460,8 +593,12 @@ function BookingsTable() {
                       <span className="ml-2">{viewingBooking.atol_abtot}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Booking Date:</span>
-                      <span className="ml-2">{viewingBooking.booking_date}</span>
+                      <span className="text-muted-foreground">
+                        Booking Date:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.booking_date}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -479,8 +616,12 @@ function BookingsTable() {
                       <span className="ml-2">{viewingBooking.event_name}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Package Type:</span>
-                      <span className="ml-2">{viewingBooking.package_type}</span>
+                      <span className="text-muted-foreground">
+                        Package Type:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.package_type}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -495,42 +636,73 @@ function BookingsTable() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Email:</span>
-                      <span className="ml-2">{viewingBooking.booker_email}</span>
+                      <span className="ml-2">
+                        {viewingBooking.booker_email}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Phone:</span>
-                      <span className="ml-2">{viewingBooking.booker_phone}</span>
+                      <span className="ml-2">
+                        {viewingBooking.booker_phone}
+                      </span>
                     </div>
                     <div className="col-span-2">
                       <span className="text-muted-foreground">Address:</span>
-                      <pre className="ml-2 whitespace-pre-wrap">{viewingBooking.booker_address}</pre>
+                      <pre className="ml-2 whitespace-pre-wrap">
+                        {viewingBooking.booker_address}
+                      </pre>
                     </div>
                   </div>
                 </div>
 
                 {/* Lead Traveller Information */}
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Lead Traveller Information</h3>
+                  <h3 className="font-semibold text-lg">
+                    Lead Traveller Information
+                  </h3>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <span className="text-muted-foreground">Name:</span>
-                      <span className="ml-2">{viewingBooking.lead_traveller_name}</span>
+                      <span className="ml-2">
+                        {viewingBooking.lead_traveller_name}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Email:</span>
-                      <span className="ml-2">{viewingBooking.lead_traveller_email}</span>
+                      <span className="ml-2">
+                        {viewingBooking.lead_traveller_email}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Phone:</span>
-                      <span className="ml-2">{viewingBooking.lead_traveller_phone}</span>
+                      <span className="ml-2">
+                        {viewingBooking.lead_traveller_phone}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Adults:</span>
                       <span className="ml-2">{viewingBooking.adults}</span>
                     </div>
                     <div className="col-span-2">
-                      <span className="text-muted-foreground">Guest Travellers:</span>
-                      <span className="ml-2">{viewingBooking.guest_traveller_names}</span>
+                      <span className="text-muted-foreground">
+                        Guest Travellers:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.guest_traveller_names}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">Guest Travellers</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">
+                        Guest Travellers:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.guest_traveller_names}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -543,20 +715,30 @@ function BookingsTable() {
                   <h3 className="font-semibold text-lg">Ticket Information</h3>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-muted-foreground">Ticket Name:</span>
-                      <span className="ml-2">{viewingBooking.ticket_name || "N/A"}</span>
+                      <span className="text-muted-foreground">
+                        Ticket Name:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.ticket_name || "N/A"}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">{viewingBooking.ticket_quantity}</span>
+                      <span className="ml-2">
+                        {viewingBooking.ticket_quantity}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">£{viewingBooking.ticket_cost || "0"}</span>
+                      <span className="ml-2">
+                        £{viewingBooking.ticket_cost || "0"}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">£{viewingBooking.ticket_price}</span>
+                      <span className="ml-2">
+                        £{viewingBooking.ticket_price}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -570,8 +752,12 @@ function BookingsTable() {
                       <span className="ml-2">{viewingBooking.hotel_name}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Room Category:</span>
-                      <span className="ml-2">{viewingBooking.room_category}</span>
+                      <span className="text-muted-foreground">
+                        Room Category:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.room_category}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Room Type:</span>
@@ -579,19 +765,27 @@ function BookingsTable() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Check In:</span>
-                      <span className="ml-2">{viewingBooking.check_in_date}</span>
+                      <span className="ml-2">
+                        {viewingBooking.check_in_date}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Check Out:</span>
-                      <span className="ml-2">{viewingBooking.check_out_date}</span>
+                      <span className="ml-2">
+                        {viewingBooking.check_out_date}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Nights:</span>
                       <span className="ml-2">{viewingBooking.nights}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Extra Nights:</span>
-                      <span className="ml-2">{viewingBooking.extra_nights}</span>
+                      <span className="text-muted-foreground">
+                        Extra Nights:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.extra_nights}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Room Cost:</span>
@@ -606,31 +800,49 @@ function BookingsTable() {
 
                 {/* Transfer Information */}
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Transfer Information</h3>
+                  <h3 className="font-semibold text-lg">
+                    Transfer Information
+                  </h3>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-muted-foreground">Airport Transfer:</span>
-                      <span className="ml-2">{viewingBooking.airport_transfer_type}</span>
+                      <span className="text-muted-foreground">
+                        Airport Transfer:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.airport_transfer_type}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">{viewingBooking.airport_transfer_quantity}</span>
+                      <span className="ml-2">
+                        {viewingBooking.airport_transfer_quantity}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">£{viewingBooking.airport_transfer_cost}</span>
+                      <span className="ml-2">
+                        £{viewingBooking.airport_transfer_cost}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">£{viewingBooking.airport_transfer_price}</span>
+                      <span className="ml-2">
+                        £{viewingBooking.airport_transfer_price}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Circuit Transfer:</span>
-                      <span className="ml-2">{viewingBooking.circuit_transfer_type || "N/A"}</span>
+                      <span className="text-muted-foreground">
+                        Circuit Transfer:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.circuit_transfer_type || "N/A"}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">{viewingBooking.circuit_transfer_quantity}</span>
+                      <span className="ml-2">
+                        {viewingBooking.circuit_transfer_quantity}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -641,70 +853,106 @@ function BookingsTable() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <span className="text-muted-foreground">Outbound:</span>
-                      <span className="ml-2">{viewingBooking.flight_outbound}</span>
+                      <span className="ml-2">
+                        {viewingBooking.flight_outbound}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Inbound:</span>
-                      <span className="ml-2">{viewingBooking.flight_inbound}</span>
+                      <span className="ml-2">
+                        {viewingBooking.flight_inbound}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Class:</span>
-                      <span className="ml-2">{viewingBooking.flight_class}</span>
+                      <span className="ml-2">
+                        {viewingBooking.flight_class}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Carrier:</span>
-                      <span className="ml-2">{viewingBooking.flight_carrier}</span>
+                      <span className="ml-2">
+                        {viewingBooking.flight_carrier}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Source:</span>
-                      <span className="ml-2">{viewingBooking.flight_source}</span>
+                      <span className="ml-2">
+                        {viewingBooking.flight_source}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Booking Reference:</span>
-                      <span className="ml-2">{viewingBooking.flight_booking_reference}</span>
+                      <span className="text-muted-foreground">
+                        Booking Reference:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.flight_booking_reference}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Ticketing Deadline:</span>
-                      <span className="ml-2">{viewingBooking.ticketing_deadline}</span>
+                      <span className="text-muted-foreground">
+                        Ticketing Deadline:
+                      </span>
+                      <span className="ml-2">
+                        {viewingBooking.ticketing_deadline}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Status:</span>
-                      <span className="ml-2">{viewingBooking.flight_status}</span>
+                      <span className="ml-2">
+                        {viewingBooking.flight_status}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">{viewingBooking.flight_quantity}</span>
+                      <span className="ml-2">
+                        {viewingBooking.flight_quantity}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">£{viewingBooking.flight_cost}</span>
+                      <span className="ml-2">
+                        £{viewingBooking.flight_cost}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">£{viewingBooking.flight_price}</span>
+                      <span className="ml-2">
+                        £{viewingBooking.flight_price}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Lounge Pass Information */}
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Lounge Pass Information</h3>
+                  <h3 className="font-semibold text-lg">
+                    Lounge Pass Information
+                  </h3>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <span className="text-muted-foreground">Variant:</span>
-                      <span className="ml-2">{viewingBooking.lounge_pass_variant}</span>
+                      <span className="ml-2">
+                        {viewingBooking.lounge_pass_variant}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">{viewingBooking.lounge_pass_quantity}</span>
+                      <span className="ml-2">
+                        {viewingBooking.lounge_pass_quantity}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">£{viewingBooking.lounge_pass_cost}</span>
+                      <span className="ml-2">
+                        £{viewingBooking.lounge_pass_cost}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">£{viewingBooking.lounge_pass_price}</span>
+                      <span className="ml-2">
+                        £{viewingBooking.lounge_pass_price}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -715,51 +963,143 @@ function BookingsTable() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <span className="text-muted-foreground">Currency:</span>
-                      <span className="ml-2">{viewingBooking.payment_currency}</span>
+                      <span className="ml-2">
+                        {getCurrencySymbol(viewingBooking.payment_currency)} (
+                        {viewingBooking.payment_currency})
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Total Cost:</span>
-                      <span className="ml-2">£ {viewingBooking.total_cost}</span>
+                      <span className="ml-2">
+                        £ {viewingBooking.total_cost}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Total Sold (Local):</span>
-                      <span className="ml-2">{viewingBooking.payment_currency} {viewingBooking.total_sold_for_local}</span>
+                      <span className="text-muted-foreground">
+                        Total Sold (Local):
+                      </span>
+                      <span className="ml-2">
+                        {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
+                        {viewingBooking.total_sold_for_local}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Total Sold (GBP):</span>
-                      <span className="ml-2">£ {viewingBooking.total_sold_gbp}</span>
+                      <span className="text-muted-foreground">
+                        Total Sold (GBP):
+                      </span>
+                      <span className="ml-2">
+                        £ {viewingBooking.total_sold_gbp}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">P&L:</span>
-                      <span className={`ml-2 ${viewingBooking["p&l"] >= 0 ? "text-green-500" : "text-red-500"}`}>
+                      <span
+                        className={`ml-2 ${
+                          viewingBooking["p&l"] >= 0
+                            ? "text-green-500"
+                            : "text-red-500"
+                        }`}
+                      >
                         £ {viewingBooking["p&l"]}
                       </span>
                     </div>
                   </div>
                   <div className="mt-2">
-                    <h4 className="font-medium mb-1">Payment Schedule</h4>
+                    <h4 className="font-semibold mb-2 mt-4">
+                      Payment Schedule:
+                    </h4>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <span className="text-muted-foreground">Payment 1:</span>
-                        <span className="ml-2">{viewingBooking.payment_currency} {viewingBooking.payment_1} due {viewingBooking.payment_1_date}</span>
+                        <span className="text-muted-foreground">
+                          Payment 1:
+                        </span>
+                        <span className="ml-2">
+                          {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
+                          {viewingBooking.payment_1} due{" "}
+                          {viewingBooking.payment_1_date}
+                        </span>
+                        <Badge
+                          className={`ml-2 ${
+                            viewingBooking.payment_1_status === "Paid"
+                              ? "bg-[#4CAF50] text-white"
+                              : viewingBooking.payment_1_status === "Due"
+                              ? "bg-[#FFC107] text-white"
+                              : "bg-[#DE3B3D] text-white"
+                          }`}
+                        >
+                          {viewingBooking.payment_1_status}
+                        </Badge>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Payment 2:</span>
-                        <span className="ml-2">{viewingBooking.payment_currency} {viewingBooking.payment_2} due {viewingBooking.payment_2_date}</span>
+                        <span className="text-muted-foreground">
+                          Payment 2:
+                        </span>
+                        <span className="ml-2">
+                          {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
+                          {viewingBooking.payment_2} due{" "}
+                          {viewingBooking.payment_2_date}
+                        </span>
+                        <Badge
+                          className={`ml-2 ${
+                            viewingBooking.payment_2_status === "Paid"
+                              ? "bg-[#4CAF50] text-white"
+                              : viewingBooking.payment_2_status === "Due"
+                              ? "bg-[#FFC107] text-white"
+                              : "bg-[#DE3B3D] text-white"
+                          }`}
+                        >
+                          {viewingBooking.payment_2_status}
+                        </Badge>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Payment 3:</span>
-                        <span className="ml-2">{viewingBooking.payment_currency} {viewingBooking.payment_3} due {viewingBooking.payment_3_date}</span>
+                        <span className="text-muted-foreground">
+                          Payment 3:
+                        </span>
+                        <span className="ml-2">
+                          {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
+                          {viewingBooking.payment_3} due{" "}
+                          {viewingBooking.payment_3_date}
+                        </span>
+                        <Badge
+                          className={`ml-2 ${
+                            viewingBooking.payment_3_status === "Paid"
+                              ? "bg-[#4CAF50] text-white"
+                              : viewingBooking.payment_3_status === "Due"
+                              ? "bg-[#FFC107] text-white"
+                              : "bg-[#DE3B3D] text-white"
+                          }`}
+                        >
+                          {viewingBooking.payment_3_status}
+                        </Badge>
                       </div>
+                    </div>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-muted-foreground">Amount Due:</span>
+                      <span className="ml-2">
+                        {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
+                        {viewingBooking.amount_due}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Payment Status:</span>
+                      <Badge 
+                        className={`ml-2 ${
+                          viewingBooking.payment_status === "Paid" ? "bg-[#4CAF50] text-white" : 
+                          viewingBooking.payment_status === "Cancelled" ? "bg-secondary text-white" : 
+                          "bg-[#DE3B3D] text-white"
+                        }`}
+                      >
+                        {viewingBooking.payment_status}
+                      </Badge>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-          </DialogFooter>
+          <DialogFooter></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

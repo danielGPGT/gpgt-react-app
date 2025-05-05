@@ -30,27 +30,31 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 
-// Menu items.
-const items = [
+// Menu items with their allowed roles
+const menuItems = [
   {
     title: "My Dashboard",
     url: "/dashboard",
     icon: Gauge,
+    allowedRoles: ["Admin", "Internal Sales", "Operations", "External B2B"],
   },
   {
     title: "Pricing",
     url: "/pricing",
     icon: BadgePoundSterling,
+    allowedRoles: ["Admin", "Internal Sales"],
   },
   {
     title: "Inventory",
     url: "/inventory",
     icon: Package,
+    allowedRoles: ["Admin", "Operations"],
   },
   {
     title: "Bookings",
     url: "/bookings",
     icon: ClipboardList,
+    allowedRoles: ["Admin", "Internal Sales", "Operations", "External B2B"],
   },
 ];
 
@@ -76,10 +80,16 @@ function AppSidebar() {
       });
     }
   }, []);
+
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Remove saved token
-    window.location.href = "/"; // Redirect to login page
+    localStorage.removeItem("token");
+    window.location.href = "/";
   };
+
+  // Filter menu items based on user's role
+  const filteredMenuItems = menuItems.filter(item => 
+    item.allowedRoles.includes(user.role)
+  );
 
   return (
     <Sidebar className="bg-card border-r">
@@ -105,7 +115,7 @@ function AppSidebar() {
           <SidebarGroupLabel className="text-muted-foreground">Quick Links</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {filteredMenuItems.map((item) => {
                 const isActive = location.pathname === item.url;
 
                 return (

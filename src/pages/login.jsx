@@ -7,9 +7,11 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       const res = await api.post("/login", { email, password });
       const { token } = res.data;
@@ -17,6 +19,8 @@ function Login() {
       window.location.href = "/dashboard";
     } catch (err) {
       setError(err.response?.data?.error || "Login failed");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -99,8 +103,9 @@ function Login() {
             <Button
               type="submit"
               className="w-full"
+              disabled={isLoading}
             >
-              Sign In
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
