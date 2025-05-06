@@ -71,7 +71,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-function BookingsTable() {
+function BookingsOpsTable() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -634,10 +634,6 @@ function BookingsTable() {
               <TableHead>Package</TableHead>
               <TableHead>Booker</TableHead>
               <TableHead>Booking Date</TableHead>
-              <TableHead>Total Cost</TableHead>
-              <TableHead>Total Sold (GBP)</TableHead>
-              <TableHead>P&L</TableHead>
-              <TableHead>Payment Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -650,7 +646,6 @@ function BookingsTable() {
                 <TableCell>
                   <Badge
                     variant="secondary"
-                    
                   >
                     {booking.status}
                   </Badge>
@@ -659,30 +654,6 @@ function BookingsTable() {
                 <TableCell>{booking.package_type}</TableCell>
                 <TableCell>{booking.booker_name}</TableCell>
                 <TableCell>{booking.booking_date}</TableCell>
-                <TableCell>£ {booking.total_cost.toLocaleString()}</TableCell>
-                <TableCell>
-                  £ {booking.total_sold_gbp.toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={
-                      booking["p&l"] >= 0 ? "text-green-500" : "text-red-500"
-                    }
-                  >
-                    £ {booking["p&l"].toLocaleString()}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Badge 
-                    className={`${
-                      booking.payment_status === "Paid" ? "bg-[#4CAF50] text-white" : 
-                      booking.payment_status === "Cancelled" ? "bg-secondary text-black" : 
-                      "bg-[#DE3B3D] text-white"
-                    }`}
-                  >
-                    {booking.payment_status}
-                  </Badge>
-                </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <Button
@@ -967,19 +938,6 @@ function BookingsTable() {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Guest Travellers</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">
-                        Guest Travellers:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.guest_traveller_names}
-                      </span>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Right Column */}
@@ -1000,18 +958,6 @@ function BookingsTable() {
                       <span className="text-muted-foreground">Quantity:</span>
                       <span className="ml-2">
                         {viewingBooking.ticket_quantity}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.ticket_cost || "0"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.ticket_price}
                       </span>
                     </div>
                   </div>
@@ -1062,12 +1008,8 @@ function BookingsTable() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Room Cost:</span>
-                      <span className="ml-2">£{viewingBooking.room_cost}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Room Price:</span>
-                      <span className="ml-2">£{viewingBooking.room_price}</span>
+                      <span className="text-muted-foreground">Room Quantity:</span>
+                      <span className="ml-2">{viewingBooking.room_quantity}</span>
                     </div>
                   </div>
                 </div>
@@ -1088,18 +1030,6 @@ function BookingsTable() {
                       <span className="text-muted-foreground">Quantity:</span>
                       <span className="ml-2">
                         {viewingBooking.airport_transfer_quantity}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.airport_transfer_cost}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.airport_transfer_price}
                       </span>
                     </div>
                     <div>
@@ -1181,18 +1111,6 @@ function BookingsTable() {
                         {viewingBooking.flight_quantity}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.flight_cost}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.flight_price}
-                      </span>
-                    </div>
                   </div>
                 </div>
 
@@ -1213,158 +1131,6 @@ function BookingsTable() {
                       <span className="ml-2">
                         {viewingBooking.lounge_pass_quantity}
                       </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.lounge_pass_cost}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.lounge_pass_price}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Information */}
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                  <h3 className="font-semibold text-lg mb-4">Payment Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-muted-foreground">Currency:</span>
-                      <span className="ml-2">
-                        {getCurrencySymbol(viewingBooking.payment_currency)} (
-                        {viewingBooking.payment_currency})
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Total Cost:</span>
-                      <span className="ml-2">
-                        £ {viewingBooking.total_cost}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Total Sold (Local):
-                      </span>
-                      <span className="ml-2">
-                        {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                        {viewingBooking.total_sold_local}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Total Sold (GBP):
-                      </span>
-                      <span className="ml-2">
-                        £ {viewingBooking.total_sold_gbp}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">P&L:</span>
-                      <span
-                        className={`ml-2 ${
-                          viewingBooking["p&l"] >= 0
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }`}
-                      >
-                        £ {viewingBooking["p&l"]}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-2">
-                    <h4 className="font-semibold mb-2 mt-4">
-                      Payment Schedule:
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-muted-foreground">
-                          Payment 1:
-                        </span>
-                        <span className="ml-2">
-                          {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                          {viewingBooking.payment_1} due{" "}
-                          {viewingBooking.payment_1_date}
-                        </span>
-                        <Badge
-                          className={`ml-2 ${
-                            viewingBooking.payment_1_status === "Paid"
-                              ? "bg-[#4CAF50] text-white"
-                              : viewingBooking.payment_1_status === "Due"
-                              ? "bg-[#FFC107] text-white"
-                              : "bg-[#DE3B3D] text-white"
-                          }`}
-                        >
-                          {viewingBooking.payment_1_status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">
-                          Payment 2:
-                        </span>
-                        <span className="ml-2">
-                          {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                          {viewingBooking.payment_2} due{" "}
-                          {viewingBooking.payment_2_date}
-                        </span>
-                        <Badge
-                          className={`ml-2 ${
-                            viewingBooking.payment_2_status === "Paid"
-                              ? "bg-[#4CAF50] text-white"
-                              : viewingBooking.payment_2_status === "Due"
-                              ? "bg-[#FFC107] text-white"
-                              : "bg-[#DE3B3D] text-white"
-                          }`}
-                        >
-                          {viewingBooking.payment_2_status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">
-                          Payment 3:
-                        </span>
-                        <span className="ml-2">
-                          {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                          {viewingBooking.payment_3} due{" "}
-                          {viewingBooking.payment_3_date}
-                        </span>
-                        <Badge
-                          className={`ml-2 ${
-                            viewingBooking.payment_3_status === "Paid"
-                              ? "bg-[#4CAF50] text-white"
-                              : viewingBooking.payment_3_status === "Due"
-                              ? "bg-[#FFC107] text-white"
-                              : "bg-[#DE3B3D] text-white"
-                          }`}
-                        >
-                          {viewingBooking.payment_3_status}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-muted-foreground">Amount Due:</span>
-                      <span className="ml-2">
-                        {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                        {viewingBooking.amount_due}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Payment Status:</span>
-                      <Badge 
-                        className={`ml-2 ${
-                          viewingBooking.payment_status === "Paid" ? "bg-[#4CAF50] text-white" : 
-                          viewingBooking.payment_status === "Cancelled" ? "bg-secondary text-black" : 
-                          "bg-[#DE3B3D] text-white"
-                        }`}
-                      >
-                        {viewingBooking.payment_status}
-                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -1546,11 +1312,6 @@ function BookingsTable() {
                         <Label htmlFor="ticket_quantity" className="mb-2 block">Ticket Quantity</Label>
                         <Input name="ticket_quantity" type="number" defaultValue={editingBooking.ticket_quantity} />
                       </div>
-
-                      <div>
-                        <Label htmlFor="ticket_price" className="mb-2 block">Ticket Price</Label>
-                        <Input name="ticket_price" type="number" step="0.01" defaultValue={editingBooking.ticket_price} />
-                      </div>
                     </div>
                   </div>
 
@@ -1591,11 +1352,6 @@ function BookingsTable() {
                         <Label htmlFor="room_quantity" className="mb-2 block">Room Quantity</Label>
                         <Input name="room_quantity" type="number" defaultValue={editingBooking.room_quantity} />
                       </div>
-
-                      <div>
-                        <Label htmlFor="room_price" className="mb-2 block">Room Price</Label>
-                        <Input name="room_price" type="number" step="0.01" defaultValue={editingBooking.room_price} />
-                      </div>
                     </div>
                   </div>
 
@@ -1609,182 +1365,8 @@ function BookingsTable() {
                       </div>
 
                       <div>
-                        <Label htmlFor="airport_transfer_price" className="mb-2 block">Airport Transfer Price</Label>
-                        <Input name="airport_transfer_price" type="number" step="0.01" defaultValue={editingBooking.airport_transfer_price} />
-                      </div>
-
-                      <div>
                         <Label htmlFor="circuit_transfer_quantity" className="mb-2 block">Circuit Transfer Quantity</Label>
                         <Input name="circuit_transfer_quantity" type="number" defaultValue={editingBooking.circuit_transfer_quantity} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="circuit_transfer_price" className="mb-2 block">Circuit Transfer Price</Label>
-                        <Input name="circuit_transfer_price" type="number" step="0.01" defaultValue={editingBooking.circuit_transfer_price} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payment Information */}
-                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                    <h3 className="font-semibold text-lg mb-4">Payment Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="payment_currency" className="mb-2 block">Payment Currency</Label>
-                        <Select name="payment_currency" defaultValue={editingBooking.payment_currency}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="GBP">GBP</SelectItem>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_1" className="mb-2 block">Payment 1 Amount</Label>
-                        <Input name="payment_1" type="number" step="0.01" defaultValue={editingBooking.payment_1} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_1_date" className="mb-2 block">Payment 1 Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !editingBooking.payment_1_date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {editingBooking.payment_1_date ? formatDateForDisplay(formatDateForDatePicker(editingBooking.payment_1_date)) : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={formatDateForDatePicker(editingBooking.payment_1_date)}
-                              onSelect={(date) => {
-                                const formData = new FormData(document.querySelector('form'));
-                                formData.set('payment_1_date', format(date, 'yyyy-MM-dd'));
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_1_status" className="mb-2 block">Payment 1 Status</Label>
-                        <Select name="payment_1_status" defaultValue={editingBooking.payment_1_status}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Paid">Paid</SelectItem>
-                            <SelectItem value="Due">Due</SelectItem>
-                            <SelectItem value="Overdue">Overdue</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_2" className="mb-2 block">Payment 2 Amount</Label>
-                        <Input name="payment_2" type="number" step="0.01" defaultValue={editingBooking.payment_2} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_2_date" className="mb-2 block">Payment 2 Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !editingBooking.payment_2_date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {editingBooking.payment_2_date ? formatDateForDisplay(formatDateForDatePicker(editingBooking.payment_2_date)) : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={formatDateForDatePicker(editingBooking.payment_2_date)}
-                              onSelect={(date) => {
-                                const formData = new FormData(document.querySelector('form'));
-                                formData.set('payment_2_date', format(date, 'yyyy-MM-dd'));
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_2_status" className="mb-2 block">Payment 2 Status</Label>
-                        <Select name="payment_2_status" defaultValue={editingBooking.payment_2_status}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Paid">Paid</SelectItem>
-                            <SelectItem value="Due">Due</SelectItem>
-                            <SelectItem value="Overdue">Overdue</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_3" className="mb-2 block">Payment 3 Amount</Label>
-                        <Input name="payment_3" type="number" step="0.01" defaultValue={editingBooking.payment_3} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_3_date" className="mb-2 block">Payment 3 Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !editingBooking.payment_3_date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {editingBooking.payment_3_date ? formatDateForDisplay(formatDateForDatePicker(editingBooking.payment_3_date)) : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={formatDateForDatePicker(editingBooking.payment_3_date)}
-                              onSelect={(date) => {
-                                const formData = new FormData(document.querySelector('form'));
-                                formData.set('payment_3_date', format(date, 'yyyy-MM-dd'));
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_3_status" className="mb-2 block">Payment 3 Status</Label>
-                        <Select name="payment_3_status" defaultValue={editingBooking.payment_3_status}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Paid">Paid</SelectItem>
-                            <SelectItem value="Due">Due</SelectItem>
-                            <SelectItem value="Overdue">Overdue</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </div>
                     </div>
                   </div>
@@ -1814,4 +1396,4 @@ function BookingsTable() {
   );
 }
 
-export { BookingsTable };
+export { BookingsOpsTable };

@@ -43,7 +43,7 @@ const menuItems = [
     title: "Bookings",
     url: "/bookings",
     icon: ClipboardList,
-    allowedRoles: ["Admin", "Internal Sales", "Operations"],
+    allowedRoles: ["Admin", "Operations"],
   },
   {
     title: "Pricing",
