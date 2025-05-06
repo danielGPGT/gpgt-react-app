@@ -2,14 +2,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketTable } from "@/components/ui/ticketTable";
 import { RoomsTable } from "@/components/ui/roomsTable";
 import { HotelsTable } from "@/components/ui/hotelsTable";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Ticket, Bed, Bus, Plane, Coffee, Hotel } from "lucide-react";
 
 function Inventory() {
   return (
     <div className="space-y-4 w-full">
       <Tabs defaultValue="tickets" className="w-full">
-        <TabsList className="grid grid-cols-7 w-full">
+        <TabsList className="grid grid-cols-6 w-full">
           <TabsTrigger value="tickets" className="flex items-center gap-2">
             <Ticket className="h-4 w-4" />
             Tickets
@@ -30,10 +36,6 @@ function Inventory() {
             <Bus className="h-4 w-4" />
             Airport Transfers
           </TabsTrigger>
-          <TabsTrigger value="flights" className="flex items-center gap-2">
-            <Plane className="h-4 w-4" />
-            Flights
-          </TabsTrigger>
           <TabsTrigger value="lounge" className="flex items-center gap-2">
             <Coffee className="h-4 w-4" />
             Lounge Passes
@@ -41,52 +43,24 @@ function Inventory() {
         </TabsList>
 
         <TabsContent value="tickets" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-foreground">Ticket Inventory</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Manage and track your ticket inventory, including stock levels and status
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TicketTable />
-            </CardContent>
-          </Card>
+          <TicketTable />
         </TabsContent>
 
         <TabsContent value="hotels" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-foreground">Hotel Inventory</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                View and manage hotel information, including ratings and package types
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <HotelsTable />
-            </CardContent>
-          </Card>
+          <HotelsTable />
         </TabsContent>
 
         <TabsContent value="rooms" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-foreground">Room Inventory</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Track room availability, bookings, and pricing information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RoomsTable />
-            </CardContent>
-          </Card>
+          <RoomsTable />
         </TabsContent>
 
         <TabsContent value="circuits" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle>Circuit Transfer Inventory</CardTitle>
-              <CardDescription>Manage circuit transfer inventory</CardDescription>
+              <CardDescription>
+                Manage circuit transfer inventory
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-center text-muted-foreground py-8">
@@ -100,7 +74,9 @@ function Inventory() {
           <Card>
             <CardHeader>
               <CardTitle>Airport Transfer Inventory</CardTitle>
-              <CardDescription>Manage airport transfer inventory</CardDescription>
+              <CardDescription>
+                Manage airport transfer inventory
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-center text-muted-foreground py-8">

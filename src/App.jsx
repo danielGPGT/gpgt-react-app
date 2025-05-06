@@ -3,6 +3,7 @@ import { Dashboard } from "@/pages/dashboard";
 import { PricingSheet } from "@/pages/pricing";
 import { InventoryPage } from "@/pages/inventory";
 import { BookingsPage } from "@/pages/bookings";
+import { FlightsPage } from "@/pages/flights";
 import { Routes, Route } from "react-router-dom";
 import RoleBasedRoute from "./components/roleBasedRoute";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -24,7 +25,7 @@ function App() {
         <Route
           path="/pricing"
           element={
-            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales"]}>
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "External B2B"]}>
               <PricingSheet />
             </RoleBasedRoute>
           }
@@ -42,6 +43,14 @@ function App() {
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
               <BookingsPage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/flights"
+          element={
+            <RoleBasedRoute allowedRoles={["Admin", "Operations", "Internal Sales"]}>
+              <FlightsPage />
             </RoleBasedRoute>
           }
         />

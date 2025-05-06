@@ -11,6 +11,7 @@ import {
   CalendarDays,
   Package,
   Trophy,
+  Layers,
 } from "lucide-react";
 import { parse } from "date-fns";
 import { differenceInCalendarDays } from "date-fns";
@@ -121,6 +122,9 @@ function InternalPricing({
   const [selectedSport, setSelectedSport] = useState("all");
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [sports, setSports] = useState([]);
+  const [packageTiers, setPackageTiers] = useState([]);
+  const [loadingTiers, setLoadingTiers] = useState(false);
+  const [selectedTier, setSelectedTier] = useState(null);
 
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
@@ -387,6 +391,8 @@ function InternalPricing({
       setTicketQuantity(0);
       setCircuitTransferQuantity(0);
       setAirportTransferQuantity(0);
+      setPackageTiers([]);
+      setSelectedTier(null);
       return;
     }
 
@@ -404,11 +410,21 @@ function InternalPricing({
     setTicketQuantity(0);
     setCircuitTransferQuantity(0);
     setAirportTransferQuantity(0);
+    setSelectedTier(null);
 
     if (foundPackage) {
       try {
+        setLoadingTiers(true);
         setLoadingHotels(true);
         setLoadingTickets(true);
+        
+        // Fetch package tiers
+        const tiersRes = await api.get("/package-tiers", {
+          params: { packageId: foundPackage.package_id },
+        });
+        setPackageTiers(tiersRes.data);
+
+        // Fetch hotels and tickets
         const [hotelsRes, ticketsRes] = await Promise.all([
           api.get("/hotels", {
             params: { packageId: foundPackage.package_id },
@@ -423,8 +439,153 @@ function InternalPricing({
         console.error("Failed to fetch package data:", error.message);
         toast.error("Failed to load package data. Please try again.");
       } finally {
+        setLoadingTiers(false);
         setLoadingHotels(false);
         setLoadingTickets(false);
+      }
+    }
+  };
+
+  const handleTierSelect = async (tierId) => {
+    if (tierId === "none") {
+      setSelectedTier(null);
+      return;
+    }
+
+    const selectedTierData = packageTiers.find((tier) => tier.tier_id === tierId);
+    setSelectedTier(selectedTierData);
+
+    if (selectedTierData) {
+      try {
+        // Set all the selections based on the tier data
+        if (selectedTierData.ticket_id) {
+          const ticket = tickets.find((t) => t.ticket_id === selectedTierData.ticket_id);
+          if (ticket) {
+            if (parseInt(ticket.remaining) <= 0) {
+              // Find next available ticket
+              const nextAvailableTicket = tickets.find(t => parseInt(t.remaining) > 0);
+              if (nextAvailableTicket) {
+                setSelectedTicket(nextAvailableTicket);
+                setTicketQuantity(numberOfAdults);
+                toast.success(`Selected ticket was sold out. Automatically selected next available ticket: ${nextAvailableTicket.ticket_name}`);
+              } else {
+                toast.error("No available tickets found");
+              }
+            } else {
+              setSelectedTicket(ticket);
+              setTicketQuantity(numberOfAdults);
+            }
+          }
+        }
+
+        if (selectedTierData.hotel_id) {
+          const hotel = hotels.find((h) => h.hotel_id === selectedTierData.hotel_id);
+          if (hotel) {
+            setSelectedHotel(hotel);
+            
+            // Fetch rooms and transfers for the hotel
+            setLoadingRooms(true);
+            setLoadingCircuitTransfers(true);
+            setLoadingAirportTransfers(true);
+            try {
+              const [roomsRes, circuitRes, airportRes] = await Promise.all([
+                api.get("/rooms", {
+                  params: { hotelId: hotel.hotel_id },
+                }),
+                api.get("/circuit-transfers", {
+                  params: { hotelId: hotel.hotel_id },
+                }),
+                api.get("/airport-transfers", {
+                  params: { hotelId: hotel.hotel_id },
+                }),
+              ]);
+
+              console.log('Fetched circuit transfers:', circuitRes.data);
+              console.log('Fetched airport transfers:', airportRes.data);
+              console.log('Tier circuit transfer ID:', selectedTierData.circuit_transfer_id);
+              console.log('Tier airport transfer ID:', selectedTierData.airport_transfer_id);
+
+              setRooms(roomsRes.data);
+              setCircuitTransfers(circuitRes.data);
+              setAirportTransfers(airportRes.data);
+
+              // Set the room if specified in tier
+              if (selectedTierData.room_id) {
+                const room = roomsRes.data.find((r) => r.room_id === selectedTierData.room_id);
+                if (room) {
+                  if (parseInt(room.remaining) <= 0) {
+                    // Find next available room
+                    const nextAvailableRoom = roomsRes.data.find(r => parseInt(r.remaining) > 0);
+                    if (nextAvailableRoom) {
+                      setSelectedRoom(nextAvailableRoom);
+                      if (nextAvailableRoom.check_in_date && nextAvailableRoom.check_out_date) {
+                        const from = parse(nextAvailableRoom.check_in_date, "dd/MM/yyyy", new Date());
+                        const to = parse(nextAvailableRoom.check_out_date, "dd/MM/yyyy", new Date());
+                        setDateRange({ from, to });
+                        const nights = differenceInCalendarDays(to, from);
+                        setOriginalNights(nights);
+                      }
+                      toast.success(`Selected room was sold out. Automatically selected next available room: ${nextAvailableRoom.room_category} - ${nextAvailableRoom.room_type}`);
+                    } else {
+                      toast.error("No available rooms found");
+                    }
+                  } else {
+                    setSelectedRoom(room);
+                    if (room.check_in_date && room.check_out_date) {
+                      const from = parse(room.check_in_date, "dd/MM/yyyy", new Date());
+                      const to = parse(room.check_out_date, "dd/MM/yyyy", new Date());
+                      setDateRange({ from, to });
+                      const nights = differenceInCalendarDays(to, from);
+                      setOriginalNights(nights);
+                    }
+                  }
+                }
+              }
+
+              // Set transfers if specified in tier
+              if (selectedTierData.circuit_transfer_id) {
+                const circuitTransfer = circuitRes.data.find(
+                  (t) => t.circuit_transfer_id === selectedTierData.circuit_transfer_id
+                );
+                if (circuitTransfer) {
+                  console.log('Setting circuit transfer:', circuitTransfer);
+                  setSelectedCircuitTransfer(circuitTransfer);
+                  setCircuitTransferQuantity(ticketQuantity);
+                } else {
+                  console.error("Circuit transfer not found:", selectedTierData.circuit_transfer_id);
+                  console.log("Available circuit transfers:", circuitRes.data);
+                }
+              }
+
+              if (selectedTierData.airport_transfer_id) {
+                const airportTransfer = airportRes.data.find(
+                  (t) => t.airport_transfer_id === selectedTierData.airport_transfer_id
+                );
+                if (airportTransfer) {
+                  console.log('Setting airport transfer:', airportTransfer);
+                  setSelectedAirportTransfer(airportTransfer);
+                  const needed = Math.ceil(
+                    numberOfAdults / (airportTransfer.max_capacity || 1)
+                  );
+                  setAirportTransferQuantity(needed);
+                } else {
+                  console.error("Airport transfer not found:", selectedTierData.airport_transfer_id);
+                  console.log("Available airport transfers:", airportRes.data);
+                }
+              }
+            } catch (error) {
+              console.error("Failed to fetch hotel data:", error);
+              toast.error("Failed to load hotel data. Please try again.");
+            } finally {
+              setLoadingRooms(false);
+              setLoadingCircuitTransfers(false);
+              setLoadingAirportTransfers(false);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to set tier selections:", error.message);
+        toast.error("Failed to set tier selections. Please try again.");
       }
     }
   };
@@ -439,6 +600,8 @@ function InternalPricing({
       setOriginalNights(0);
       setCircuitTransferQuantity(0);
       setAirportTransferQuantity(0);
+      setCircuitTransfers([]);
+      setAirportTransfers([]);
       return;
     }
 
@@ -457,15 +620,14 @@ function InternalPricing({
     if (foundHotel) {
       try {
         setLoadingRooms(true);
-        const res = await api.get("/rooms", {
-          params: { hotelId: foundHotel.hotel_id },
-        });
-        setRooms(res.data);
-
-        // Fetch circuit and airport transfers for this hotel
         setLoadingCircuitTransfers(true);
         setLoadingAirportTransfers(true);
-        const [circuitRes, airportRes] = await Promise.all([
+
+        // Fetch rooms and transfers in parallel
+        const [roomsRes, circuitRes, airportRes] = await Promise.all([
+          api.get("/rooms", {
+            params: { hotelId: foundHotel.hotel_id },
+          }),
           api.get("/circuit-transfers", {
             params: { hotelId: foundHotel.hotel_id },
           }),
@@ -473,8 +635,14 @@ function InternalPricing({
             params: { hotelId: foundHotel.hotel_id },
           }),
         ]);
+
+        setRooms(roomsRes.data);
         setCircuitTransfers(circuitRes.data);
         setAirportTransfers(airportRes.data);
+
+        console.log('Fetched circuit transfers:', circuitRes.data);
+        console.log('Fetched airport transfers:', airportRes.data);
+
       } catch (error) {
         console.error("Failed to fetch hotel data:", error.message);
         toast.error("Failed to load hotel data. Please try again.");
@@ -693,6 +861,49 @@ function InternalPricing({
             )}
           </div>
         )}
+
+        {selectedPackage && (
+          <div>
+            <h2 className="text-xs font-semibold mb-1 text-foreground">
+              Select Tier
+            </h2>
+            {loadingTiers ? (
+              <div className="text-xs text-muted-foreground">
+                Loading tiers...
+              </div>
+            ) : (
+              <Select
+                onValueChange={handleTierSelect}
+                value={selectedTier?.tier_id}
+              >
+                <SelectTrigger className="w-full bg-background relative group hover:border-primary transition-colors">
+                  <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                    <Layers className="h-4 w-4" />
+                  </div>
+                  <SelectValue placeholder="Choose a tier...">
+                    {selectedTier ? (
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{selectedTier.tier_type}</span>
+                      </div>
+                    ) : (
+                      "Choose a tier..."
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Tier</SelectItem>
+                  {packageTiers.map((tier) => (
+                    <SelectItem key={tier.tier_id} value={tier.tier_id}>
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{tier.tier_type}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex w-full justify-between items-end gap-4">
@@ -707,21 +918,25 @@ function InternalPricing({
                 Loading hotels...
               </div>
             ) : (
-              <Select onValueChange={(id) => handleHotelSelect(id)}>
+              <Select onValueChange={(id) => handleHotelSelect(id)} value={selectedHotel?.hotel_id}>
                 <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
                   <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
                     <Hotel className="h-4 w-4" />
                   </div>
-                  <SelectValue placeholder="Choose hotel" />
+                  <SelectValue placeholder="Choose hotel">
+                    {selectedHotel ? selectedHotel.hotel_name : "Choose hotel"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   {hotels.map((hotel) => (
                     <SelectItem key={hotel.hotel_id} value={hotel.hotel_id}>
-                      {hotel.hotel_name}{" "}
-                      <span className="text-amber-500">
-                        {Array(hotel.stars).fill("★").join("")}
-                      </span>
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{hotel.hotel_name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {Array(hotel.stars).fill("★").join("")}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -752,12 +967,14 @@ function InternalPricing({
               Loading rooms...
             </div>
           ) : (
-            <Select onValueChange={handleRoomSelect}>
+            <Select onValueChange={handleRoomSelect} value={selectedRoom?.room_id}>
               <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
                 <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
                   <Bed className="h-4 w-4" />
                 </div>
-                <SelectValue placeholder="Choose a room..." />
+                <SelectValue placeholder="Choose a room...">
+                  {selectedRoom ? `${selectedRoom.room_category} - ${selectedRoom.room_type}` : "Choose a room..."}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {rooms.map((room) => (
@@ -765,12 +982,16 @@ function InternalPricing({
                     key={room.room_id}
                     value={room.room_id}
                     className="text-xs"
-                    disabled={parseInt(room.remaining) <= 0} // Disable if no remaining
+                    disabled={parseInt(room.remaining) <= 0}
                   >
-                    {room.room_category} - {room.room_type}
-                    {parseInt(room.remaining) > 0
-                      ? ` (${room.remaining} rooms left)`
-                      : " (Sold Out)"}
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{room.room_category} - {room.room_type}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {parseInt(room.remaining) > 0
+                          ? `${room.remaining} rooms left`
+                          : "Sold Out"}
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -887,12 +1108,14 @@ function InternalPricing({
               Loading tickets...
             </div>
           ) : (
-            <Select onValueChange={handleTicketSelect}>
+            <Select onValueChange={handleTicketSelect} value={selectedTicket?.ticket_id}>
               <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
                 <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
                   <Ticket className="h-4 w-4" />
                 </div>
-                <SelectValue placeholder="Choose ticket" />
+                <SelectValue placeholder="Choose ticket">
+                  {selectedTicket ? selectedTicket.ticket_name : "Choose ticket"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No Ticket</SelectItem>
@@ -900,17 +1123,21 @@ function InternalPricing({
                   <SelectItem
                     key={ticket.ticket_id}
                     value={ticket.ticket_id}
-                    disabled={parseInt(ticket.remaining) <= 0} // Disable if no remaining
+                    disabled={parseInt(ticket.remaining) <= 0}
                     className={`text-xs ${
                       parseInt(ticket.remaining) <= 0
                         ? "text-muted-foreground"
                         : ""
                     }`}
                   >
-                    {ticket.ticket_name}{" "}
-                    {parseInt(ticket.remaining) > 0
-                      ? ` (${ticket.remaining} tickets left)`
-                      : " (Sold Out)"}
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{ticket.ticket_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {ticket.ticket_type} • {parseInt(ticket.remaining) > 0
+                          ? `${ticket.remaining} tickets left`
+                          : "Sold Out"}
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1016,22 +1243,29 @@ function InternalPricing({
             {loadingCircuitTransfers ? (
               <div className="text-xs text-muted-foreground">Loading...</div>
             ) : (
-              <Select onValueChange={handleCircuitTransferSelect}>
+              <Select onValueChange={handleCircuitTransferSelect} value={selectedCircuitTransfer?.circuit_transfer_id}>
                 <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
                   <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
                     <Bus className="h-4 w-4" />
                   </div>
-                  <SelectValue placeholder="Select circuit transfer" />
+                  <SelectValue placeholder="Select circuit transfer">
+                    {selectedCircuitTransfer ? selectedCircuitTransfer.transport_type : "Select circuit transfer"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
-                  {circuitTransfers.map((transfer) => (
+                  {circuitTransfers && circuitTransfers.map((transfer) => (
                     <SelectItem
                       key={transfer.circuit_transfer_id}
                       value={transfer.circuit_transfer_id}
                       className="text-xs"
                     >
-                      {transfer.transport_type}
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{transfer.transport_type}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {currencySymbols[selectedCurrency]}{transfer.price} per person
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1047,22 +1281,30 @@ function InternalPricing({
             {loadingAirportTransfers ? (
               <div className="text-xs text-muted-foreground">Loading...</div>
             ) : (
-              <Select onValueChange={handleAirportTransferSelect}>
+              <Select onValueChange={handleAirportTransferSelect} value={selectedAirportTransfer?.airport_transfer_id}>
                 <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
                   <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
                     <Bus className="h-4 w-4" />
                   </div>
-                  <SelectValue placeholder="Select airport transfer" />
+                  <SelectValue placeholder="Select airport transfer">
+                    {selectedAirportTransfer ? selectedAirportTransfer.transport_type : "Select airport transfer"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
-                  {airportTransfers.map((transfer) => (
+                  {airportTransfers && airportTransfers.map((transfer) => (
                     <SelectItem
                       key={transfer.airport_transfer_id}
                       value={transfer.airport_transfer_id}
                       className="text-xs"
                     >
-                      {transfer.transport_type}
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{transfer.transport_type}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {currencySymbols[selectedCurrency]}{transfer.price} per transfer
+                          (Max {transfer.max_capacity} people)
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>

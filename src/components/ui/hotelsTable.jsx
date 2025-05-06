@@ -118,7 +118,10 @@ function HotelsTable() {
 
   // Memoize options
   const starOptions = useMemo(() => [3, 4, 5], []);
-  const packageTypeOptions = useMemo(() => getUniquePackageTypes(), [getUniquePackageTypes]);
+  const packageTypeOptions = useMemo(
+    () => getUniquePackageTypes(),
+    [getUniquePackageTypes]
+  );
   const eventOptions = useMemo(() => events, [events]);
 
   const fetchInitialData = async () => {
@@ -151,32 +154,32 @@ function HotelsTable() {
 
   const validateField = (field, value) => {
     const newErrors = { ...errors };
-    
+
     switch (field) {
-      case 'hotel_name':
-        if (!value || value.trim() === '') {
-          newErrors[field] = 'Hotel name is required';
+      case "hotel_name":
+        if (!value || value.trim() === "") {
+          newErrors[field] = "Hotel name is required";
         } else {
           delete newErrors[field];
         }
         break;
-      case 'stars':
+      case "stars":
         if (!value || isNaN(value) || value < 3 || value > 5) {
-          newErrors[field] = 'Stars must be between 3 and 5';
+          newErrors[field] = "Stars must be between 3 and 5";
         } else {
           delete newErrors[field];
         }
         break;
-      case 'package_type':
-        if (!value || value.trim() === '') {
-          newErrors[field] = 'Package type is required';
+      case "package_type":
+        if (!value || value.trim() === "") {
+          newErrors[field] = "Package type is required";
         } else {
           delete newErrors[field];
         }
         break;
-      case 'event_name':
-        if (!value || value.trim() === '') {
-          newErrors[field] = 'Event is required';
+      case "event_name":
+        if (!value || value.trim() === "") {
+          newErrors[field] = "Event is required";
         } else {
           delete newErrors[field];
         }
@@ -184,14 +187,14 @@ function HotelsTable() {
       default:
         delete newErrors[field];
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleFieldChange = (field, value) => {
     if (validateField(field, value)) {
-      setFormData(prev => ({ ...prev, [field]: value }));
+      setFormData((prev) => ({ ...prev, [field]: value }));
     }
   };
 
@@ -199,45 +202,48 @@ function HotelsTable() {
     validateField(field, value);
   };
 
-  const handleSubmitForm = useCallback(async (e, isEdit, editingHotel) => {
-    e.preventDefault(); // Prevent form refresh
-    try {
-      const hotelData = [
-        formData.event_name,
-        "",
-        "",
-        formData.hotel_name,
-        parseInt(formData.stars),
-        formData.package_type,
-        formData.hotel_info,
-        formData.longitude,
-        formData.latitude,
-        formData.images
-      ];
+  const handleSubmitForm = useCallback(
+    async (e, isEdit, editingHotel) => {
+      e.preventDefault(); // Prevent form refresh
+      try {
+        const hotelData = [
+          formData.event_name,
+          "",
+          "",
+          formData.hotel_name,
+          parseInt(formData.stars),
+          formData.package_type,
+          formData.hotel_info,
+          formData.longitude,
+          formData.latitude,
+          formData.images,
+        ];
 
-      if (isEdit) {
-        setIsEditing(true);
-        await api.put(`hotels/${editingHotel.hotel_id}`, hotelData);
-        setSuccessMessage("Hotel updated successfully!");
-      } else {
-        setIsAdding(true);
-        await api.post("hotels", hotelData);
-        setSuccessMessage("Hotel added successfully!");
+        if (isEdit) {
+          setIsEditing(true);
+          await api.put(`hotels/${editingHotel.hotel_id}`, hotelData);
+          setSuccessMessage("Hotel updated successfully!");
+        } else {
+          setIsAdding(true);
+          await api.post("hotels", hotelData);
+          setSuccessMessage("Hotel added successfully!");
+        }
+
+        setShowSuccessDialog(true);
+        setFormData(initialHotelState);
+        setErrors({});
+        setEditingHotel(null);
+        fetchInitialData();
+      } catch (error) {
+        console.error("Failed to save hotel:", error);
+        toast.error("Failed to save hotel");
+      } finally {
+        setIsAdding(false);
+        setIsEditing(false);
       }
-
-      setShowSuccessDialog(true);
-      setFormData(initialHotelState);
-      setErrors({});
-      setEditingHotel(null);
-      fetchInitialData();
-    } catch (error) {
-      console.error("Failed to save hotel:", error);
-      toast.error("Failed to save hotel");
-    } finally {
-      setIsAdding(false);
-      setIsEditing(false);
-    }
-  }, [formData, fetchInitialData]);
+    },
+    [formData, fetchInitialData]
+  );
 
   const handleAddHotel = async (formData) => {
     try {
@@ -252,7 +258,7 @@ function HotelsTable() {
         formData.hotel_info,
         formData.longitude,
         formData.latitude,
-        formData.images
+        formData.images,
       ];
 
       await api.post("hotels", hotelData);
@@ -270,30 +276,30 @@ function HotelsTable() {
   const handleEditHotel = async (formData) => {
     try {
       setIsEditing(true);
-      console.log('Starting hotel edit process...');
-      
+      console.log("Starting hotel edit process...");
+
       // Map of form field names to Google Sheet column names
       const columnMap = {
-        hotel_name: 'Hotel Name',
-        stars: 'Stars',
-        package_type: 'Package Type',
-        event_name: 'Event Name',
-        hotel_info: 'Hotel Info',
-        longitude: 'Longitude',
-        latitude: 'Latitude',
-        images: 'Images'
+        hotel_name: "Hotel Name",
+        stars: "Stars",
+        package_type: "Package Type",
+        event_name: "Event Name",
+        hotel_info: "Hotel Info",
+        longitude: "Longitude",
+        latitude: "Latitude",
+        images: "Images",
       };
-      
+
       // Compare with the original hotel data to find changed fields
       const changedFields = {};
-      Object.keys(formData).forEach(key => {
+      Object.keys(formData).forEach((key) => {
         if (formData[key] !== editingHotel[key]) {
           changedFields[key] = formData[key];
         }
       });
 
       if (Object.keys(changedFields).length === 0) {
-        console.log('No changes detected');
+        console.log("No changes detected");
         toast.info("No changes were made");
         setIsEditDialogOpen(false);
         setEditingHotel(null);
@@ -307,20 +313,20 @@ function HotelsTable() {
           console.warn(`No column mapping found for field: ${field}`);
           continue;
         }
-        
+
         console.log(`Updating ${column} to ${value}`);
         await api.put(`hotels/Hotel ID/${editingHotel.hotel_id}`, {
           column,
-          value
+          value,
         });
       }
 
-      console.log('Hotel updated successfully');
+      console.log("Hotel updated successfully");
       setSuccessMessage("Hotel updated successfully!");
       setShowSuccessDialog(true);
       setIsEditDialogOpen(false);
       setEditingHotel(null);
-      console.log('Refreshing data...');
+      console.log("Refreshing data...");
       fetchInitialData();
     } catch (error) {
       console.error("Failed to update hotel:", error);
@@ -331,39 +337,47 @@ function HotelsTable() {
     }
   };
 
-  const AddHotelForm = ({ formData, setFormData, events, packages, handleSubmit, onCancel, isLoading = false }) => {
+  const AddHotelForm = ({
+    formData,
+    setFormData,
+    events,
+    packages,
+    handleSubmit,
+    onCancel,
+    isLoading = false,
+  }) => {
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitStatus, setSubmitStatus] = useState('idle');
+    const [submitStatus, setSubmitStatus] = useState("idle");
 
     const validateField = (field, value) => {
       const newErrors = { ...errors };
-      
+
       switch (field) {
-        case 'hotel_name':
-          if (!value || value.trim() === '') {
-            newErrors[field] = 'Hotel name is required';
+        case "hotel_name":
+          if (!value || value.trim() === "") {
+            newErrors[field] = "Hotel name is required";
           } else {
             delete newErrors[field];
           }
           break;
-        case 'stars':
+        case "stars":
           if (!value || isNaN(value) || value < 3 || value > 5) {
-            newErrors[field] = 'Stars must be between 3 and 5';
+            newErrors[field] = "Stars must be between 3 and 5";
           } else {
             delete newErrors[field];
           }
           break;
-        case 'package_type':
-          if (!value || value.trim() === '') {
-            newErrors[field] = 'Package type is required';
+        case "package_type":
+          if (!value || value.trim() === "") {
+            newErrors[field] = "Package type is required";
           } else {
             delete newErrors[field];
           }
           break;
-        case 'event_name':
-          if (!value || value.trim() === '') {
-            newErrors[field] = 'Event is required';
+        case "event_name":
+          if (!value || value.trim() === "") {
+            newErrors[field] = "Event is required";
           } else {
             delete newErrors[field];
           }
@@ -371,14 +385,14 @@ function HotelsTable() {
         default:
           delete newErrors[field];
       }
-      
+
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     };
 
     const handleFieldChange = (field, value) => {
       if (validateField(field, value)) {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData((prev) => ({ ...prev, [field]: value }));
       }
     };
 
@@ -389,20 +403,20 @@ function HotelsTable() {
     const handleFormSubmit = async () => {
       try {
         setIsSubmitting(true);
-        setSubmitStatus('submitting');
-        
+        setSubmitStatus("submitting");
+
         await handleSubmit(formData);
-        setSubmitStatus('success');
+        setSubmitStatus("success");
         toast.success("Hotel added successfully!");
-        
+
         // Reset form after successful submission
         setFormData({ ...initialHotelState });
-        setSubmitStatus('idle');
+        setSubmitStatus("idle");
         onCancel();
       } catch (error) {
-        console.error('Error submitting form:', error);
-        setSubmitStatus('error');
-        toast.error('Failed to add hotel');
+        console.error("Error submitting form:", error);
+        setSubmitStatus("error");
+        toast.error("Failed to add hotel");
       } finally {
         setIsSubmitting(false);
       }
@@ -418,14 +432,24 @@ function HotelsTable() {
                 <div className="w-12 h-12 rounded-full border-4 border-primary/20"></div>
                 <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
               </div>
-              <p className="text-lg font-medium text-primary">Adding Hotel...</p>
-              <p className="text-sm text-muted-foreground">Please wait while we process your request</p>
+              <p className="text-lg font-medium text-primary">
+                Adding Hotel...
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Please wait while we process your request
+              </p>
             </div>
           </div>
         )}
 
         {/* Form Content */}
-        <div className={`${(isSubmitting || isLoading) ? 'opacity-50 pointer-events-none' : 'space-y-4'}`}>
+        <div
+          className={`${
+            isSubmitting || isLoading
+              ? "opacity-50 pointer-events-none"
+              : "space-y-4"
+          }`}
+        >
           {/* Basic Information */}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -434,19 +458,23 @@ function HotelsTable() {
                 <Input
                   id="hotel_name"
                   value={formData.hotel_name}
-                  onChange={(e) => handleFieldChange('hotel_name', e.target.value)}
-                  onBlur={(e) => handleBlur('hotel_name', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("hotel_name", e.target.value)
+                  }
+                  onBlur={(e) => handleBlur("hotel_name", e.target.value)}
                   placeholder="Enter hotel name"
                   disabled={isSubmitting}
                   className={errors.hotel_name ? "border-red-500" : ""}
                 />
-                {errors.hotel_name && <p className="text-sm text-red-500">{errors.hotel_name}</p>}
+                {errors.hotel_name && (
+                  <p className="text-sm text-red-500">{errors.hotel_name}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="stars">Stars</Label>
                 <Select
                   value={formData.stars}
-                  onValueChange={(value) => handleFieldChange('stars', value)}
+                  onValueChange={(value) => handleFieldChange("stars", value)}
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className="w-full">
@@ -460,7 +488,9 @@ function HotelsTable() {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.stars && <p className="text-sm text-red-500">{errors.stars}</p>}
+                {errors.stars && (
+                  <p className="text-sm text-red-500">{errors.stars}</p>
+                )}
               </div>
             </div>
           </div>
@@ -472,7 +502,9 @@ function HotelsTable() {
                 <Label htmlFor="package_type">Package Type</Label>
                 <Select
                   value={formData.package_type}
-                  onValueChange={(value) => handleFieldChange('package_type', value)}
+                  onValueChange={(value) =>
+                    handleFieldChange("package_type", value)
+                  }
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className="w-full">
@@ -486,13 +518,17 @@ function HotelsTable() {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.package_type && <p className="text-sm text-red-500">{errors.package_type}</p>}
+                {errors.package_type && (
+                  <p className="text-sm text-red-500">{errors.package_type}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="event_name">Event</Label>
                 <Select
                   value={formData.event_name}
-                  onValueChange={(value) => handleFieldChange('event_name', value)}
+                  onValueChange={(value) =>
+                    handleFieldChange("event_name", value)
+                  }
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className="w-full">
@@ -506,7 +542,9 @@ function HotelsTable() {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.event_name && <p className="text-sm text-red-500">{errors.event_name}</p>}
+                {errors.event_name && (
+                  <p className="text-sm text-red-500">{errors.event_name}</p>
+                )}
               </div>
             </div>
           </div>
@@ -519,7 +557,9 @@ function HotelsTable() {
                 <Input
                   id="longitude"
                   value={formData.longitude}
-                  onChange={(e) => handleFieldChange('longitude', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("longitude", e.target.value)
+                  }
                   placeholder="Enter longitude"
                   disabled={isSubmitting}
                 />
@@ -529,7 +569,9 @@ function HotelsTable() {
                 <Input
                   id="latitude"
                   value={formData.latitude}
-                  onChange={(e) => handleFieldChange('latitude', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("latitude", e.target.value)
+                  }
                   placeholder="Enter latitude"
                   disabled={isSubmitting}
                 />
@@ -544,7 +586,9 @@ function HotelsTable() {
               <Textarea
                 id="hotel_info"
                 value={formData.hotel_info}
-                onChange={(e) => handleFieldChange('hotel_info', e.target.value)}
+                onChange={(e) =>
+                  handleFieldChange("hotel_info", e.target.value)
+                }
                 placeholder="Enter hotel information"
                 disabled={isSubmitting}
                 rows={4}
@@ -555,7 +599,7 @@ function HotelsTable() {
               <Input
                 id="images"
                 value={formData.images}
-                onChange={(e) => handleFieldChange('images', e.target.value)}
+                onChange={(e) => handleFieldChange("images", e.target.value)}
                 placeholder="Enter image URLs separated by commas"
                 disabled={isSubmitting}
               />
@@ -564,16 +608,16 @@ function HotelsTable() {
 
           {/* Form Actions */}
           <div className="flex justify-end gap-4">
-            <Button 
-              variant="outline" 
-              onClick={onCancel} 
-              disabled={isSubmitting || submitStatus === 'success' || isLoading}
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting || submitStatus === "success" || isLoading}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleFormSubmit} 
-              disabled={isSubmitting || submitStatus === 'success' || isLoading}
+            <Button
+              onClick={handleFormSubmit}
+              disabled={isSubmitting || submitStatus === "success" || isLoading}
               className="min-w-[100px]"
             >
               {isSubmitting || isLoading ? (
@@ -581,7 +625,7 @@ function HotelsTable() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Adding...
                 </>
-              ) : submitStatus === 'success' ? (
+              ) : submitStatus === "success" ? (
                 <>
                   <CheckCircle2 className="mr-2 h-4 w-4" />
                   Added!
@@ -593,7 +637,7 @@ function HotelsTable() {
           </div>
 
           {/* Status Message */}
-          {submitStatus === 'error' && (
+          {submitStatus === "error" && (
             <div className="text-sm text-red-500 text-center">
               Failed to add hotel. Please try again.
             </div>
@@ -603,39 +647,47 @@ function HotelsTable() {
     );
   };
 
-  const EditHotelForm = ({ formData, setFormData, events, packages, handleSubmit, onCancel, isLoading = false }) => {
+  const EditHotelForm = ({
+    formData,
+    setFormData,
+    events,
+    packages,
+    handleSubmit,
+    onCancel,
+    isLoading = false,
+  }) => {
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitStatus, setSubmitStatus] = useState('idle');
+    const [submitStatus, setSubmitStatus] = useState("idle");
 
     const validateField = (field, value) => {
       const newErrors = { ...errors };
-      
+
       switch (field) {
-        case 'hotel_name':
-          if (!value || value.trim() === '') {
-            newErrors[field] = 'Hotel name is required';
+        case "hotel_name":
+          if (!value || value.trim() === "") {
+            newErrors[field] = "Hotel name is required";
           } else {
             delete newErrors[field];
           }
           break;
-        case 'stars':
+        case "stars":
           if (!value || isNaN(value) || value < 3 || value > 5) {
-            newErrors[field] = 'Stars must be between 3 and 5';
+            newErrors[field] = "Stars must be between 3 and 5";
           } else {
             delete newErrors[field];
           }
           break;
-        case 'package_type':
-          if (!value || value.trim() === '') {
-            newErrors[field] = 'Package type is required';
+        case "package_type":
+          if (!value || value.trim() === "") {
+            newErrors[field] = "Package type is required";
           } else {
             delete newErrors[field];
           }
           break;
-        case 'event_name':
-          if (!value || value.trim() === '') {
-            newErrors[field] = 'Event is required';
+        case "event_name":
+          if (!value || value.trim() === "") {
+            newErrors[field] = "Event is required";
           } else {
             delete newErrors[field];
           }
@@ -643,14 +695,14 @@ function HotelsTable() {
         default:
           delete newErrors[field];
       }
-      
+
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     };
 
     const handleFieldChange = (field, value) => {
       if (validateField(field, value)) {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData((prev) => ({ ...prev, [field]: value }));
       }
     };
 
@@ -661,18 +713,18 @@ function HotelsTable() {
     const handleFormSubmit = async () => {
       try {
         setIsSubmitting(true);
-        setSubmitStatus('submitting');
-        
+        setSubmitStatus("submitting");
+
         await handleSubmit(formData);
-        setSubmitStatus('success');
+        setSubmitStatus("success");
         toast.success("Hotel updated successfully!");
-        
-        setSubmitStatus('idle');
+
+        setSubmitStatus("idle");
         onCancel();
       } catch (error) {
-        console.error('Error updating hotel:', error);
-        setSubmitStatus('error');
-        toast.error('Failed to update hotel');
+        console.error("Error updating hotel:", error);
+        setSubmitStatus("error");
+        toast.error("Failed to update hotel");
       } finally {
         setIsSubmitting(false);
       }
@@ -688,14 +740,24 @@ function HotelsTable() {
                 <div className="w-12 h-12 rounded-full border-4 border-primary/20"></div>
                 <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
               </div>
-              <p className="text-lg font-medium text-primary">Updating Hotel...</p>
-              <p className="text-sm text-muted-foreground">Please wait while we process your request</p>
+              <p className="text-lg font-medium text-primary">
+                Updating Hotel...
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Please wait while we process your request
+              </p>
             </div>
           </div>
         )}
 
         {/* Form Content */}
-        <div className={`${(isSubmitting || isLoading) ? 'opacity-50 pointer-events-none' : 'space-y-4'}`}>
+        <div
+          className={`${
+            isSubmitting || isLoading
+              ? "opacity-50 pointer-events-none"
+              : "space-y-4"
+          }`}
+        >
           {/* Basic Information */}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -704,19 +766,23 @@ function HotelsTable() {
                 <Input
                   id="hotel_name"
                   value={formData.hotel_name}
-                  onChange={(e) => handleFieldChange('hotel_name', e.target.value)}
-                  onBlur={(e) => handleBlur('hotel_name', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("hotel_name", e.target.value)
+                  }
+                  onBlur={(e) => handleBlur("hotel_name", e.target.value)}
                   placeholder="Enter hotel name"
                   disabled={isSubmitting}
                   className={errors.hotel_name ? "border-red-500" : ""}
                 />
-                {errors.hotel_name && <p className="text-sm text-red-500">{errors.hotel_name}</p>}
+                {errors.hotel_name && (
+                  <p className="text-sm text-red-500">{errors.hotel_name}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="stars">Stars</Label>
                 <Select
                   value={formData.stars}
-                  onValueChange={(value) => handleFieldChange('stars', value)}
+                  onValueChange={(value) => handleFieldChange("stars", value)}
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className="w-full">
@@ -730,7 +796,9 @@ function HotelsTable() {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.stars && <p className="text-sm text-red-500">{errors.stars}</p>}
+                {errors.stars && (
+                  <p className="text-sm text-red-500">{errors.stars}</p>
+                )}
               </div>
             </div>
           </div>
@@ -742,7 +810,9 @@ function HotelsTable() {
                 <Label htmlFor="package_type">Package Type</Label>
                 <Select
                   value={formData.package_type}
-                  onValueChange={(value) => handleFieldChange('package_type', value)}
+                  onValueChange={(value) =>
+                    handleFieldChange("package_type", value)
+                  }
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className="w-full">
@@ -756,13 +826,17 @@ function HotelsTable() {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.package_type && <p className="text-sm text-red-500">{errors.package_type}</p>}
+                {errors.package_type && (
+                  <p className="text-sm text-red-500">{errors.package_type}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="event_name">Event</Label>
                 <Select
                   value={formData.event_name}
-                  onValueChange={(value) => handleFieldChange('event_name', value)}
+                  onValueChange={(value) =>
+                    handleFieldChange("event_name", value)
+                  }
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className="w-full">
@@ -776,7 +850,9 @@ function HotelsTable() {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.event_name && <p className="text-sm text-red-500">{errors.event_name}</p>}
+                {errors.event_name && (
+                  <p className="text-sm text-red-500">{errors.event_name}</p>
+                )}
               </div>
             </div>
           </div>
@@ -789,7 +865,9 @@ function HotelsTable() {
                 <Input
                   id="longitude"
                   value={formData.longitude}
-                  onChange={(e) => handleFieldChange('longitude', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("longitude", e.target.value)
+                  }
                   placeholder="Enter longitude"
                   disabled={isSubmitting}
                 />
@@ -799,7 +877,9 @@ function HotelsTable() {
                 <Input
                   id="latitude"
                   value={formData.latitude}
-                  onChange={(e) => handleFieldChange('latitude', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("latitude", e.target.value)
+                  }
                   placeholder="Enter latitude"
                   disabled={isSubmitting}
                 />
@@ -814,7 +894,9 @@ function HotelsTable() {
               <Textarea
                 id="hotel_info"
                 value={formData.hotel_info}
-                onChange={(e) => handleFieldChange('hotel_info', e.target.value)}
+                onChange={(e) =>
+                  handleFieldChange("hotel_info", e.target.value)
+                }
                 placeholder="Enter hotel information"
                 disabled={isSubmitting}
                 rows={4}
@@ -825,7 +907,7 @@ function HotelsTable() {
               <Input
                 id="images"
                 value={formData.images}
-                onChange={(e) => handleFieldChange('images', e.target.value)}
+                onChange={(e) => handleFieldChange("images", e.target.value)}
                 placeholder="Enter image URLs separated by commas"
                 disabled={isSubmitting}
               />
@@ -834,16 +916,16 @@ function HotelsTable() {
 
           {/* Form Actions */}
           <div className="flex justify-end gap-4">
-            <Button 
-              variant="outline" 
-              onClick={onCancel} 
-              disabled={isSubmitting || submitStatus === 'success' || isLoading}
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting || submitStatus === "success" || isLoading}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleFormSubmit} 
-              disabled={isSubmitting || submitStatus === 'success' || isLoading}
+            <Button
+              onClick={handleFormSubmit}
+              disabled={isSubmitting || submitStatus === "success" || isLoading}
               className="min-w-[100px]"
             >
               {isSubmitting || isLoading ? (
@@ -851,7 +933,7 @@ function HotelsTable() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Updating...
                 </>
-              ) : submitStatus === 'success' ? (
+              ) : submitStatus === "success" ? (
                 <>
                   <CheckCircle2 className="mr-2 h-4 w-4" />
                   Updated!
@@ -863,7 +945,7 @@ function HotelsTable() {
           </div>
 
           {/* Status Message */}
-          {submitStatus === 'error' && (
+          {submitStatus === "error" && (
             <div className="text-sm text-red-500 text-center">
               Failed to update hotel. Please try again.
             </div>
@@ -873,11 +955,19 @@ function HotelsTable() {
     );
   };
 
-  const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isLoading = false }) => {
+  const HotelDialog = ({
+    isOpen,
+    onOpenChange,
+    mode = "add",
+    hotel = null,
+    isLoading = false,
+  }) => {
     const isEdit = mode === "edit";
     const dialogTitle = isEdit ? "Edit Hotel" : "Add New Hotel";
-    const dialogDescription = isEdit ? "Update the hotel details" : "Fill in the details for the new hotel";
-    
+    const dialogDescription = isEdit
+      ? "Update the hotel details"
+      : "Fill in the details for the new hotel";
+
     // Initialize form data with the current hotel data
     const [formData, setFormData] = useState(() => {
       return isEdit ? { ...editingHotel } : { ...initialHotelState };
@@ -899,22 +989,25 @@ function HotelsTable() {
     };
 
     return (
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-          if (!isEdit) {
-            setFormData({ ...initialHotelState });
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            if (!isEdit) {
+              setFormData({ ...initialHotelState });
+            }
+            setEditingHotel(null);
           }
-          setEditingHotel(null);
-        }
-        onOpenChange(open);
-      }}>
+          onOpenChange(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
           {isEdit ? (
-            <EditHotelForm 
+            <EditHotelForm
               formData={formData}
               setFormData={setFormData}
               events={events}
@@ -924,7 +1017,7 @@ function HotelsTable() {
               isLoading={isEditing}
             />
           ) : (
-            <AddHotelForm 
+            <AddHotelForm
               formData={formData}
               setFormData={setFormData}
               events={events}
@@ -958,13 +1051,17 @@ function HotelsTable() {
         filters.packageType === "all" ||
         item.package_type === filters.packageType;
       const eventNameMatch =
-        filters.eventName === "all" ||
-        item.event_name === filters.eventName;
+        filters.eventName === "all" || item.event_name === filters.eventName;
       const hotelNameMatch =
-        filters.hotelName === "all" ||
-        item.hotel_name === filters.hotelName;
+        filters.hotelName === "all" || item.hotel_name === filters.hotelName;
 
-      return searchMatch && starsMatch && packageTypeMatch && eventNameMatch && hotelNameMatch;
+      return (
+        searchMatch &&
+        starsMatch &&
+        packageTypeMatch &&
+        eventNameMatch &&
+        hotelNameMatch
+      );
     });
   };
 
@@ -998,7 +1095,7 @@ function HotelsTable() {
   const openEditDialog = (hotel) => {
     const preparedHotel = {
       ...hotel,
-      stars: String(hotel.stars) // Convert stars to string
+      stars: String(hotel.stars), // Convert stars to string
     };
     setEditingHotel(preparedHotel);
     setIsEditDialogOpen(true);
@@ -1027,8 +1124,14 @@ function HotelsTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Hotels</h3>
+      <div className="flex justify-between items-end">
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">Hotels</h3>
+          <p className="text-muted-foreground">
+            View and manage hotel information, including ratings and package
+            types
+          </p>
+        </div>
         <Button onClick={() => setIsAddDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Hotel
@@ -1052,7 +1155,9 @@ function HotelsTable() {
         </div>
         <Select
           value={filters.hotelName}
-          onValueChange={(value) => setFilters({ ...filters, hotelName: value })}
+          onValueChange={(value) =>
+            setFilters({ ...filters, hotelName: value })
+          }
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by Hotel" />
@@ -1068,7 +1173,9 @@ function HotelsTable() {
         </Select>
         <Select
           value={filters.eventName}
-          onValueChange={(value) => setFilters({ ...filters, eventName: value })}
+          onValueChange={(value) =>
+            setFilters({ ...filters, eventName: value })
+          }
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by Event" />
@@ -1158,7 +1265,8 @@ function HotelsTable() {
                       onClick={() => handleDeleteClick(item)}
                       disabled={isDeleting}
                     >
-                      {isDeleting && hotelToDelete?.hotel_id === item.hotel_id ? (
+                      {isDeleting &&
+                      hotelToDelete?.hotel_id === item.hotel_id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -1230,26 +1338,27 @@ function HotelsTable() {
       />
 
       {/* Success Dialog */}
-      <AlertDialog open={showSuccessDialog} onOpenChange={async (open) => {
-        if (!open) {
-          // When dialog closes, fetch the latest hotels
-          try {
-            const [hotelsRes] = await Promise.all([
-              api.get("hotels")
-            ]);
-            setHotels(hotelsRes.data);
-          } catch (error) {
-            console.error("Failed to fetch hotels:", error);
+      <AlertDialog
+        open={showSuccessDialog}
+        onOpenChange={async (open) => {
+          if (!open) {
+            // When dialog closes, fetch the latest hotels
+            try {
+              const [hotelsRes] = await Promise.all([api.get("hotels")]);
+              setHotels(hotelsRes.data);
+            } catch (error) {
+              console.error("Failed to fetch hotels:", error);
+            }
           }
-        }
-        setShowSuccessDialog(open);
-      }}>
+          setShowSuccessDialog(open);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-green-600">Success</AlertDialogTitle>
-            <AlertDialogDescription>
-              {successMessage}
-            </AlertDialogDescription>
+            <AlertDialogTitle className="text-green-600">
+              Success
+            </AlertDialogTitle>
+            <AlertDialogDescription>{successMessage}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
@@ -1265,19 +1374,20 @@ function HotelsTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the hotel "{hotelToDelete?.hotel_name}".
+              This action cannot be undone. This will permanently delete the
+              hotel "{hotelToDelete?.hotel_name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowDeleteDialog(false)}
               disabled={isDeleting}
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={confirmDelete}
               disabled={isDeleting}
             >

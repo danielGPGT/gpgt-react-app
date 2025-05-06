@@ -277,8 +277,8 @@ function BookingsChart() {
               <CardTitle>Profit & Loss</CardTitle>
               <CardDescription>{getMonthRangeString(monthlyData, year)}</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-between">
-              <ChartContainer config={{}}>
+            <CardContent className="flex-1 flex flex-col justify-between h-full">
+              <ChartContainer config={{}} className="h-full">
                 <BarChart accessibilityLayer data={monthlyData}>
                   <CartesianGrid vertical={false} />
                   <XAxis

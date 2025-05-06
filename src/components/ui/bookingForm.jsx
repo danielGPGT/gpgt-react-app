@@ -40,11 +40,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PropTypes from 'prop-types';
 import { toast } from "react-hot-toast";
 import api from "@/lib/api";
 import { differenceInCalendarDays } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const formSchema = z.object({
   booker_name: z.string().min(1),
@@ -66,6 +67,11 @@ const formSchema = z.object({
   payment1_date: z.coerce.date(),
   payment2_date: z.coerce.date(),
   payment3_date: z.coerce.date(),
+  payment1_status: z.boolean().default(false),
+  payment2_status: z.boolean().default(false),
+  payment3_status: z.boolean().default(false),
+  booking_reference: z.string().min(1),
+  booking_reference_prefix: z.string().min(1),
 });
 
 const currencySymbols = {
@@ -116,8 +122,196 @@ function BookingForm({
     defaultValues: {
       booking_date: new Date(),
       guest_traveller_names: Array(Math.max(0, numberOfAdults - 1)).fill(""),
+      booking_reference: generateBookingReference(selectedEvent).sequence,
+      booking_reference_prefix: generateBookingReference(selectedEvent).prefix,
     },
   });
+
+  // Function to get the next sequence number
+  async function getNextSequenceNumber(prefix) {
+    try {
+      // Fetch all booking references
+      const response = await api.get('/bookingFile');
+      const bookings = response.data || [];
+
+      // Filter bookings that match our prefix and get the highest sequence
+      const matchingRefs = bookings
+        .filter(booking => booking?.booking_ref?.startsWith(prefix))
+        .map(booking => {
+          const sequence = booking.booking_ref.split('-').pop();
+          return parseInt(sequence, 10) || 0;
+        });
+
+      // Get the highest sequence number or start from 1
+      const maxSequence = matchingRefs.length > 0 ? Math.max(...matchingRefs) : 0;
+      return (maxSequence + 1).toString().padStart(4, '0');
+    } catch (error) {
+      console.error('Failed to fetch booking references:', error);
+      return '0001'; // Start from 1 if fetch fails
+    }
+  }
+
+  // Function to generate booking reference
+  async function generateBookingReference(event) {
+    if (!event) return { prefix: '', sequence: '0001' };
+    
+    try {
+      // Get venue code based on event name
+      let venueCode = '';
+      if (event.event) {
+        const eventName = event.event.toLowerCase();
+        
+        // Formula 1 Grand Prix events
+        if (eventName.includes('abu dhabi')) {
+          venueCode = 'ABU';
+        } else if (eventName.includes('australian')) {
+          venueCode = 'AUS';
+        } else if (eventName.includes('austrian')) {
+          venueCode = 'AUT';
+        } else if (eventName.includes('bahrain')) {
+          venueCode = 'BAH';
+        } else if (eventName.includes('azerbaijan')) {
+          venueCode = 'AZE';
+        } else if (eventName.includes('belgian')) {
+          venueCode = 'BEL';
+        } else if (eventName.includes('canadian')) {
+          venueCode = 'CAN';
+        } else if (eventName.includes('dutch')) {
+          venueCode = 'NED';
+        } else if (eventName.includes('hungarian')) {
+          venueCode = 'HUN';
+        } else if (eventName.includes('emilia-romagna')) {
+          venueCode = 'EMI';
+        } else if (eventName.includes('italian')) {
+          venueCode = 'ITA';
+        } else if (eventName.includes('miami')) {
+          venueCode = 'MIA';
+        } else if (eventName.includes('monaco')) {
+          venueCode = 'MON';
+        } else if (eventName.includes('qatar')) {
+          venueCode = 'QAT';
+        } else if (eventName.includes('saudi')) {
+          venueCode = 'SAU';
+        } else if (eventName.includes('singapore')) {
+          venueCode = 'SIN';
+        } else if (eventName.includes('spanish')) {
+          venueCode = 'ESP';
+        }
+        // MotoGP events
+        else if (eventName.includes('aragon')) {
+          venueCode = 'ARA';
+        } else if (eventName.includes('austria')) {
+          venueCode = 'AUT';
+        } else if (eventName.includes('catalunya')) {
+          venueCode = 'CAT';
+        } else if (eventName.includes('german')) {
+          venueCode = 'GER';
+        } else if (eventName.includes('hungary')) {
+          venueCode = 'HUN';
+        } else if (eventName.includes('italy')) {
+          venueCode = 'ITA';
+        } else if (eventName.includes('portugal')) {
+          venueCode = 'POR';
+        } else if (eventName.includes('san marino')) {
+          venueCode = 'SMR';
+        } else if (eventName.includes('jerez')) {
+          venueCode = 'JER';
+        } else if (eventName.includes('valencia')) {
+          venueCode = 'VAL';
+        } else {
+          // For any other venue, use first 3 letters
+          venueCode = event.event.split(' ')[0].substring(0, 3).toUpperCase();
+        }
+      } else {
+        venueCode = 'VEN';
+      }
+      
+      // Get sport code
+      let sportCode = 'GEN';
+      if (event.sport) {
+        if (event.sport.toLowerCase().includes('formula')) {
+          sportCode = 'F1';
+        } else if (event.sport.toLowerCase().includes('motogp')) {
+          sportCode = 'MGP';
+        }
+      }
+      
+      // Extract year from event name
+      let year = '';
+      if (event.event) {
+        const yearMatch = event.event.match(/\b(20\d{2})\b/);
+        year = yearMatch ? yearMatch[1] : new Date().getFullYear();
+      } else {
+        year = new Date().getFullYear();
+      }
+      
+      const prefix = `${venueCode}${sportCode}-${year}-`;
+      const sequence = await getNextSequenceNumber(prefix);
+      
+      return {
+        prefix,
+        sequence
+      };
+    } catch (error) {
+      console.error('Error generating booking reference:', error);
+      return { prefix: '', sequence: '0001' };
+    }
+  }
+
+  // Update booking reference when event changes
+  useEffect(() => {
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    async function updateBookingReference() {
+      if (!selectedEvent) {
+        form.setValue('booking_reference', '0001');
+        form.setValue('booking_reference_prefix', '');
+        return;
+      }
+
+      try {
+        const newReference = await generateBookingReference(selectedEvent);
+        if (isMounted) {
+          form.setValue('booking_reference', newReference.sequence || '0001');
+          form.setValue('booking_reference_prefix', newReference.prefix || '');
+        }
+      } catch (error) {
+        console.error('Error updating booking reference:', error);
+        if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(updateBookingReference, 1000); // Retry after 1 second
+        } else {
+          // Set default values if all retries fail
+          if (isMounted) {
+            form.setValue('booking_reference', '0001');
+            form.setValue('booking_reference_prefix', '');
+          }
+        }
+      }
+    }
+
+    // Immediately update the reference
+    updateBookingReference();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedEvent?.event_id]);
+
+  // Initialize form values on mount
+  useEffect(() => {
+    const initializeReference = async () => {
+      if (selectedEvent) {
+        const newReference = await generateBookingReference(selectedEvent);
+        form.setValue('booking_reference', newReference.sequence || '0001');
+        form.setValue('booking_reference_prefix', newReference.prefix || '');
+      }
+    };
+    initializeReference();
+  }, [selectedEvent?.event_id]);
 
   const handleSubmit = async (values) => {
     if (isSubmitting) return; // Prevent double submission
@@ -134,11 +328,14 @@ function BookingForm({
         return format(new Date(date), "dd-LLL-y");
       };
 
+      // Combine booking reference prefix and sequence
+      const bookingReference = `${values.booking_reference_prefix}${values.booking_reference}`;
+
       // Prepare the booking data according to API requirements
       const bookingData = {
         // Status and reference
         status: 'Future',
-        booking_ref: '', // This will be generated by the backend
+        booking_ref: bookingReference,
         
         // Booking details
         booking_type: values.booking_type,
@@ -217,6 +414,9 @@ function BookingForm({
         payment_2_date: formatDate(values.payment2_date),
         payment_3: paymentAmount,
         payment_3_date: formatDate(values.payment3_date),
+        payment_1_status: values.payment1_status ? "Paid" : "Due",
+        payment_2_status: values.payment2_status ? "Paid" : "Due",
+        payment_3_status: values.payment3_status ? "Paid" : "Due",
         
         // Calculated totals
         'Total cost': totalPrice,
@@ -300,6 +500,41 @@ function BookingForm({
           onSubmit={form.handleSubmit(handleSubmit)}
           className="p-4 space-y-4 bg-card rounded-md border-[1px] border shadow-sm w-full max-w-6xl mx-auto"
         >
+          {/* Booking Reference */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="booking_reference"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-foreground">Booking Reference</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Input 
+                        value={form.getValues('booking_reference_prefix') || ''}
+                        className="bg-background font-mono w-[180px]"
+                        readOnly 
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <Input 
+                        {...field}
+                        className="bg-background font-mono w-[80px]"
+                        maxLength={4}
+                        pattern="[0-9]*"
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9]/g, '');
+                          field.onChange(value);
+                        }}
+                      />
+                    </FormControl>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
           {/* Booker Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
@@ -651,6 +886,23 @@ function BookingForm({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="payment1_status"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-1 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Mark as Paid</FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* Payment 2 */}
@@ -695,6 +947,23 @@ function BookingForm({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="payment2_status"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-1 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Mark as Paid</FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* Final Payment */}
@@ -736,6 +1005,23 @@ function BookingForm({
                         />
                       </PopoverContent>
                     </Popover>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="payment3_status"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-1 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Mark as Paid</FormLabel>
+                    </div>
                   </FormItem>
                 )}
               />

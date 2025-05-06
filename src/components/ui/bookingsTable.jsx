@@ -18,6 +18,7 @@ import {
   Filter,
   Pencil,
   Eye,
+  Loader2,
 } from "lucide-react";
 import {
   Pagination,
@@ -79,6 +80,7 @@ function BookingsTable() {
   const [successMessage, setSuccessMessage] = useState("");
   const [viewingBooking, setViewingBooking] = useState(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const itemsPerPage = 10;
 
   // Filter states
@@ -208,7 +210,7 @@ function BookingsTable() {
       await api.delete(`bookingFile/${bookingToDelete}`);
       setBookings((prevBookings) =>
         prevBookings.filter(
-          (booking) => booking.booking_ref !== bookingToDelete
+          (booking) => booking.booking_id !== bookingToDelete
         )
       );
       setSuccessMessage("Booking deleted successfully!");
@@ -229,6 +231,78 @@ function BookingsTable() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentItems = filteredBookings.slice(startIndex, endIndex);
+
+  const handleEditBooking = async (formData) => {
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring duplicate submission');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      console.log('Starting update for booking:', editingBooking.booking_id);
+      
+      // Convert form data to array of updates, but only include changed fields
+      const updates = Object.entries(formData)
+        .filter(([column, value]) => {
+          // Compare with original value, handling different data types
+          const originalValue = editingBooking[column];
+          if (typeof originalValue === 'number') {
+            return Number(value) !== originalValue;
+          }
+          return String(value) !== String(originalValue);
+        })
+        .map(([column, value]) => ({
+          column,
+          value
+        }));
+
+      console.log('Updates to process:', updates.length);
+
+      // Make individual cell updates only for changed fields
+      for (const update of updates) {
+        console.log('Updating field:', update.column);
+        const response = await api.put(`bookingFile/booking_id/${editingBooking.booking_id}`, {
+          column: update.column,
+          value: update.value
+        });
+        
+        if (!response.data) {
+          throw new Error('Update failed');
+        }
+      }
+
+      console.log('All updates completed successfully');
+      await fetchBookings(); // Refresh the bookings list
+      setIsEditDialogOpen(false);
+      setEditingBooking(null);
+      toast.success("Booking updated successfully");
+    } catch (error) {
+      console.error("Failed to update booking:", error);
+      toast.error("Failed to update booking");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Update the form submission handler
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    handleEditBooking(data);
+  };
+
+  // Add this helper function to format dates
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    const months = {
+      'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06',
+      'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+    };
+    const [day, month, year] = dateStr.split('-');
+    return `${year}-${months[month]}-${day.padStart(2, '0')}`;
+  };
 
   if (loading) {
     return (
@@ -367,7 +441,7 @@ function BookingsTable() {
           </TableHeader>
           <TableBody>
             {currentItems.map((booking) => (
-              <TableRow key={booking.booking_ref}>
+              <TableRow key={booking.booking_id}>
                 <TableCell className="font-medium">
                   {booking.booking_ref}
                 </TableCell>
@@ -432,7 +506,7 @@ function BookingsTable() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDeleteBooking(booking.booking_ref)}
+                      onClick={() => handleDeleteBooking(booking.booking_id)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -548,9 +622,9 @@ function BookingsTable() {
               {/* Left Column */}
               <div className="space-y-6">
                 {/* Basic Information */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Basic Information</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                  <h3 className="font-semibold text-lg mb-4">Basic Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-muted-foreground">
                         Booking Reference:
@@ -627,9 +701,9 @@ function BookingsTable() {
                 </div>
 
                 {/* Booker Information */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Booker Information</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                  <h3 className="font-semibold text-lg mb-4">Booker Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-muted-foreground">Name:</span>
                       <span className="ml-2">{viewingBooking.booker_name}</span>
@@ -656,11 +730,9 @@ function BookingsTable() {
                 </div>
 
                 {/* Lead Traveller Information */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">
-                    Lead Traveller Information
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                  <h3 className="font-semibold text-lg mb-4">Lead Traveller Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-muted-foreground">Name:</span>
                       <span className="ml-2">
@@ -711,9 +783,9 @@ function BookingsTable() {
               {/* Right Column */}
               <div className="space-y-6">
                 {/* Ticket Information */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Ticket Information</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                  <h3 className="font-semibold text-lg mb-4">Ticket Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-muted-foreground">
                         Ticket Name:
@@ -744,9 +816,9 @@ function BookingsTable() {
                 </div>
 
                 {/* Hotel Information */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Hotel Information</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                  <h3 className="font-semibold text-lg mb-4">Hotel Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-muted-foreground">Hotel:</span>
                       <span className="ml-2">{viewingBooking.hotel_name}</span>
@@ -799,11 +871,9 @@ function BookingsTable() {
                 </div>
 
                 {/* Transfer Information */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">
-                    Transfer Information
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                  <h3 className="font-semibold text-lg mb-4">Transfer Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-muted-foreground">
                         Airport Transfer:
@@ -958,9 +1028,9 @@ function BookingsTable() {
                 </div>
 
                 {/* Payment Information */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Payment Information</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                  <h3 className="font-semibold text-lg mb-4">Payment Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-muted-foreground">Currency:</span>
                       <span className="ml-2">
@@ -1100,6 +1170,361 @@ function BookingsTable() {
             </div>
           )}
           <DialogFooter></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Booking Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-[1600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Booking</DialogTitle>
+            <DialogDescription>
+              Edit booking details for {editingBooking?.booking_ref}
+            </DialogDescription>
+          </DialogHeader>
+          {editingBooking && (
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="grid grid-cols-2 gap-8">
+                {/* Left Column */}
+                <div className="space-y-8">
+                  {/* Basic Information */}
+                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                    <h3 className="font-semibold text-lg mb-4">Basic Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="status" className="mb-2 block">Status</Label>
+                        <Select name="status" defaultValue={editingBooking.status}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Future">Future</SelectItem>
+                            <SelectItem value="Past">Past</SelectItem>
+                            <SelectItem value="Cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="booking_type" className="mb-2 block">Booking Type</Label>
+                        <Select name="booking_type" defaultValue={editingBooking.booking_type}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select booking type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="provisional">Provisional</SelectItem>
+                            <SelectItem value="confirmed">Confirmed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="consultant" className="mb-2 block">Consultant</Label>
+                        <Input name="consultant" defaultValue={editingBooking.consultant} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="acquisition" className="mb-2 block">Acquisition</Label>
+                        <Input name="acquisition" defaultValue={editingBooking.acquisition} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="atol_abtot" className="mb-2 block">ATOL/ABTOT</Label>
+                        <Select name="atol_abtot" defaultValue={editingBooking.atol_abtot}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select ATOL/ABTOT" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="atol">ATOL</SelectItem>
+                            <SelectItem value="abtot">ABTOT</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="booking_date" className="mb-2 block">Booking Date</Label>
+                        <Input 
+                          name="booking_date" 
+                          type="date" 
+                          defaultValue={formatDateForInput(editingBooking.booking_date)} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Booker Information */}
+                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                    <h3 className="font-semibold text-lg mb-4">Booker Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="booker_name" className="mb-2 block">Booker Name</Label>
+                        <Input name="booker_name" defaultValue={editingBooking.booker_name} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="booker_email" className="mb-2 block">Booker Email</Label>
+                        <Input name="booker_email" type="email" defaultValue={editingBooking.booker_email} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="booker_phone" className="mb-2 block">Booker Phone</Label>
+                        <Input name="booker_phone" type="tel" defaultValue={editingBooking.booker_phone} />
+                      </div>
+
+                      <div className="col-span-2">
+                        <Label htmlFor="booker_address" className="mb-2 block">Booker Address</Label>
+                        <textarea
+                          name="booker_address"
+                          className="w-full min-h-[100px] p-2 border rounded-md"
+                          defaultValue={editingBooking.booker_address}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lead Traveller Information */}
+                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                    <h3 className="font-semibold text-lg mb-4">Lead Traveller Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="lead_traveller_name" className="mb-2 block">Lead Traveller Name</Label>
+                        <Input name="lead_traveller_name" defaultValue={editingBooking.lead_traveller_name} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="lead_traveller_email" className="mb-2 block">Lead Traveller Email</Label>
+                        <Input name="lead_traveller_email" type="email" defaultValue={editingBooking.lead_traveller_email} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="lead_traveller_phone" className="mb-2 block">Lead Traveller Phone</Label>
+                        <Input name="lead_traveller_phone" type="tel" defaultValue={editingBooking.lead_traveller_phone} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="guest_traveller_names" className="mb-2 block">Guest Traveller Names</Label>
+                        <Input name="guest_traveller_names" defaultValue={editingBooking.guest_traveller_names} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="adults" className="mb-2 block">Number of Adults</Label>
+                        <Input name="adults" type="number" defaultValue={editingBooking.adults} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-8">
+                  {/* Ticket Information */}
+                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                    <h3 className="font-semibold text-lg mb-4">Ticket Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="ticket_quantity" className="mb-2 block">Ticket Quantity</Label>
+                        <Input name="ticket_quantity" type="number" defaultValue={editingBooking.ticket_quantity} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="ticket_price" className="mb-2 block">Ticket Price</Label>
+                        <Input name="ticket_price" type="number" step="0.01" defaultValue={editingBooking.ticket_price} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Hotel Information */}
+                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                    <h3 className="font-semibold text-lg mb-4">Hotel Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="check_in_date" className="mb-2 block">Check-in Date</Label>
+                        <Input 
+                          name="check_in_date" 
+                          type="date" 
+                          defaultValue={formatDateForInput(editingBooking.check_in_date)} 
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="check_out_date" className="mb-2 block">Check-out Date</Label>
+                        <Input 
+                          name="check_out_date" 
+                          type="date" 
+                          defaultValue={formatDateForInput(editingBooking.check_out_date)} 
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="nights" className="mb-2 block">Nights</Label>
+                        <Input name="nights" type="number" defaultValue={editingBooking.nights} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="extra_nights" className="mb-2 block">Extra Nights</Label>
+                        <Input name="extra_nights" type="number" defaultValue={editingBooking.extra_nights} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="room_quantity" className="mb-2 block">Room Quantity</Label>
+                        <Input name="room_quantity" type="number" defaultValue={editingBooking.room_quantity} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="room_price" className="mb-2 block">Room Price</Label>
+                        <Input name="room_price" type="number" step="0.01" defaultValue={editingBooking.room_price} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Transfer Information */}
+                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                    <h3 className="font-semibold text-lg mb-4">Transfer Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="airport_transfer_quantity" className="mb-2 block">Airport Transfer Quantity</Label>
+                        <Input name="airport_transfer_quantity" type="number" defaultValue={editingBooking.airport_transfer_quantity} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="airport_transfer_price" className="mb-2 block">Airport Transfer Price</Label>
+                        <Input name="airport_transfer_price" type="number" step="0.01" defaultValue={editingBooking.airport_transfer_price} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="circuit_transfer_quantity" className="mb-2 block">Circuit Transfer Quantity</Label>
+                        <Input name="circuit_transfer_quantity" type="number" defaultValue={editingBooking.circuit_transfer_quantity} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="circuit_transfer_price" className="mb-2 block">Circuit Transfer Price</Label>
+                        <Input name="circuit_transfer_price" type="number" step="0.01" defaultValue={editingBooking.circuit_transfer_price} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Information */}
+                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
+                    <h3 className="font-semibold text-lg mb-4">Payment Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="payment_currency" className="mb-2 block">Payment Currency</Label>
+                        <Select name="payment_currency" defaultValue={editingBooking.payment_currency}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="GBP">GBP</SelectItem>
+                            <SelectItem value="USD">USD</SelectItem>
+                            <SelectItem value="EUR">EUR</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment_1" className="mb-2 block">Payment 1 Amount</Label>
+                        <Input name="payment_1" type="number" step="0.01" defaultValue={editingBooking.payment_1} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment_1_date" className="mb-2 block">Payment 1 Date</Label>
+                        <Input 
+                          name="payment_1_date" 
+                          type="date" 
+                          defaultValue={formatDateForInput(editingBooking.payment_1_date)} 
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment_1_status" className="mb-2 block">Payment 1 Status</Label>
+                        <Select name="payment_1_status" defaultValue={editingBooking.payment_1_status}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Paid">Paid</SelectItem>
+                            <SelectItem value="Due">Due</SelectItem>
+                            <SelectItem value="Overdue">Overdue</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment_2" className="mb-2 block">Payment 2 Amount</Label>
+                        <Input name="payment_2" type="number" step="0.01" defaultValue={editingBooking.payment_2} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment_2_date" className="mb-2 block">Payment 2 Date</Label>
+                        <Input 
+                          name="payment_2_date" 
+                          type="date" 
+                          defaultValue={formatDateForInput(editingBooking.payment_2_date)} 
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment_2_status" className="mb-2 block">Payment 2 Status</Label>
+                        <Select name="payment_2_status" defaultValue={editingBooking.payment_2_status}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Paid">Paid</SelectItem>
+                            <SelectItem value="Due">Due</SelectItem>
+                            <SelectItem value="Overdue">Overdue</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment_3" className="mb-2 block">Payment 3 Amount</Label>
+                        <Input name="payment_3" type="number" step="0.01" defaultValue={editingBooking.payment_3} />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment_3_date" className="mb-2 block">Payment 3 Date</Label>
+                        <Input 
+                          name="payment_3_date" 
+                          type="date" 
+                          defaultValue={formatDateForInput(editingBooking.payment_3_date)} 
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="payment_3_status" className="mb-2 block">Payment 3 Status</Label>
+                        <Select name="payment_3_status" defaultValue={editingBooking.payment_3_status}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Paid">Paid</SelectItem>
+                            <SelectItem value="Due">Due</SelectItem>
+                            <SelectItem value="Overdue">Overdue</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -96,9 +96,9 @@ function RoomsTable() {
     try {
       const [roomsRes, hotelsRes] = await Promise.all([
         api.get("Stock%20-%20rooms"),
-        api.get("hotels")
+        api.get("hotels"),
       ]);
-      
+
       const validRooms = Array.isArray(roomsRes.data) ? roomsRes.data : [];
       const validHotels = Array.isArray(hotelsRes.data) ? hotelsRes.data : [];
 
@@ -116,31 +116,35 @@ function RoomsTable() {
 
   // Get unique values for filters
   const getUniqueHotels = () => {
-    const uniqueHotels = [...new Set(rooms.map(item => item.hotel_name))];
-    return uniqueHotels.filter(hotel => hotel);
+    const uniqueHotels = [...new Set(rooms.map((item) => item.hotel_name))];
+    return uniqueHotels.filter((hotel) => hotel);
   };
 
   const getUniqueRoomTypes = () => {
-    const uniqueTypes = [...new Set(rooms.map(item => item.room_type))];
-    return uniqueTypes.filter(type => type);
+    const uniqueTypes = [...new Set(rooms.map((item) => item.room_type))];
+    return uniqueTypes.filter((type) => type);
   };
 
   const getUniqueSources = () => {
-    const uniqueSources = [...new Set(rooms.map(item => item.source))];
-    return uniqueSources.filter(source => source);
+    const uniqueSources = [...new Set(rooms.map((item) => item.source))];
+    return uniqueSources.filter((source) => source);
   };
 
   // Filter functions
   const filterRooms = (items) => {
-    return items.filter(item => {
-      const searchMatch = filters.search === "" || 
-        Object.values(item).some(val => 
+    return items.filter((item) => {
+      const searchMatch =
+        filters.search === "" ||
+        Object.values(item).some((val) =>
           String(val).toLowerCase().includes(filters.search.toLowerCase())
         );
 
-      const hotelMatch = filters.hotel === "all" || item.hotel_name === filters.hotel;
-      const roomTypeMatch = filters.roomType === "all" || item.room_type === filters.roomType;
-      const sourceMatch = filters.source === "all" || item.source === filters.source;
+      const hotelMatch =
+        filters.hotel === "all" || item.hotel_name === filters.hotel;
+      const roomTypeMatch =
+        filters.roomType === "all" || item.room_type === filters.roomType;
+      const sourceMatch =
+        filters.source === "all" || item.source === filters.source;
 
       return searchMatch && hotelMatch && roomTypeMatch && sourceMatch;
     });
@@ -151,7 +155,7 @@ function RoomsTable() {
       const roomData = {
         ...newRoom,
         room_id: crypto.randomUUID(),
-        remaining: newRoom.booked - newRoom.used
+        remaining: newRoom.booked - newRoom.used,
       };
 
       await api.post("Stock%20-%20rooms", roomData);
@@ -169,7 +173,7 @@ function RoomsTable() {
     try {
       const roomData = {
         ...editingRoom,
-        remaining: editingRoom.booked - editingRoom.used
+        remaining: editingRoom.booked - editingRoom.used,
       };
 
       await api.put(`Stock%20-%20rooms/${editingRoom.room_id}`, roomData);
@@ -195,13 +199,13 @@ function RoomsTable() {
   };
 
   const openEditDialog = (room) => {
-    const hotelObj = hotels.find(h => h.hotel_id === room.hotel_id);
-    
+    const hotelObj = hotels.find((h) => h.hotel_id === room.hotel_id);
+
     const preparedRoom = {
       ...initialRoomState,
       ...room,
       hotel_id: hotelObj?.hotel_id || "",
-      hotel_name: room.hotel_name || ""
+      hotel_name: room.hotel_name || "",
     };
     setEditingRoom(preparedRoom);
     setIsEditDialogOpen(true);
@@ -220,32 +224,38 @@ function RoomsTable() {
   };
 
   const formatDateForInput = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     // Convert from DD/MM/YYYY to YYYY-MM-DD
-    const [day, month, year] = dateString.split('/');
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const [day, month, year] = dateString.split("/");
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   };
 
   const formatDateForDisplay = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     // Convert from YYYY-MM-DD to DD/MM/YYYY
-    const [year, month, day] = dateString.split('-');
+    const [year, month, day] = dateString.split("-");
     return `${day}/${month}/${year}`;
   };
 
   const RoomDialog = ({ isOpen, onOpenChange, mode = "add" }) => {
     const isEdit = mode === "edit";
     const dialogTitle = isEdit ? "Edit Room" : "Add New Room";
-    const dialogDescription = isEdit ? "Update the room details" : "Fill in the details for the new room";
+    const dialogDescription = isEdit
+      ? "Update the room details"
+      : "Fill in the details for the new room";
     const buttonText = isEdit ? "Update Room" : "Add Room";
     const handleSubmit = isEdit ? handleEditRoom : handleAddRoom;
-    
+
     const formData = isEdit ? editingRoom || initialRoomState : newRoom;
     const setFormData = isEdit ? setEditingRoom : setNewRoom;
 
     const [dateRange, setDateRange] = useState({
-      from: formData.check_in_date ? new Date(formData.check_in_date.split('/').reverse().join('-')) : null,
-      to: formData.check_out_date ? new Date(formData.check_out_date.split('/').reverse().join('-')) : null
+      from: formData.check_in_date
+        ? new Date(formData.check_in_date.split("/").reverse().join("-"))
+        : null,
+      to: formData.check_out_date
+        ? new Date(formData.check_out_date.split("/").reverse().join("-"))
+        : null,
     });
 
     // Update form data when date range changes
@@ -254,28 +264,31 @@ function RoomsTable() {
       if (range?.from) {
         setFormData({
           ...formData,
-          check_in_date: format(range.from, 'dd/MM/yyyy'),
-          check_out_date: range.to ? format(range.to, 'dd/MM/yyyy') : ''
+          check_in_date: format(range.from, "dd/MM/yyyy"),
+          check_out_date: range.to ? format(range.to, "dd/MM/yyyy") : "",
         });
       } else {
         setFormData({
           ...formData,
-          check_in_date: '',
-          check_out_date: ''
+          check_in_date: "",
+          check_out_date: "",
         });
       }
     };
 
     return (
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-          if (!isEdit) {
-            setNewRoom(initialRoomState);
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            if (!isEdit) {
+              setNewRoom(initialRoomState);
+            }
+            setEditingRoom(null);
           }
-          setEditingRoom(null);
-        }
-        onOpenChange(open);
-      }}>
+          onOpenChange(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
@@ -291,11 +304,13 @@ function RoomsTable() {
                   <Select
                     value={formData?.hotel_id || ""}
                     onValueChange={(value) => {
-                      const selectedHotel = hotels.find(h => h?.hotel_id === value);
-                      setFormData({ 
-                        ...formData, 
+                      const selectedHotel = hotels.find(
+                        (h) => h?.hotel_id === value
+                      );
+                      setFormData({
+                        ...formData,
                         hotel_id: value,
-                        hotel_name: selectedHotel?.hotel_name || ""
+                        hotel_name: selectedHotel?.hotel_name || "",
                       });
                     }}
                   >
@@ -304,7 +319,7 @@ function RoomsTable() {
                     </SelectTrigger>
                     <SelectContent>
                       {hotels.map((hotel) => (
-                        <SelectItem 
+                        <SelectItem
                           key={hotel?.hotel_id || crypto.randomUUID()}
                           value={hotel?.hotel_id || ""}
                         >
@@ -319,7 +334,9 @@ function RoomsTable() {
                   <Input
                     id="room_type"
                     value={formData?.room_type || ""}
-                    onChange={(e) => setFormData({ ...formData, room_type: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, room_type: e.target.value })
+                    }
                   />
                 </div>
               </div>
@@ -329,7 +346,12 @@ function RoomsTable() {
                   <Input
                     id="room_category"
                     value={formData?.room_category || ""}
-                    onChange={(e) => setFormData({ ...formData, room_category: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        room_category: e.target.value,
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -338,7 +360,12 @@ function RoomsTable() {
                     id="max_guests"
                     type="number"
                     value={formData?.max_guests || 2}
-                    onChange={(e) => setFormData({ ...formData, max_guests: parseInt(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        max_guests: parseInt(e.target.value),
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -354,7 +381,12 @@ function RoomsTable() {
                     id="booked"
                     type="number"
                     value={formData?.booked || 0}
-                    onChange={(e) => setFormData({ ...formData, booked: parseInt(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        booked: parseInt(e.target.value),
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -363,7 +395,12 @@ function RoomsTable() {
                     id="used"
                     type="number"
                     value={formData?.used || 0}
-                    onChange={(e) => setFormData({ ...formData, used: parseInt(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        used: parseInt(e.target.value),
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -372,7 +409,12 @@ function RoomsTable() {
                     id="nights"
                     type="number"
                     value={formData?.nights || 0}
-                    onChange={(e) => setFormData({ ...formData, nights: parseInt(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        nights: parseInt(e.target.value),
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -394,16 +436,28 @@ function RoomsTable() {
                   <Input
                     id="currency"
                     value={formData?.["currency_(local)"] || ""}
-                    onChange={(e) => setFormData({ ...formData, "currency_(local)": e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        "currency_(local)": e.target.value,
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="per_night_price">Price per Night (Local)</Label>
+                  <Label htmlFor="per_night_price">
+                    Price per Night (Local)
+                  </Label>
                   <Input
                     id="per_night_price"
                     type="number"
                     value={formData?.["per_night_price_(local)"] || 0}
-                    onChange={(e) => setFormData({ ...formData, "per_night_price_(local)": parseFloat(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        "per_night_price_(local)": parseFloat(e.target.value),
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -418,7 +472,9 @@ function RoomsTable() {
                   <Input
                     id="source"
                     value={formData?.source || ""}
-                    onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, source: e.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -426,7 +482,12 @@ function RoomsTable() {
                   <Input
                     id="flexibility"
                     value={formData?.room_flexibility || ""}
-                    onChange={(e) => setFormData({ ...formData, room_flexibility: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        room_flexibility: e.target.value,
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -436,7 +497,12 @@ function RoomsTable() {
                   <Input
                     id="attrition_group"
                     value={formData?.attrition_group || ""}
-                    onChange={(e) => setFormData({ ...formData, attrition_group: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        attrition_group: e.target.value,
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -444,7 +510,12 @@ function RoomsTable() {
                   <Input
                     id="breakfast"
                     value={formData?.["breakfast_(2_people)"] || ""}
-                    onChange={(e) => setFormData({ ...formData, "breakfast_(2_people)": e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        "breakfast_(2_people)": e.target.value,
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -462,13 +533,23 @@ function RoomsTable() {
   };
 
   if (loading) {
-    return <div className="text-center text-muted-foreground">Loading rooms inventory...</div>;
+    return (
+      <div className="text-center text-muted-foreground">
+        Loading rooms inventory...
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Room Inventory</h3>
+      <div className="flex justify-between items-end">
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">Room Inventory</h3>
+          <p className="text-muted-foreground">
+            Track room availability, bookings, and pricing information
+          </p>
+        </div>
+
         <Button onClick={() => setIsAddDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Room
@@ -483,7 +564,9 @@ function RoomsTable() {
             <Input
               placeholder="Search rooms..."
               value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              onChange={(e) =>
+                setFilters({ ...filters, search: e.target.value })
+              }
               className="pl-8"
             />
           </div>
@@ -569,7 +652,9 @@ function RoomsTable() {
                 <TableCell>{item.booked}</TableCell>
                 <TableCell>{item.used}</TableCell>
                 <TableCell>
-                  <Badge variant={item.remaining > 0 ? "default" : "destructive"}>
+                  <Badge
+                    variant={item.remaining > 0 ? "default" : "destructive"}
+                  >
                     {item.remaining}
                   </Badge>
                 </TableCell>
@@ -602,14 +687,17 @@ function RoomsTable() {
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {startIndex + 1} to {Math.min(endIndex, filteredRooms.length)} of {filteredRooms.length} rooms
+          Showing {startIndex + 1} to {Math.min(endIndex, filteredRooms.length)}{" "}
+          of {filteredRooms.length} rooms
         </div>
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious 
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+              <PaginationPrevious
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                }
               />
             </PaginationItem>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
@@ -623,9 +711,15 @@ function RoomsTable() {
               </PaginationItem>
             ))}
             <PaginationItem>
-              <PaginationNext 
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+              <PaginationNext
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
               />
             </PaginationItem>
           </PaginationContent>
@@ -633,14 +727,14 @@ function RoomsTable() {
       </div>
 
       {/* Add Dialog */}
-      <RoomDialog 
+      <RoomDialog
         isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         mode="add"
       />
 
       {/* Edit Dialog */}
-      <RoomDialog 
+      <RoomDialog
         isOpen={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         mode="edit"

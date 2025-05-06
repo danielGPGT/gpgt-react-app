@@ -8,6 +8,7 @@ import {
   Settings,
   LogOut,
   Package,
+  Plane,
   ClipboardList,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -39,6 +40,12 @@ const menuItems = [
     allowedRoles: ["Admin", "Internal Sales", "Operations", "External B2B"],
   },
   {
+    title: "Bookings",
+    url: "/bookings",
+    icon: ClipboardList,
+    allowedRoles: ["Admin", "Internal Sales", "Operations"],
+  },
+  {
     title: "Pricing",
     url: "/pricing",
     icon: BadgePoundSterling,
@@ -51,10 +58,10 @@ const menuItems = [
     allowedRoles: ["Admin", "Operations"],
   },
   {
-    title: "Bookings",
-    url: "/bookings",
-    icon: ClipboardList,
-    allowedRoles: ["Admin", "Internal Sales", "Operations", "External B2B"],
+    title: "Flights & Transport",
+    url: "/flights",
+    icon: Plane,
+    allowedRoles: ["Admin", "Operations", "Internal Sales"],
   },
 ];
 
@@ -92,7 +99,7 @@ function AppSidebar() {
   );
 
   return (
-    <Sidebar className="bg-card border-r">
+    <Sidebar className="bg-secondary border-r">
       <SidebarHeader className="flex flex-col mt-5 items-start gap-2 px-4 py-3 border-b">
         <img
           src={theme === "dark" ? "/src/assets/imgs/gpgt_logo_light.svg" : "/src/assets/imgs/gpgt_logo_dark.svg"}
@@ -122,8 +129,8 @@ function AppSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
-                      className={`flex items-center gap-2 hover:bg-accent ${
-                        isActive ? "text-primary bg-accent" : "text-muted-foreground"
+                      className={`flex items-center gap-2 hover:bg-background ${
+                        isActive ? "text-primary bg-background" : "text-muted-foreground"
                       }`}
                     >
                       <a href={item.url} className="flex items-center gap-2">
