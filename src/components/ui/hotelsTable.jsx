@@ -49,6 +49,8 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 function HotelsTable() {
   // State declarations
@@ -92,6 +94,16 @@ function HotelsTable() {
 
   const [formData, setFormData] = useState(initialHotelState);
   const [errors, setErrors] = useState({});
+
+  // Sorting options
+  const sortColumns = [
+    { value: "event_name", label: "Event Name" },
+    { value: "hotel_name", label: "Hotel Name" },
+    { value: "stars", label: "Rating" },
+    { value: "package_type", label: "Package Type" },
+  ];
+  const [sortColumn, setSortColumn] = useState("event_name");
+  const [sortDirection, setSortDirection] = useState("asc");
 
   // Helper functions
   const getUniqueStars = useCallback(() => {
@@ -1036,15 +1048,14 @@ function HotelsTable() {
     fetchInitialData();
   }, []);
 
-  // Filter functions
-  const filterHotels = (items) => {
-    return items.filter((item) => {
+  // Filtered and sorted hotels
+  const filteredHotels = useMemo(() => {
+    let result = hotels.filter((item) => {
       const searchMatch =
         filters.search === "" ||
         Object.values(item).some((val) =>
           String(val).toLowerCase().includes(filters.search.toLowerCase())
         );
-
       const starsMatch =
         filters.stars === "all" || item.stars === parseInt(filters.stars);
       const packageTypeMatch =
@@ -1054,7 +1065,6 @@ function HotelsTable() {
         filters.eventName === "all" || item.event_name === filters.eventName;
       const hotelNameMatch =
         filters.hotelName === "all" || item.hotel_name === filters.hotelName;
-
       return (
         searchMatch &&
         starsMatch &&
@@ -1063,6 +1073,40 @@ function HotelsTable() {
         hotelNameMatch
       );
     });
+    // Sorting
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+        // For numbers, sort numerically
+        if (["stars"].includes(sortColumn)) {
+          aVal = Number(aVal) || 0;
+          bVal = Number(bVal) || 0;
+          return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+        } else {
+          aVal = (aVal || "").toString().toLowerCase();
+          bVal = (bVal || "").toString().toLowerCase();
+          if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+          if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+          return 0;
+        }
+      });
+    }
+    return result;
+  }, [hotels, filters, sortColumn, sortDirection]);
+
+  // Apply filters and calculate pagination
+  const totalPages = Math.ceil(filteredHotels.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredHotels.slice(startIndex, endIndex);
+
+  const renderStars = (count) => {
+    return Array(count)
+      .fill(0)
+      .map((_, index) => (
+        <Star key={index} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+      ));
   };
 
   const handleDeleteHotel = async (hotelId) => {
@@ -1101,21 +1145,6 @@ function HotelsTable() {
     setIsEditDialogOpen(true);
   };
 
-  // Apply filters and calculate pagination
-  const filteredHotels = filterHotels(hotels);
-  const totalPages = Math.ceil(filteredHotels.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredHotels.slice(startIndex, endIndex);
-
-  const renderStars = (count) => {
-    return Array(count)
-      .fill(0)
-      .map((_, index) => (
-        <Star key={index} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-      ));
-  };
-
   if (loading) {
     return (
       <div className="text-center text-muted-foreground">Loading hotels...</div>
@@ -1132,10 +1161,7 @@ function HotelsTable() {
             types
           </p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Hotel
-        </Button>
+
       </div>
 
       {/* Filters */}
@@ -1225,16 +1251,63 @@ function HotelsTable() {
         </Select>
       </div>
 
+      
+
       {/* Table */}
       <div className="rounded-md border">
         <Table>
-          <TableHeader className="bg-muted">
+          <TableHeader className="bg-muted">{/* Sorting Dropdown */}
+          <TableRow className="bg-background">
+              <TableHead colSpan={7} className="p-2 align-middle">
+                <div className="flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="default" size="sm" className="flex items-center gap-2">
+                Sort <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              {sortColumns.map(col => (
+                <DropdownMenuItem
+                  key={col.value}
+                  onClick={() => setSortColumn(col.value)}
+                  className={sortColumn === col.value ? "font-semibold text-primary" : ""}
+                >
+                  {col.label} {sortColumn === col.value && "✓"}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Direction</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => setSortDirection("asc")}
+                className={sortDirection === "asc" ? "font-semibold text-primary" : ""}
+              >
+                Ascending {sortDirection === "asc" && "▲"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortDirection("desc")}
+                className={sortDirection === "desc" ? "font-semibold text-primary" : ""}
+              >
+                Descending {sortDirection === "desc" && "▼"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <span className="text-sm text-muted-foreground">Sorted by <span className="font-medium">{sortColumns.find(c => c.value === sortColumn)?.label}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})</span>
+        </div>
+        <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Hotel
+        </Button>
+      </div>
+      </TableHead>
+      </TableRow>
             <TableRow>
               <TableHead>Event Name</TableHead>
               <TableHead>Hotel Name</TableHead>
               <TableHead>Rating</TableHead>
               <TableHead>Package Type</TableHead>
-              <TableHead>Event</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -1249,7 +1322,6 @@ function HotelsTable() {
                   </div>
                 </TableCell>
                 <TableCell>{item.package_type}</TableCell>
-                <TableCell>{item.event_name}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <Button

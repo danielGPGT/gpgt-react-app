@@ -49,7 +49,7 @@ const menuItems = [
     title: "Pricing",
     url: "/pricing",
     icon: BadgePoundSterling,
-    allowedRoles: ["Admin", "Internal Sales"],
+    allowedRoles: ["Admin", "Internal Sales", "External B2B"],
   },
   {
     title: "Inventory",
@@ -62,6 +62,12 @@ const menuItems = [
     url: "/flights",
     icon: Plane,
     allowedRoles: ["Admin", "Operations", "Internal Sales"],
+  },
+  {
+    title: "Packages & Tiers",
+    url: "/packages",
+    icon: Package,
+    allowedRoles: ["Admin"],
   },
 ];
 

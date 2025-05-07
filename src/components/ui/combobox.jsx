@@ -19,7 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
  
-export function Combobox({ options, value, onChange, placeholder }) {
+export function Combobox({ options, value, onChange, placeholder, className }) {
   const [open, setOpen] = React.useState(false)
  
   return (
@@ -29,7 +29,7 @@ export function Combobox({ options, value, onChange, placeholder }) {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className={cn("justify-between", className)}
         >
           {value
             ? options.find((option) => option.value === value)?.label
@@ -37,7 +37,7 @@ export function Combobox({ options, value, onChange, placeholder }) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
+      <PopoverContent className={cn(className, "p-0")}>
         <Command>
           <CommandInput placeholder={placeholder || "Search..."} className="h-9" />
           <CommandList>

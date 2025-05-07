@@ -31,9 +31,9 @@ function Trend({ value }) {
     <span className="flex items-center gap-1">
       {`Trending ${up ? 'up' : 'down'} by ${Math.abs(value).toFixed(1)}% this month`}
       {up ? (
-        <TrendingUp className="inline w-4 h-4 text-green-600" />
+        <TrendingUp className="inline w-4 h-4 text-success" />
       ) : (
-        <TrendingDown className="inline w-4 h-4 text-red-600" />
+        <TrendingDown className="inline w-4 h-4 text-primary" />
       )}
     </span>
   );
@@ -257,13 +257,13 @@ function BookingsChart() {
           <div className="flex items-start justify-between">
             <span className="text-sm text-muted-foreground font-medium">Profit & Loss</span>
             {summary.pnl >= 0 ? (
-              <TrendingUp className="w-5 h-5 text-green-600" />
+              <TrendingUp className="w-5 h-5 text-success" />
             ) : (
-              <TrendingDown className="w-5 h-5 text-red-600" />
+              <TrendingDown className="w-5 h-5 text-primary" />
             )}
           </div>
           <div className="mt-4">
-            <div className={`text-3xl font-bold ${summary.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>{formatGBP(summary.pnl)}</div>
+            <div className={`text-3xl font-bold ${summary.pnl >= 0 ? "text-success" : "text-primary"}`}>{formatGBP(summary.pnl)}</div>
             <div className="text-xs text-muted-foreground mt-1">{`${percentChange(metrics.pnl.current, metrics.pnl.lastMonth).toFixed(1)}% from last month`}</div>
           </div>
         </Card>

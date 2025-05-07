@@ -1123,9 +1123,9 @@ function InternalPricing({
                   <SelectItem
                     key={ticket.ticket_id}
                     value={ticket.ticket_id}
-                    disabled={parseInt(ticket.remaining) <= 0}
+                    disabled={parseInt(ticket.remaining) <= 0 && ticket.remaining !== "purchased_to_order"}
                     className={`text-xs ${
-                      parseInt(ticket.remaining) <= 0
+                      parseInt(ticket.remaining) <= 0 && ticket.remaining !== "purchased_to_order"
                         ? "text-muted-foreground"
                         : ""
                     }`}
@@ -1133,9 +1133,13 @@ function InternalPricing({
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{ticket.ticket_name}</span>
                       <span className="text-xs text-muted-foreground">
-                        {ticket.ticket_type} • {parseInt(ticket.remaining) > 0
-                          ? `${ticket.remaining} tickets left`
-                          : "Sold Out"}
+                        {ticket.ticket_type} • {
+                          ticket.remaining === "purchased_to_order" 
+                            ? "Purchased to Order"
+                            : parseInt(ticket.remaining) > 0
+                              ? `${ticket.remaining} tickets left`
+                              : "Sold Out"
+                        }
                       </span>
                     </div>
                   </SelectItem>
@@ -1262,9 +1266,6 @@ function InternalPricing({
                     >
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{transfer.transport_type}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {currencySymbols[selectedCurrency]}{transfer.price} per person
-                        </span>
                       </div>
                     </SelectItem>
                   ))}
@@ -1301,7 +1302,6 @@ function InternalPricing({
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{transfer.transport_type}</span>
                         <span className="text-xs text-muted-foreground">
-                          {currencySymbols[selectedCurrency]}{transfer.price} per transfer
                           (Max {transfer.max_capacity} people)
                         </span>
                       </div>
@@ -1601,8 +1601,7 @@ function InternalPricing({
                 <SelectItem value="none">None</SelectItem>
                 {loungePasses.map((lp) => (
                   <SelectItem key={lp.lounge_pass_id} value={lp.lounge_pass_id}>
-                    {lp.variant} • {currencySymbols[selectedCurrency]}
-                    {lp.price}
+                    {lp.variant}
                   </SelectItem>
                 ))}
               </SelectContent>

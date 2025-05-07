@@ -65,8 +65,6 @@ function FlightsTable() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [flightToDelete, setFlightToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [editingRow, setEditingRow] = useState(null);
-  const [inlineEditData, setInlineEditData] = useState(null);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -95,6 +93,27 @@ function FlightsTable() {
 
   const [formData, setFormData] = useState(initialFlightState);
   const [errors, setErrors] = useState({});
+
+  // Add flight formatting helper function
+  const formatFlightDetails = (date, airport, time, destination, returnDate, flightNumber) => {
+    return `${date} ${airport} ${time} ${destination} ${returnDate} (${flightNumber})`;
+  };
+
+  const parseFlightDetails = (flightString) => {
+    // Main format: "DD/MM/YY XXX HHMM:HHMM XXX DD/MM/YY" with optional flight number and layover times
+    const match = flightString.match(/^(\d{2}\/\d{2}\/\d{2})\s+(\w+)\s+(\d{4}:\d{4})\s+(\w+)\s+(\d{2}\/\d{2}\/\d{2})(?:\s+\(([^)]+)\))?$/);
+    if (match) {
+      return {
+        date: match[1],
+        airport: match[2],
+        time: match[3],
+        destination: match[4],
+        returnDate: match[5],
+        flightNumber: match[6] || '' // Optional flight number
+      };
+    }
+    return null;
+  };
 
   // Helper functions
   const getUniqueAirlines = useCallback(() => {
@@ -194,7 +213,26 @@ function FlightsTable() {
   };
 
   const handleBlur = (field, value) => {
+    if (field === 'outbound_flight' || field === 'inbound_flight') {
+      // Only validate the main flight details format
+      if (value && !parseFlightDetails(value)) {
+        setErrors(prev => ({
+          ...prev,
+          [field]: 'Invalid flight format. Required format: DD/MM/YY XXX HHMM:HHMM XXX DD/MM/YY (flight number optional)'
+        }));
+        return;
+      }
+    }
     validateField(field, value);
+  };
+
+  const handleInlineBlur = (field, value) => {
+    if (field === 'outbound_flight' || field === 'inbound_flight') {
+      // Only validate the main flight details format
+      if (value && !parseFlightDetails(value)) {
+        toast.error('Invalid flight format. Required format: DD/MM/YY XXX HHMM:HHMM XXX DD/MM/YY (flight number optional)');
+      }
+    }
   };
 
   const handleSubmitForm = useCallback(async (e, isEdit, editingFlight) => {
@@ -237,10 +275,12 @@ function FlightsTable() {
         
         await Promise.all(updates);
         setSuccessMessage("Flight updated successfully!");
+        setIsEditDialogOpen(false);
       } else {
         setIsAdding(true);
         await api.post("stock - flights", flightData);
         setSuccessMessage("Flight added successfully!");
+        setIsAddDialogOpen(false);
       }
 
       setShowSuccessDialog(true);
@@ -286,6 +326,21 @@ function FlightsTable() {
 
   const openEditDialog = (flight) => {
     setEditingFlight(flight);
+    setFormData({
+      event_id: flight.event_id,
+      event_name: flight.event_name,
+      flight_id: flight.flight_id,
+      outbound_flight: flight.outbound_flight,
+      inbound_flight: flight.inbound_flight,
+      airline: flight.airline,
+      class: flight.class,
+      from_location: flight.from_location,
+      cost: flight.cost,
+      margin: flight.margin,
+      currency: flight.currency,
+      source: flight.source,
+      used: flight.used
+    });
     setIsEditDialogOpen(true);
   };
 
@@ -308,72 +363,6 @@ function FlightsTable() {
 
       return searchMatch && airlineMatch && classMatch && eventNameMatch;
     });
-  };
-
-  const handleInlineEdit = (flight) => {
-    setEditingRow(flight.flight_id);
-    setInlineEditData({
-      ...flight,
-      event_name: flight.event_name
-    });
-  };
-
-  const handleInlineSave = async () => {
-    try {
-      setIsEditing(true);
-      // Update each changed field individually
-      const updates = Object.entries(inlineEditData).map(async ([column, value]) => {
-        const originalValue = flights.find(f => f.flight_id === editingRow)[column];
-        if (value !== originalValue) {
-          console.log('Updating column:', column, 'from:', originalValue, 'to:', value);
-          // Map frontend column names to sheet column names
-          const columnMap = {
-            'event_name': 'Event Name',
-            'airline': 'Airline',
-            'class': 'Class',
-            'outbound_flight': 'Outbound Flight',
-            'inbound_flight': 'Inbound Flight',
-            'from_location': 'From Location',
-            'cost': 'Cost',
-            'margin': 'Margin',
-            'currency': 'Currency',
-            'source': 'Source',
-            'used': 'Used'
-          };
-          
-          const sheetColumn = columnMap[column];
-          if (sheetColumn) {
-            await api.put(`stock - flights/Flight ID/${editingRow}`, {
-              column: sheetColumn,
-              value: value
-            });
-          }
-        }
-      });
-      
-      await Promise.all(updates);
-      toast.success("Flight updated successfully");
-      setEditingRow(null);
-      setInlineEditData(null);
-      fetchInitialData();
-    } catch (error) {
-      console.error("Failed to update flight:", error);
-      toast.error("Failed to update flight");
-    } finally {
-      setIsEditing(false);
-    }
-  };
-
-  const handleInlineCancel = () => {
-    setEditingRow(null);
-    setInlineEditData(null);
-  };
-
-  const handleInlineChange = (field, value) => {
-    setInlineEditData(prev => ({
-      ...prev,
-      [field]: value
-    }));
   };
 
   useEffect(() => {
@@ -487,151 +476,47 @@ function FlightsTable() {
             {currentItems.map((item) => (
               <TableRow key={item.flight_id}>
                 <TableCell className="font-medium">
-                  {editingRow === item.flight_id ? (
-                    <Select
-                      value={inlineEditData.event_name}
-                      onValueChange={(value) => {
-                        handleInlineChange('event_name', value);
-                      }}
-                    >
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Select an event" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {events.map((event) => (
-                          <SelectItem key={event.event_id} value={event.event}>
-                            {event.event}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    item.event_name
-                  )}
+                  {item.event_name}
                 </TableCell>
                 <TableCell>
-                  {editingRow === item.flight_id ? (
-                    <Input
-                      value={inlineEditData.airline}
-                      onChange={(e) => handleInlineChange('airline', e.target.value)}
-                      className="w-[150px]"
-                    />
-                  ) : (
-                    item.airline
-                  )}
+                  {item.airline}
                 </TableCell>
                 <TableCell>
-                  {editingRow === item.flight_id ? (
-                    <Select
-                      value={inlineEditData.class}
-                      onValueChange={(value) => handleInlineChange('class', value)}
-                    >
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Select class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Economy">Economy</SelectItem>
-                        <SelectItem value="Business">Business</SelectItem>
-                        <SelectItem value="First">First</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    item.class
-                  )}
+                  {item.class}
                 </TableCell>
                 <TableCell>
-                  {editingRow === item.flight_id ? (
-                    <Input
-                      value={inlineEditData.outbound_flight}
-                      onChange={(e) => handleInlineChange('outbound_flight', e.target.value)}
-                      className="w-[150px]"
-                    />
-                  ) : (
-                    item.outbound_flight
-                  )}
+                  {item.outbound_flight}
                 </TableCell>
                 <TableCell>
-                  {editingRow === item.flight_id ? (
-                    <Input
-                      value={inlineEditData.inbound_flight}
-                      onChange={(e) => handleInlineChange('inbound_flight', e.target.value)}
-                      className="w-[150px]"
-                    />
-                  ) : (
-                    item.inbound_flight
-                  )}
+                  {item.inbound_flight}
                 </TableCell>
                 <TableCell>
-                  {editingRow === item.flight_id ? (
-                    <Input
-                      value={inlineEditData.from_location}
-                      onChange={(e) => handleInlineChange('from_location', e.target.value)}
-                      className="w-[120px]"
-                    />
-                  ) : (
-                    item.from_location
-                  )}
+                  {item.from_location}
                 </TableCell>
                 <TableCell>
-                  {editingRow === item.flight_id ? (
-                    <Input
-                      type="number"
-                      value={inlineEditData.cost}
-                      onChange={(e) => handleInlineChange('cost', parseFloat(e.target.value))}
-                      className="w-[100px]"
-                    />
-                  ) : (
-                    `£ ${item.cost}`
-                  )}
+                  £ {item.cost}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
-                    {editingRow === item.flight_id ? (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={handleInlineSave}
-                          disabled={isEditing}
-                        >
-                          {isEditing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="h-4 w-4 text-success" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={handleInlineCancel}
-                          disabled={isEditing}
-                        >
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleInlineEdit(item)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteClick(item)}
-                          disabled={isDeleting}
-                        >
-                          {isDeleting && flightToDelete?.flight_id === item.flight_id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          )}
-                        </Button>
-                      </>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(item)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteClick(item)}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting && flightToDelete?.flight_id === item.flight_id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      )}
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -695,7 +580,7 @@ function FlightsTable() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
             <DialogTitle>
               {isEditDialogOpen ? "Edit Flight" : "Add New Flight"}
@@ -706,6 +591,16 @@ function FlightsTable() {
                 : "Fill in the details for the new flight"}
             </DialogDescription>
           </DialogHeader>
+          {(isAdding || isEditing) && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <p className="text-sm text-muted-foreground">
+                  {isEditing ? "Updating flight..." : "Adding flight..."}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -749,12 +644,13 @@ function FlightsTable() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="outbound_flight">Outbound Flight</Label>
+                <p className="text-xs text-muted-foreground mb-1">Format: DD/MM/YY XXX HHMM:HHMM XXX DD/MM/YY (flight number optional)</p>
                 <Input
                   id="outbound_flight"
                   value={formData.outbound_flight}
                   onChange={(e) => handleFieldChange('outbound_flight', e.target.value)}
                   onBlur={(e) => handleBlur('outbound_flight', e.target.value)}
-                  placeholder="Enter outbound flight details"
+                  placeholder="10/04/25 MAD 0930:2050 BAH 10/04/25 (BA123)"
                 />
                 {errors.outbound_flight && (
                   <p className="text-sm text-red-500">{errors.outbound_flight}</p>
@@ -762,12 +658,13 @@ function FlightsTable() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="inbound_flight">Inbound Flight</Label>
+                <p className="text-xs text-muted-foreground mb-1">Format: DD/MM/YY XXX HHMM:HHMM XXX DD/MM/YY (flight number optional)</p>
                 <Input
                   id="inbound_flight"
                   value={formData.inbound_flight}
                   onChange={(e) => handleFieldChange('inbound_flight', e.target.value)}
                   onBlur={(e) => handleBlur('inbound_flight', e.target.value)}
-                  placeholder="Enter inbound flight details"
+                  placeholder="10/04/25 MAD 0930:2050 BAH 10/04/25 (BA123)"
                 />
                 {errors.inbound_flight && (
                   <p className="text-sm text-red-500">{errors.inbound_flight}</p>
@@ -866,6 +763,7 @@ function FlightsTable() {
                 setEditingFlight(null);
                 setFormData(initialFlightState);
               }}
+              disabled={isAdding || isEditing}
             >
               Cancel
             </Button>
@@ -883,6 +781,26 @@ function FlightsTable() {
               ) : (
                 "Add Flight"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-success" />
+              Success
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>{successMessage}</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowSuccessDialog(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

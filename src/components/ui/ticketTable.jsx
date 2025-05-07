@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 import {
   Table,
@@ -18,6 +18,7 @@ import {
   Filter,
   Pencil,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import {
   Pagination,
@@ -53,6 +54,9 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Combobox } from "@/components/ui/combobox";
@@ -159,6 +163,19 @@ function TicketTable() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  const sortColumns = [
+    { value: "event", label: "Event" },
+    { value: "ticket_name", label: "Ticket Name" },
+    { value: "supplier", label: "Supplier" },
+    { value: "ref", label: "Reference" },
+    { value: "actual_stock", label: "Stock" },
+    { value: "used", label: "Used" },
+    { value: "remaining", label: "Remaining" },
+    { value: "unit_cost_(gbp)", label: "Unit Cost (GBP)" },
+  ];
+  const [sortColumn, setSortColumn] = useState("event");
+  const [sortDirection, setSortDirection] = useState("asc");
 
   useEffect(() => {
     fetchInitialData();
@@ -271,6 +288,31 @@ function TicketTable() {
       );
     });
   };
+
+  // Filtered and sorted stock
+  const filteredStock = useMemo(() => {
+    let result = filterStock(stock);
+    // Sorting
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+        // For numbers, sort numerically
+        if (["actual_stock", "used", "remaining", "unit_cost_(gbp)"].includes(sortColumn)) {
+          aVal = Number(aVal) || 0;
+          bVal = Number(bVal) || 0;
+          return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+        } else {
+          aVal = (aVal || "").toString().toLowerCase();
+          bVal = (bVal || "").toString().toLowerCase();
+          if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+          if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+          return 0;
+        }
+      });
+    }
+    return result;
+  }, [stock, filters, sortColumn, sortDirection]);
 
   // Add ticket
   const handleAddTicket = async (formData) => {
@@ -515,7 +557,6 @@ function TicketTable() {
   };
 
   // Apply filters and calculate pagination
-  const filteredStock = filterStock(stock).reverse();
   const totalPages = Math.ceil(filteredStock.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -1867,6 +1908,44 @@ function TicketTable() {
       </div>
 
       <div className="rounded-md border">
+        <div className="flex items-center gap-2 p-2 justify-between">
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm" className="flex items-center gap-2">
+                  Sort <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                {sortColumns.map(col => (
+                  <DropdownMenuItem
+                    key={col.value}
+                    onClick={() => setSortColumn(col.value)}
+                    className={sortColumn === col.value ? "font-semibold text-primary" : ""}
+                  >
+                    {col.label} {sortColumn === col.value && "✓"}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Direction</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("asc")}
+                  className={sortDirection === "asc" ? "font-semibold text-primary" : ""}
+                >
+                  Ascending {sortDirection === "asc" && "▲"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("desc")}
+                  className={sortDirection === "desc" ? "font-semibold text-primary" : ""}
+                >
+                  Descending {sortDirection === "desc" && "▼"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="text-sm text-muted-foreground">Sorted by <span className="font-medium">{sortColumns.find(c => c.value === sortColumn)?.label}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})</span>
+          </div>
+        </div>
         <Table>
           <TableHeader className="bg-muted">
             <TableRow>

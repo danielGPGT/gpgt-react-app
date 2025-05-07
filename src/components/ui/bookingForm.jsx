@@ -116,6 +116,10 @@ function BookingForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
+  const [paymentPercents, setPaymentPercents] = useState([33.33, 33.33, 33.34]);
+  const paymentAmounts = paymentPercents.map(p => (totalPrice * p) / 100);
+  const paymentPercentSum = paymentPercents.reduce((a, b) => a + b, 0);
+  const paymentPercentError = paymentPercentSum !== 100;
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -319,9 +323,6 @@ function BookingForm({
     try {
       setIsSubmitting(true);
 
-      // Calculate payment amounts (assuming 3 equal payments)
-      const paymentAmount = totalPrice / 3;
-
       // Format dates for the API
       const formatDate = (date) => {
         if (!date) return '';
@@ -408,11 +409,11 @@ function BookingForm({
         
         // Payment details
         payment_currency: selectedCurrency,
-        payment_1: paymentAmount,
+        payment_1: paymentAmounts[0],
         payment_1_date: formatDate(values.payment1_date),
-        payment_2: paymentAmount,
+        payment_2: paymentAmounts[1],
         payment_2_date: formatDate(values.payment2_date),
-        payment_3: paymentAmount,
+        payment_3: paymentAmounts[2],
         payment_3_date: formatDate(values.payment3_date),
         payment_1_status: values.payment1_status ? "Paid" : "Due",
         payment_2_status: values.payment2_status ? "Paid" : "Due",
@@ -447,9 +448,9 @@ function BookingForm({
             package: selectedPackage?.package_name || 'N/A',
             totalPrice: `${currencySymbols[selectedCurrency]}${totalPrice.toFixed(2)}`,
             paymentSchedule: [
-              { amount: paymentAmount, date: formatDate(values.payment1_date) },
-              { amount: paymentAmount, date: formatDate(values.payment2_date) },
-              { amount: paymentAmount, date: formatDate(values.payment3_date) }
+              { amount: paymentAmounts[0], date: formatDate(values.payment1_date) },
+              { amount: paymentAmounts[1], date: formatDate(values.payment2_date) },
+              { amount: paymentAmounts[2], date: formatDate(values.payment3_date) }
             ]
           });
           
@@ -843,188 +844,85 @@ function BookingForm({
           </div>
 
           {/* Payment Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-border pt-4">
-            {/* Deposit Payment */}
-            <div className="space-y-2">
-              <FormLabel className="text-foreground">Deposit Payment</FormLabel>
-              <div className="text-sm font-semibold text-foreground">
-                {currencySymbols[selectedCurrency] || "£"}{(totalPrice / 3).toFixed(2)}
-              </div>
-              <FormField
-                control={form.control}
-                name="payment1_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <Popover>
-                      <PopoverTrigger asChild>
+          <div className="mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-border pt-4">
+              {[0, 1, 2].map((idx) => (
+                <div className="space-y-2" key={idx}>
+                  <label className="text-xs font-semibold">Payment {idx + 1} (%)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={paymentPercents[idx]}
+                      onChange={e => {
+                        const val = Math.max(0, Math.min(100, Number(e.target.value)));
+                        const newPercents = [...paymentPercents];
+                        newPercents[idx] = val;
+                        setPaymentPercents(newPercents);
+                      }}
+                      className="w-16 border rounded px-2 py-1 text-xs"
+                    />
+                    <span className="text-xs text-muted-foreground">({currencySymbols[selectedCurrency]}{paymentAmounts[idx].toFixed(2)})</span>
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name={`payment${idx + 1}_date`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal bg-background h-8 text-xs",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`payment${idx + 1}_status`}
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-1 space-y-0">
                         <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal bg-background",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
                         </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="payment1_status"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-1 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Mark as Paid</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Payment 2 */}
-            <div className="space-y-2">
-              <FormLabel className="text-foreground">Payment 2</FormLabel>
-              <div className="text-sm font-semibold text-foreground">
-                {currencySymbols[selectedCurrency] || "£"}{(totalPrice / 3).toFixed(2)}
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Mark as Paid</FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              ))}
+              <div className="text-xs text-destructive font-semibold ml-4 col-span-3">
+                {paymentPercentError && 'Total must be 100%'}
               </div>
-              <FormField
-                control={form.control}
-                name="payment2_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal bg-background",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="payment2_status"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-1 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Mark as Paid</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Final Payment */}
-            <div className="space-y-2">
-              <FormLabel className="text-foreground">Final Payment</FormLabel>
-              <div className="text-sm font-semibold text-foreground">
-                {currencySymbols[selectedCurrency] || "£"}{(totalPrice / 3).toFixed(2)}
-              </div>
-              <FormField
-                control={form.control}
-                name="payment3_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal bg-background",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="payment3_status"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-1 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Mark as Paid</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
             </div>
           </div>
 

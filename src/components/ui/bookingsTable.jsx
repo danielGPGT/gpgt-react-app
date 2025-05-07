@@ -67,7 +67,11 @@ import {
 import { DatePickerWithRange } from "@/components/ui/date-picker-range";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -136,7 +140,7 @@ function BookingsTable() {
   const bookingFieldMappings = {
     // Primary key
     booking_id: "booking_id",
-    
+
     // Status and reference fields
     status: "status",
     booking_ref: "booking_ref",
@@ -232,9 +236,9 @@ function BookingsTable() {
     amount_due: "Amount Due",
     payment_status: "Payment Status",
     total_cost: "Total Cost",
-    total_sold_local: "Total Sold For Local",
+    total_sold_for_local: "Total Sold For Local",
     total_sold_gbp: "Total Sold GBP",
-    pnl: "P&L"
+    pnl: "P&L",
   };
 
   useEffect(() => {
@@ -316,11 +320,9 @@ function BookingsTable() {
   const confirmDelete = async () => {
     try {
       setIsDeleting(true);
-      await api.delete(`bookingFile/${bookingToDelete}`);
+      await api.delete(`bookingFile/booking_id/${bookingToDelete}`);
       setBookings((prevBookings) =>
-        prevBookings.filter(
-          (booking) => booking.booking_id !== bookingToDelete
-        )
+        prevBookings.filter((booking) => booking.booking_id !== bookingToDelete)
       );
       setSuccessMessage("Booking deleted successfully!");
       setShowSuccessDialog(true);
@@ -343,115 +345,143 @@ function BookingsTable() {
 
   const parseDate = (dateStr) => {
     if (!dateStr) return null;
-    
+
     try {
       // Handle DD-MMM-YYYY format (e.g., "06-May-2025")
-      if (dateStr.includes('-')) {
-        const [day, month, year] = dateStr.split('-');
+      if (dateStr.includes("-")) {
+        const [day, month, year] = dateStr.split("-");
         const monthIndex = new Date(`${month} 1, 2000`).getMonth();
         return new Date(year, monthIndex, day);
       }
-      
+
       // Handle YYYY-MM-DD format
       return new Date(dateStr);
     } catch (error) {
-      console.error('Error parsing date:', dateStr, error);
+      console.error("Error parsing date:", dateStr, error);
       return null;
     }
   };
 
   const formatDateForBackend = (dateStr) => {
-    if (!dateStr) return '';
+    if (!dateStr) return "";
     try {
       const date = new Date(dateStr);
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = date.toLocaleString('default', { month: 'short' });
+      const day = date.getDate().toString().padStart(2, "0");
+      const month = date.toLocaleString("default", { month: "short" });
       const year = date.getFullYear();
       return `${day}-${month}-${year}`;
     } catch (error) {
-      console.error('Error formatting date:', dateStr, error);
+      console.error("Error formatting date:", dateStr, error);
       return dateStr; // Return original if formatting fails
     }
   };
 
   const handleEditBooking = async (formData) => {
     if (isSubmitting) {
-      console.log('Already submitting, ignoring duplicate submission');
+      console.log("Already submitting, ignoring duplicate submission");
       return;
+    }
+
+    // If status is being set to Cancelled, set all quantity fields to 0
+    if (formData.status === "Cancelled") {
+      formData.ticket_quantity = 0;
+      formData.room_quantity = 0;
+      formData.airport_transfer_quantity = 0;
+      formData.circuit_transfer_quantity = 0;
+      formData.payment_1_status = "Cancelled";
+      formData.payment_2_status = "Cancelled";
+      formData.payment_3_status = "Cancelled";
     }
 
     try {
       setIsSubmitting(true);
-      console.log('Starting update for booking:', editingBooking.booking_id);
-      
+      console.log("Starting update for booking:", editingBooking.booking_id);
+
       // Convert form data to array of updates, but only include changed fields
       const updates = Object.entries(formData)
         .filter(([column, value]) => {
           // Skip booking_id field as it's managed by the backend
-          if (column === 'booking_id') return false;
-          
+          if (column === "booking_id") return false;
+
           // Compare with original value, handling different data types
           const originalValue = editingBooking[column];
-          
+
           // Special handling for date fields
-          if (column.includes('date') || column === 'booking_date' || column === 'check_in_date' || 
-              column === 'check_out_date' || column === 'payment_1_date' || column === 'payment_2_date' || 
-              column === 'payment_3_date' || column === 'ticketing_deadline') {
+          if (
+            column.includes("date") ||
+            column === "booking_date" ||
+            column === "check_in_date" ||
+            column === "check_out_date" ||
+            column === "payment_1_date" ||
+            column === "payment_2_date" ||
+            column === "payment_3_date" ||
+            column === "ticketing_deadline"
+          ) {
             // Format both values to DD-MMM-YYYY for comparison
             const formattedOriginal = formatDateForBackend(originalValue);
             const formattedNew = formatDateForBackend(value);
-            
+
             console.log(`Date comparison for ${column}:`, {
               originalValue,
               newValue: value,
               formattedOriginal,
               formattedNew,
-              isDifferent: formattedOriginal !== formattedNew
+              isDifferent: formattedOriginal !== formattedNew,
             });
-            
+
             return formattedOriginal !== formattedNew;
           }
-          
+
           // Handle numbers
-          if (typeof originalValue === 'number') {
+          if (typeof originalValue === "number") {
             return Number(value) !== originalValue;
           }
-          
+
           // Handle other types
           return String(value) !== String(originalValue);
         })
         .map(([column, value]) => {
           // Format date fields
-          if (column.includes('date') || column === 'booking_date' || column === 'check_in_date' || 
-              column === 'check_out_date' || column === 'payment_1_date' || column === 'payment_2_date' || 
-              column === 'payment_3_date' || column === 'ticketing_deadline') {
+          if (
+            column.includes("date") ||
+            column === "booking_date" ||
+            column === "check_in_date" ||
+            column === "check_out_date" ||
+            column === "payment_1_date" ||
+            column === "payment_2_date" ||
+            column === "payment_3_date" ||
+            column === "ticketing_deadline"
+          ) {
             return {
               column: bookingFieldMappings[column] || column,
-              value: formatDateForBackend(value)
+              value: formatDateForBackend(value),
             };
           }
           return {
             column: bookingFieldMappings[column] || column,
-            value
+            value,
           };
         });
 
-      console.log('Updates to process:', updates);
+      console.log("Updates to process:", updates);
 
       // Make individual cell updates only for changed fields
       for (const update of updates) {
-        console.log('Updating field:', update.column);
-        const response = await api.put(`bookingFile/booking_id/${editingBooking.booking_id}`, {
-          column: update.column,
-          value: update.value
-        });
-        
+        console.log("Updating field:", update.column);
+        const response = await api.put(
+          `bookingFile/booking_id/${editingBooking.booking_id}`,
+          {
+            column: update.column,
+            value: update.value,
+          }
+        );
+
         if (!response.data) {
-          throw new Error('Update failed');
+          throw new Error("Update failed");
         }
       }
 
-      console.log('All updates completed successfully');
+      console.log("All updates completed successfully");
       await fetchBookings(); // Refresh the bookings list
       setIsEditDialogOpen(false);
       setEditingBooking(null);
@@ -474,13 +504,23 @@ function BookingsTable() {
 
   // Add this helper function to format dates
   const formatDateForInput = (dateStr) => {
-    if (!dateStr) return '';
+    if (!dateStr) return "";
     const months = {
-      'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06',
-      'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+      Jan: "01",
+      Feb: "02",
+      Mar: "03",
+      Apr: "04",
+      May: "05",
+      Jun: "06",
+      Jul: "07",
+      Aug: "08",
+      Sep: "09",
+      Oct: "10",
+      Nov: "11",
+      Dec: "12",
     };
-    const [day, month, year] = dateStr.split('-');
-    return `${year}-${months[month]}-${day.padStart(2, '0')}`;
+    const [day, month, year] = dateStr.split("-");
+    return `${year}-${months[month]}-${day.padStart(2, "0")}`;
   };
 
   // Add this helper function to format dates for the date picker
@@ -488,22 +528,22 @@ function BookingsTable() {
     if (!dateStr) return null;
     try {
       // Handle DD-MMM-YYYY format (e.g., "06-May-2025")
-      if (dateStr.includes('-')) {
-        const [day, month, year] = dateStr.split('-');
+      if (dateStr.includes("-")) {
+        const [day, month, year] = dateStr.split("-");
         const monthIndex = new Date(`${month} 1, 2000`).getMonth();
         return new Date(year, monthIndex, day);
       }
       return new Date(dateStr);
     } catch (error) {
-      console.error('Error parsing date for date picker:', dateStr, error);
+      console.error("Error parsing date for date picker:", dateStr, error);
       return null;
     }
   };
 
   // Add this helper function to format dates for display
   const formatDateForDisplay = (date) => {
-    if (!date) return '';
-    return format(date, 'dd-MMM-yyyy');
+    if (!date) return "";
+    return format(date, "dd-MMM-yyyy");
   };
 
   if (loading) {
@@ -648,12 +688,7 @@ function BookingsTable() {
                   {booking.booking_ref}
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant="secondary"
-                    
-                  >
-                    {booking.status}
-                  </Badge>
+                  <Badge variant="secondary">{booking.status}</Badge>
                 </TableCell>
                 <TableCell>{booking.event_name}</TableCell>
                 <TableCell>{booking.package_type}</TableCell>
@@ -673,11 +708,13 @@ function BookingsTable() {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Badge 
+                  <Badge
                     className={`${
-                      booking.payment_status === "Paid" ? "bg-[#4CAF50] text-white" : 
-                      booking.payment_status === "Cancelled" ? "bg-secondary text-black" : 
-                      "bg-[#DE3B3D] text-white"
+                      booking.payment_status === "Paid"
+                        ? "bg-[#4CAF50] text-white"
+                        : booking.payment_status === "Cancelled"
+                        ? "bg-secondary text-black"
+                        : "bg-[#DE3B3D] text-white"
                     }`}
                   >
                     {booking.payment_status}
@@ -812,555 +849,592 @@ function BookingsTable() {
 
       {/* View Booking Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-[1600px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Booking Details</DialogTitle>
-            <DialogDescription>
-              Detailed information for booking {viewingBooking?.booking_ref}
-            </DialogDescription>
+        <DialogContent className="max-w-[1400px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="flex items-center justify-start gap-4">
+              <span>Booking Details - {viewingBooking?.booking_ref}</span>
+              <Badge
+                variant={
+                  viewingBooking?.status === "Future" ? "default" : "secondary"
+                }
+              >
+                {viewingBooking?.status}
+              </Badge>
+            </DialogTitle>
           </DialogHeader>
           {viewingBooking && (
-            <div className="grid grid-cols-2 gap-8">
-              {/* Left Column */}
-              <div className="space-y-6">
-                {/* Basic Information */}
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                  <h3 className="font-semibold text-lg mb-4">Basic Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-muted-foreground">
-                        Booking Reference:
-                      </span>
-                      <span className="ml-2">{viewingBooking.booking_ref}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Status:</span>
-                      <Badge
-                        variant={
-                          viewingBooking.status === "Future"
-                            ? "default"
-                            : "secondary"
-                        }
-                        className="ml-2"
-                      >
-                        {viewingBooking.status}
-                      </Badge>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Booking Type:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.booking_type}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Consultant:</span>
-                      <span className="ml-2">{viewingBooking.consultant}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Acquisition:
-                      </span>
-                      <span className="ml-2">{viewingBooking.acquisition}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">ATOL/ABTOT:</span>
-                      <span className="ml-2">{viewingBooking.atol_abtot}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Booking Date:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.booking_date}
-                      </span>
-                    </div>
+            <div className="w-full columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+              {/* Basic Information */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Booking Type
+                    </span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.booking_type}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Consultant
+                    </span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.consultant}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Acquisition
+                    </span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.acquisition}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      ATOL/ABTOT
+                    </span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.atol_abtot}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Booking Date
+                    </span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.booking_date}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Sport</span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.sport}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Event</span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.event_name}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Package Type
+                    </span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.package_type}
+                    </p>
                   </div>
                 </div>
+              </div>
 
-                {/* Event Information */}
+              {/* Booker Information */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4 ">
+                <h3 className="text-sm font-semibold mb-2">
+                  Booker Information
+                </h3>
+                <div className="space-y-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Name</span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.booker_name}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Email</span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.booker_email}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Phone</span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.booker_phone}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Address
+                    </span>
+                    <p className="text-sm font-medium whitespace-pre-wrap">
+                      {viewingBooking.booker_address}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lead Traveller */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold mb-2">Lead Traveller</h3>
+                <div className="space-y-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Name</span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.lead_traveller_name}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Email</span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.lead_traveller_email}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Phone</span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.lead_traveller_phone}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Adults
+                    </span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.adults}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Guest Travellers
+                    </span>
+                    <p className="text-sm font-medium">
+                      {viewingBooking.guest_traveller_names}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ticket Information */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold mb-2">
+                  Ticket Information
+                </h3>
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Event Information</h3>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Ticket Name
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.ticket_name} x{" "}
+                      {viewingBooking.ticket_quantity}
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-muted-foreground">Sport:</span>
-                      <span className="ml-2">{viewingBooking.sport}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Cost
+                      </span>
+                      <p className="text-sm font-medium mt-1">
+                        £{viewingBooking.ticket_cost?.toLocaleString() || "0"}
+                      </p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Event:</span>
-                      <span className="ml-2">{viewingBooking.event_name}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Package Type:
+                      <span className="text-xs text-muted-foreground">
+                        Price
                       </span>
-                      <span className="ml-2">
-                        {viewingBooking.package_type}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Booker Information */}
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                  <h3 className="font-semibold text-lg mb-4">Booker Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-muted-foreground">Name:</span>
-                      <span className="ml-2">{viewingBooking.booker_name}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Email:</span>
-                      <span className="ml-2">
-                        {viewingBooking.booker_email}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Phone:</span>
-                      <span className="ml-2">
-                        {viewingBooking.booker_phone}
-                      </span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Address:</span>
-                      <pre className="ml-2 whitespace-pre-wrap">
-                        {viewingBooking.booker_address}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lead Traveller Information */}
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                  <h3 className="font-semibold text-lg mb-4">Lead Traveller Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-muted-foreground">Name:</span>
-                      <span className="ml-2">
-                        {viewingBooking.lead_traveller_name}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Email:</span>
-                      <span className="ml-2">
-                        {viewingBooking.lead_traveller_email}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Phone:</span>
-                      <span className="ml-2">
-                        {viewingBooking.lead_traveller_phone}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Adults:</span>
-                      <span className="ml-2">{viewingBooking.adults}</span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">
-                        Guest Travellers:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.guest_traveller_names}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Guest Travellers</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">
-                        Guest Travellers:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.guest_traveller_names}
-                      </span>
+                      <p className="text-sm font-medium mt-1">
+                        £{viewingBooking.ticket_price?.toLocaleString() || "0"}
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column */}
-              <div className="space-y-6">
-                {/* Ticket Information */}
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                  <h3 className="font-semibold text-lg mb-4">Ticket Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-muted-foreground">
-                        Ticket Name:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.ticket_name || "N/A"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">
-                        {viewingBooking.ticket_quantity}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.ticket_cost || "0"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.ticket_price}
-                      </span>
-                    </div>
+              {/* Hotel Information */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold mb-2">
+                  Hotel Information
+                </h3>
+                <div className="space-y-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Hotel Name
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.hotel_name}
+                    </p>
                   </div>
-                </div>
-
-                {/* Hotel Information */}
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                  <h3 className="font-semibold text-lg mb-4">Hotel Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-muted-foreground">Hotel:</span>
-                      <span className="ml-2">{viewingBooking.hotel_name}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Room Category:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.room_category}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Room Type:</span>
-                      <span className="ml-2">{viewingBooking.room_type}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Check In:</span>
-                      <span className="ml-2">
-                        {viewingBooking.check_in_date}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Check Out:</span>
-                      <span className="ml-2">
-                        {viewingBooking.check_out_date}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Nights:</span>
-                      <span className="ml-2">{viewingBooking.nights}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Extra Nights:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.extra_nights}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Room Cost:</span>
-                      <span className="ml-2">£{viewingBooking.room_cost}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Room Price:</span>
-                      <span className="ml-2">£{viewingBooking.room_price}</span>
-                    </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Room Type
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.room_type}
+                    </p>
                   </div>
-                </div>
-
-                {/* Transfer Information */}
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                  <h3 className="font-semibold text-lg mb-4">Transfer Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-muted-foreground">
-                        Airport Transfer:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.airport_transfer_type}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">
-                        {viewingBooking.airport_transfer_quantity}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.airport_transfer_cost}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.airport_transfer_price}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Circuit Transfer:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.circuit_transfer_type || "N/A"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">
-                        {viewingBooking.circuit_transfer_quantity}
-                      </span>
-                    </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Check-in/Check-out Dates
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.check_in_date} -{" "}
+                      {viewingBooking.check_out_date}
+                    </p>
                   </div>
-                </div>
-
-                {/* Flight Information */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Flight Information</h3>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Nights
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.nights}{" "}
+                      {viewingBooking.extra_nights
+                        ? `(+${viewingBooking.extra_nights})`
+                        : ""}
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-muted-foreground">Outbound:</span>
-                      <span className="ml-2">
-                        {viewingBooking.flight_outbound}
+                      <span className="text-xs text-muted-foreground">
+                        Room Cost
                       </span>
+                      <p className="text-sm font-medium mt-1">
+                        £{viewingBooking.room_cost?.toLocaleString() || "0"}
+                      </p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Inbound:</span>
-                      <span className="ml-2">
-                        {viewingBooking.flight_inbound}
+                      <span className="text-xs text-muted-foreground">
+                        Room Price
                       </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Class:</span>
-                      <span className="ml-2">
-                        {viewingBooking.flight_class}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Carrier:</span>
-                      <span className="ml-2">
-                        {viewingBooking.flight_carrier}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Source:</span>
-                      <span className="ml-2">
-                        {viewingBooking.flight_source}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Booking Reference:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.flight_booking_reference}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Ticketing Deadline:
-                      </span>
-                      <span className="ml-2">
-                        {viewingBooking.ticketing_deadline}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Status:</span>
-                      <span className="ml-2">
-                        {viewingBooking.flight_status}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">
-                        {viewingBooking.flight_quantity}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.flight_cost}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.flight_price}
-                      </span>
+                      <p className="text-sm font-medium mt-1">
+                        £{viewingBooking.room_price?.toLocaleString() || "0"}
+                      </p>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Lounge Pass Information */}
+              {/* Transfer Information */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold mb-2">
+                  Transfer Information
+                </h3>
+                <div className="space-y-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Airport Transfer Type
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.airport_transfer_type}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Quantity
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.airport_transfer_quantity}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Cost</span>
+                    <p className="text-sm font-medium mt-1">
+                      £
+                      {viewingBooking.airport_transfer_cost?.toLocaleString() ||
+                        "0"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Price</span>
+                    <p className="text-sm font-medium mt-1">
+                      £
+                      {viewingBooking.airport_transfer_price?.toLocaleString() ||
+                        "0"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Circuit Transfer Type
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.circuit_transfer_type}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Quantity
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.circuit_transfer_quantity}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Cost</span>
+                    <p className="text-sm font-medium mt-1">
+                      £
+                      {viewingBooking.circuit_transfer_cost?.toLocaleString() ||
+                        "0"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Price</span>
+                    <p className="text-sm font-medium mt-1">
+                      £
+                      {viewingBooking.circuit_transfer_price?.toLocaleString() ||
+                        "0"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Flight Information */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold mb-2">
+                  Flight Information
+                </h3>
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">
-                    Lounge Pass Information
-                  </h3>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Outbound
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.flight_outbound}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Inbound
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.flight_inbound}
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-muted-foreground">Variant:</span>
-                      <span className="ml-2">
-                        {viewingBooking.lounge_pass_variant}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Quantity:</span>
-                      <span className="ml-2">
-                        {viewingBooking.lounge_pass_quantity}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Cost:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.lounge_pass_cost}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Price:</span>
-                      <span className="ml-2">
-                        £{viewingBooking.lounge_pass_price}
-                      </span>
-                    </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Class</span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.flight_class}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Carrier
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.flight_carrier}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Source
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.flight_source}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Booking Reference
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.flight_booking_reference}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Ticketing Deadline
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.ticketing_deadline}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Status
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.flight_status}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Quantity
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.flight_quantity}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Cost</span>
+                    <p className="text-sm font-medium mt-1">
+                      £{viewingBooking.flight_cost?.toLocaleString() || "0"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Price</span>
+                    <p className="text-sm font-medium mt-1">
+                      £{viewingBooking.flight_price?.toLocaleString() || "0"}
+                    </p>
+                  </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Payment Information */}
-                <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                  <h3 className="font-semibold text-lg mb-4">Payment Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-muted-foreground">Currency:</span>
-                      <span className="ml-2">
-                        {getCurrencySymbol(viewingBooking.payment_currency)} (
-                        {viewingBooking.payment_currency})
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Total Cost:</span>
-                      <span className="ml-2">
-                        £ {viewingBooking.total_cost}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Total Sold (Local):
-                      </span>
-                      <span className="ml-2">
-                        {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                        {viewingBooking.total_sold_local}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Total Sold (GBP):
-                      </span>
-                      <span className="ml-2">
-                        £ {viewingBooking.total_sold_gbp}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">P&L:</span>
-                      <span
-                        className={`ml-2 ${
-                          viewingBooking["p&l"] >= 0
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }`}
-                      >
-                        £ {viewingBooking["p&l"]}
-                      </span>
-                    </div>
+              {/* Lounge Pass Information */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold mb-2">
+                  Lounge Pass Information
+                </h3>
+                <div className="space-y-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Variant
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.lounge_pass_variant}
+                    </p>
                   </div>
-                  <div className="mt-2">
-                    <h4 className="font-semibold mb-2 mt-4">
-                      Payment Schedule:
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-muted-foreground">
-                          Payment 1:
-                        </span>
-                        <span className="ml-2">
-                          {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                          {viewingBooking.payment_1} due{" "}
-                          {viewingBooking.payment_1_date}
-                        </span>
-                        <Badge
-                          className={`ml-2 ${
-                            viewingBooking.payment_1_status === "Paid"
-                              ? "bg-[#4CAF50] text-white"
-                              : viewingBooking.payment_1_status === "Due"
-                              ? "bg-[#FFC107] text-white"
-                              : "bg-[#DE3B3D] text-white"
-                          }`}
-                        >
-                          {viewingBooking.payment_1_status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">
-                          Payment 2:
-                        </span>
-                        <span className="ml-2">
-                          {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                          {viewingBooking.payment_2} due{" "}
-                          {viewingBooking.payment_2_date}
-                        </span>
-                        <Badge
-                          className={`ml-2 ${
-                            viewingBooking.payment_2_status === "Paid"
-                              ? "bg-[#4CAF50] text-white"
-                              : viewingBooking.payment_2_status === "Due"
-                              ? "bg-[#FFC107] text-white"
-                              : "bg-[#DE3B3D] text-white"
-                          }`}
-                        >
-                          {viewingBooking.payment_2_status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">
-                          Payment 3:
-                        </span>
-                        <span className="ml-2">
-                          {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                          {viewingBooking.payment_3} due{" "}
-                          {viewingBooking.payment_3_date}
-                        </span>
-                        <Badge
-                          className={`ml-2 ${
-                            viewingBooking.payment_3_status === "Paid"
-                              ? "bg-[#4CAF50] text-white"
-                              : viewingBooking.payment_3_status === "Due"
-                              ? "bg-[#FFC107] text-white"
-                              : "bg-[#DE3B3D] text-white"
-                          }`}
-                        >
-                          {viewingBooking.payment_3_status}
-                        </Badge>
-                      </div>
-                    </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Quantity
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {viewingBooking.lounge_pass_quantity}
+                    </p>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-muted-foreground">Amount Due:</span>
-                      <span className="ml-2">
-                        {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
-                        {viewingBooking.amount_due}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Payment Status:</span>
-                      <Badge 
-                        className={`ml-2 ${
-                          viewingBooking.payment_status === "Paid" ? "bg-[#4CAF50] text-white" : 
-                          viewingBooking.payment_status === "Cancelled" ? "bg-secondary text-black" : 
-                          "bg-[#DE3B3D] text-white"
+                  <div>
+                    <span className="text-xs text-muted-foreground">Cost</span>
+                    <p className="text-sm font-medium mt-1">
+                      £
+                      {viewingBooking.lounge_pass_cost?.toLocaleString() || "0"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Price</span>
+                    <p className="text-sm font-medium mt-1">
+                      £
+                      {viewingBooking.lounge_pass_price?.toLocaleString() ||
+                        "0"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Summary */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold mb-2">Payment Summary</h3>
+                <div className="space-y-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Currency
+                    </span>
+                    <p className="text-sm font-medium">
+                      {getCurrencySymbol(viewingBooking.payment_currency)} (
+                      {viewingBooking.payment_currency})
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Total Cost
+                    </span>
+                    <p className="text-sm font-medium">
+                      £{viewingBooking.total_cost?.toLocaleString() || "0"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Total Sold (Local)
+                    </span>
+                    <p className="text-sm font-medium">
+                      {getCurrencySymbol(viewingBooking.payment_currency)}
+                      {viewingBooking.total_sold_for_local?.toLocaleString() ||
+                        "0"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Total Sold (GBP)
+                    </span>
+                    <p className="text-sm font-medium">
+                      £{viewingBooking.total_sold_gbp?.toLocaleString() || "0"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Schedule */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold mb-2">Payment Schedule</h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="py-1 pr-4 font-normal">
+                          Payment
+                        </TableHead>
+                        <TableHead className="py-1 pr-4 font-normal">
+                          Amount
+                        </TableHead>
+                        <TableHead className="py-1 font-normal">
+                          Due Date
+                        </TableHead>
+                        <TableHead className="py-1 pr-4 font-normal">
+                          Status
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[1, 2, 3].map((num) => (
+                        <TableRow key={num} className="align-top">
+                          <TableCell className="py-1 pr-4 font-medium">{`Payment ${num}`}</TableCell>
+                          <TableCell className="py-1 pr-4">
+                            {getCurrencySymbol(viewingBooking.payment_currency)}
+                            {viewingBooking[
+                              `payment_${num}`
+                            ]?.toLocaleString() || "0"}
+                          </TableCell>
+                          <TableCell className="py-1">
+                            {viewingBooking[`payment_${num}_date`]}
+                          </TableCell>
+                          <TableCell className="py-1 pr-4">
+                            <Badge
+                              className={`${
+                                viewingBooking[`payment_${num}_status`] ===
+                                "Paid"
+                                  ? "bg-[#4CAF50] text-white"
+                                  : viewingBooking[`payment_${num}_status`] ===
+                                    "Due"
+                                  ? "bg-[#FFC107] text-white"
+                                  : "bg-[#DE3B3D] text-white"
+                              }`}
+                            >
+                              {viewingBooking[`payment_${num}_status`]}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Payment Status */}
+              <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold mb-2">Payment Status</h3>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Amount Due
+                    </span>
+                    <p className="text-sm font-medium mt-1">
+                      {getCurrencySymbol(viewingBooking.payment_currency)}{" "}
+                      {viewingBooking.amount_due?.toLocaleString() || "0"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Status
+                    </span>
+                    <div className="mt-0.5">
+                      <Badge
+                        className={`${
+                          viewingBooking.payment_status === "Paid"
+                            ? "bg-[#4CAF50] text-white"
+                            : viewingBooking.payment_status === "Cancelled"
+                            ? "bg-secondary text-black"
+                            : "bg-[#DE3B3D] text-white"
                         }`}
                       >
                         {viewingBooking.payment_status}
@@ -1371,427 +1445,418 @@ function BookingsTable() {
               </div>
             </div>
           )}
-          <DialogFooter></DialogFooter>
+          <DialogFooter className="pt-2">
+            <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Booking Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-[1600px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Booking</DialogTitle>
-            <DialogDescription>
-              Edit booking details for {editingBooking?.booking_ref}
-            </DialogDescription>
+        <DialogContent className="max-w-[1400px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2">
+            <DialogTitle>
+              Edit Booking - {editingBooking?.booking_ref}
+            </DialogTitle>
           </DialogHeader>
           {editingBooking && (
-            <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="grid grid-cols-2 gap-8">
-                {/* Left Column */}
-                <div className="space-y-8">
-                  {/* Basic Information */}
-                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                    <h3 className="font-semibold text-lg mb-4">Basic Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="status" className="mb-2 block">Status</Label>
-                        <Select name="status" defaultValue={editingBooking.status}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Future">Future</SelectItem>
-                            <SelectItem value="Past">Past</SelectItem>
-                            <SelectItem value="Cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="booking_type" className="mb-2 block">Booking Type</Label>
-                        <Select name="booking_type" defaultValue={editingBooking.booking_type}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select booking type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="provisional">Provisional</SelectItem>
-                            <SelectItem value="actual">Actual</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="consultant" className="mb-2 block">Consultant</Label>
-                        <Input name="consultant" defaultValue={editingBooking.consultant} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="acquisition" className="mb-2 block">Acquisition</Label>
-                        <Input name="acquisition" defaultValue={editingBooking.acquisition} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="atol_abtot" className="mb-2 block">ATOL/ABTOT</Label>
-                        <Select name="atol_abtot" defaultValue={editingBooking.atol_abtot}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select ATOL/ABTOT" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="atol">ATOL</SelectItem>
-                            <SelectItem value="abtot">ABTOT</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="booking_date" className="mb-2 block">Booking Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !editingBooking.booking_date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {editingBooking.booking_date ? formatDateForDisplay(formatDateForDatePicker(editingBooking.booking_date)) : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={formatDateForDatePicker(editingBooking.booking_date)}
-                              onSelect={(date) => {
-                                const formData = new FormData(document.querySelector('form'));
-                                formData.set('booking_date', format(date, 'yyyy-MM-dd'));
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
+            <form onSubmit={handleSubmit}>
+              <div className="w-full columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+                {/* Basic Information */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="status" className="text-xs">
+                        Status
+                      </Label>
+                      <Select name="status" defaultValue={editingBooking.status}>
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Future">Future</SelectItem>
+                          <SelectItem value="Past">Past</SelectItem>
+                          <SelectItem value="Cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </div>
-
-                  {/* Booker Information */}
-                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                    <h3 className="font-semibold text-lg mb-4">Booker Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="booker_name" className="mb-2 block">Booker Name</Label>
-                        <Input name="booker_name" defaultValue={editingBooking.booker_name} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="booker_email" className="mb-2 block">Booker Email</Label>
-                        <Input name="booker_email" type="email" defaultValue={editingBooking.booker_email} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="booker_phone" className="mb-2 block">Booker Phone</Label>
-                        <Input name="booker_phone" type="tel" defaultValue={editingBooking.booker_phone} />
-                      </div>
-
-                      <div className="col-span-2">
-                        <Label htmlFor="booker_address" className="mb-2 block">Booker Address</Label>
-                        <textarea
-                          name="booker_address"
-                          className="w-full min-h-[100px] p-2 border rounded-md"
-                          defaultValue={editingBooking.booker_address}
-                        />
-                      </div>
+                    <div>
+                      <Label htmlFor="booking_type" className="text-xs">
+                        Booking Type
+                      </Label>
+                      <Select name="booking_type" defaultValue={editingBooking.booking_type}>
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Select booking type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="provisional">Provisional</SelectItem>
+                          <SelectItem value="actual">Actual</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </div>
-
-                  {/* Lead Traveller Information */}
-                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                    <h3 className="font-semibold text-lg mb-4">Lead Traveller Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="lead_traveller_name" className="mb-2 block">Lead Traveller Name</Label>
-                        <Input name="lead_traveller_name" defaultValue={editingBooking.lead_traveller_name} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="lead_traveller_email" className="mb-2 block">Lead Traveller Email</Label>
-                        <Input name="lead_traveller_email" type="email" defaultValue={editingBooking.lead_traveller_email} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="lead_traveller_phone" className="mb-2 block">Lead Traveller Phone</Label>
-                        <Input name="lead_traveller_phone" type="tel" defaultValue={editingBooking.lead_traveller_phone} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="guest_traveller_names" className="mb-2 block">Guest Traveller Names</Label>
-                        <Input name="guest_traveller_names" defaultValue={editingBooking.guest_traveller_names} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="adults" className="mb-2 block">Number of Adults</Label>
-                        <Input name="adults" type="number" defaultValue={editingBooking.adults} />
-                      </div>
+                    <div>
+                      <Label htmlFor="consultant" className="text-xs">
+                        Consultant
+                      </Label>
+                      <p className="text-sm font-medium mt-1">
+                        {editingBooking.consultant}
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="acquisition" className="text-xs">
+                        Acquisition
+                      </Label>
+                      <Input
+                        name="acquisition"
+                        defaultValue={editingBooking.acquisition}
+                        className="h-8"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="atol_abtot" className="text-xs">
+                        ATOL/ABTOT
+                      </Label>
+                      <Select name="atol_abtot" defaultValue={editingBooking.atol_abtot}>
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Select ATOL/ABTOT" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="atol">ATOL</SelectItem>
+                          <SelectItem value="abtot">ABTOT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="booking_date" className="text-xs">
+                        Booking Date
+                      </Label>
+                      <Input
+                        name="booking_date"
+                        type="date"
+                        defaultValue={formatDateForInput(editingBooking.booking_date)}
+                        className="h-8"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sport" className="text-xs">
+                        Sport
+                      </Label>
+                      <p className="text-sm font-medium mt-1">
+                        {editingBooking.sport}
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="event_name" className="text-xs">
+                        Event
+                      </Label>
+                      <p className="text-sm font-medium mt-1">
+                        {editingBooking.event_name}
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="package_type" className="text-xs">
+                        Package Type
+                      </Label>
+                      <p className="text-sm font-medium mt-1">
+                        {editingBooking.package_type}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Right Column */}
-                <div className="space-y-8">
-                  {/* Ticket Information */}
-                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                    <h3 className="font-semibold text-lg mb-4">Ticket Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="ticket_quantity" className="mb-2 block">Ticket Quantity</Label>
-                        <Input name="ticket_quantity" type="number" defaultValue={editingBooking.ticket_quantity} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="ticket_price" className="mb-2 block">Ticket Price</Label>
-                        <Input name="ticket_price" type="number" step="0.01" defaultValue={editingBooking.ticket_price} />
-                      </div>
+                {/* Booker Information */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4 ">
+                  <h3 className="text-sm font-semibold mb-2">Booker Information</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="booker_name" className="text-xs">Name</Label>
+                      <Input name="booker_name" defaultValue={editingBooking.booker_name} className="h-8" />
+                    </div>
+                    <div>
+                      <Label htmlFor="booker_email" className="text-xs">Email</Label>
+                      <Input name="booker_email" type="email" defaultValue={editingBooking.booker_email} className="h-8" />
+                    </div>
+                    <div>
+                      <Label htmlFor="booker_phone" className="text-xs">Phone</Label>
+                      <Input name="booker_phone" type="tel" defaultValue={editingBooking.booker_phone} className="h-8" />
+                    </div>
+                    <div>
+                      <Label htmlFor="booker_address" className="text-xs">Address</Label>
+                      <textarea name="booker_address" className="w-full min-h-[120px] p-2 border rounded-md text-sm" defaultValue={editingBooking.booker_address} />
                     </div>
                   </div>
+                </div>
 
-                  {/* Hotel Information */}
-                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                    <h3 className="font-semibold text-lg mb-4">Hotel Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="check_in_date" className="mb-2 block">Check-in Date</Label>
-                        <DatePickerWithRange
-                          date={{
-                            from: formatDateForDatePicker(editingBooking.check_in_date),
-                            to: formatDateForDatePicker(editingBooking.check_out_date)
-                          }}
-                          setDate={(range) => {
-                            const formData = new FormData(document.querySelector('form'));
-                            if (range?.from) {
-                              formData.set('check_in_date', format(range.from, 'yyyy-MM-dd'));
-                            }
-                            if (range?.to) {
-                              formData.set('check_out_date', format(range.to, 'yyyy-MM-dd'));
-                            }
-                          }}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="nights" className="mb-2 block">Nights</Label>
-                        <Input name="nights" type="number" defaultValue={editingBooking.nights} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="extra_nights" className="mb-2 block">Extra Nights</Label>
-                        <Input name="extra_nights" type="number" defaultValue={editingBooking.extra_nights} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="room_quantity" className="mb-2 block">Room Quantity</Label>
-                        <Input name="room_quantity" type="number" defaultValue={editingBooking.room_quantity} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="room_price" className="mb-2 block">Room Price</Label>
-                        <Input name="room_price" type="number" step="0.01" defaultValue={editingBooking.room_price} />
-                      </div>
+                {/* Lead Traveller */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Lead Traveller</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="lead_traveller_name" className="text-xs">Name</Label>
+                      <Input name="lead_traveller_name" defaultValue={editingBooking.lead_traveller_name} className="h-8" />
+                    </div>
+                    <div>
+                      <Label htmlFor="lead_traveller_email" className="text-xs">Email</Label>
+                      <Input name="lead_traveller_email" type="email" defaultValue={editingBooking.lead_traveller_email} className="h-8" />
+                    </div>
+                    <div>
+                      <Label htmlFor="lead_traveller_phone" className="text-xs">Phone</Label>
+                      <Input name="lead_traveller_phone" type="tel" defaultValue={editingBooking.lead_traveller_phone} className="h-8" />
+                    </div>
+                    <div>
+                      <Label htmlFor="adults" className="text-xs">Adults</Label>
+                      <Input name="adults" type="number" defaultValue={editingBooking.adults} className="h-8" />
+                    </div>
+                    <div>
+                      <Label htmlFor="guest_traveller_names" className="text-xs">Guest Travellers</Label>
+                      <Input name="guest_traveller_names" defaultValue={editingBooking.guest_traveller_names} className="h-8" />
                     </div>
                   </div>
+                </div>
 
-                  {/* Transfer Information */}
-                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                    <h3 className="font-semibold text-lg mb-4">Transfer Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="airport_transfer_quantity" className="mb-2 block">Airport Transfer Quantity</Label>
-                        <Input name="airport_transfer_quantity" type="number" defaultValue={editingBooking.airport_transfer_quantity} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="airport_transfer_price" className="mb-2 block">Airport Transfer Price</Label>
-                        <Input name="airport_transfer_price" type="number" step="0.01" defaultValue={editingBooking.airport_transfer_price} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="circuit_transfer_quantity" className="mb-2 block">Circuit Transfer Quantity</Label>
-                        <Input name="circuit_transfer_quantity" type="number" defaultValue={editingBooking.circuit_transfer_quantity} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="circuit_transfer_price" className="mb-2 block">Circuit Transfer Price</Label>
-                        <Input name="circuit_transfer_price" type="number" step="0.01" defaultValue={editingBooking.circuit_transfer_price} />
-                      </div>
+                {/* Ticket Information */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Ticket Information</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Ticket Name</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.ticket_name} x {editingBooking.ticket_quantity}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Cost</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.ticket_cost?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Price</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.ticket_price?.toLocaleString() || "0"}</p>
                     </div>
                   </div>
+                </div>
 
-                  {/* Payment Information */}
-                  <div className="bg-muted/50 p-6 rounded-lg space-y-4">
-                    <h3 className="font-semibold text-lg mb-4">Payment Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="payment_currency" className="mb-2 block">Payment Currency</Label>
-                        <Select name="payment_currency" defaultValue={editingBooking.payment_currency}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="GBP">GBP</SelectItem>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                {/* Hotel Information */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Hotel Information</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Hotel Name</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.hotel_name}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Room Type</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.room_type}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Check-in/Check-out Dates</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.check_in_date} - {editingBooking.check_out_date}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Nights</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.nights} {editingBooking.extra_nights ? `(+${editingBooking.extra_nights})` : ""}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Room Cost</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.room_cost?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Room Price</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.room_price?.toLocaleString() || "0"}</p>
+                    </div>
+                  </div>
+                </div>
 
-                      <div>
-                        <Label htmlFor="payment_1" className="mb-2 block">Payment 1 Amount</Label>
-                        <Input name="payment_1" type="number" step="0.01" defaultValue={editingBooking.payment_1} />
-                      </div>
+                {/* Transfer Information */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Transfer Information</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Airport Transfer Type</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.airport_transfer_type}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Quantity</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.airport_transfer_quantity}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Cost</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.airport_transfer_cost?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Price</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.airport_transfer_price?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Circuit Transfer Type</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.circuit_transfer_type}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Quantity</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.circuit_transfer_quantity}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Cost</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.circuit_transfer_cost?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Price</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.circuit_transfer_price?.toLocaleString() || "0"}</p>
+                    </div>
+                  </div>
+                </div>
 
-                      <div>
-                        <Label htmlFor="payment_1_date" className="mb-2 block">Payment 1 Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !editingBooking.payment_1_date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {editingBooking.payment_1_date ? formatDateForDisplay(formatDateForDatePicker(editingBooking.payment_1_date)) : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={formatDateForDatePicker(editingBooking.payment_1_date)}
-                              onSelect={(date) => {
-                                const formData = new FormData(document.querySelector('form'));
-                                formData.set('payment_1_date', format(date, 'yyyy-MM-dd'));
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
+                {/* Flight Information */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Flight Information</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Outbound</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.flight_outbound}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Inbound</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.flight_inbound}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Class</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.flight_class}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Carrier</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.flight_carrier}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Source</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.flight_source}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Booking Reference</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.flight_booking_reference}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Ticketing Deadline</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.ticketing_deadline}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Status</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.flight_status}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Quantity</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.flight_quantity}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Cost</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.flight_cost?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Price</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.flight_price?.toLocaleString() || "0"}</p>
+                    </div>
+                  </div>
+                </div>
 
-                      <div>
-                        <Label htmlFor="payment_1_status" className="mb-2 block">Payment 1 Status</Label>
-                        <Select name="payment_1_status" defaultValue={editingBooking.payment_1_status}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Paid">Paid</SelectItem>
-                            <SelectItem value="Due">Due</SelectItem>
-                            <SelectItem value="Overdue">Overdue</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                {/* Lounge Pass Information */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Lounge Pass Information</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Variant</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.lounge_pass_variant}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Quantity</span>
+                      <p className="text-sm font-medium mt-1">{editingBooking.lounge_pass_quantity}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Cost</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.lounge_pass_cost?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Price</span>
+                      <p className="text-sm font-medium mt-1">£{editingBooking.lounge_pass_price?.toLocaleString() || "0"}</p>
+                    </div>
+                  </div>
+                </div>
 
-                      <div>
-                        <Label htmlFor="payment_2" className="mb-2 block">Payment 2 Amount</Label>
-                        <Input name="payment_2" type="number" step="0.01" defaultValue={editingBooking.payment_2} />
-                      </div>
+                {/* Payment Summary */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Payment Summary</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Currency</span>
+                      <p className="text-sm font-medium">{getCurrencySymbol(editingBooking.payment_currency)} ({editingBooking.payment_currency})</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Total Cost</span>
+                      <p className="text-sm font-medium">£{editingBooking.total_cost?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Total Sold (Local)</span>
+                      <p className="text-sm font-medium">{getCurrencySymbol(editingBooking.payment_currency)}{editingBooking.total_sold_for_local?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Total Sold (GBP)</span>
+                      <p className="text-sm font-medium">£{editingBooking.total_sold_gbp?.toLocaleString() || "0"}</p>
+                    </div>
+                  </div>
+                </div>
 
-                      <div>
-                        <Label htmlFor="payment_2_date" className="mb-2 block">Payment 2 Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !editingBooking.payment_2_date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {editingBooking.payment_2_date ? formatDateForDisplay(formatDateForDatePicker(editingBooking.payment_2_date)) : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={formatDateForDatePicker(editingBooking.payment_2_date)}
-                              onSelect={(date) => {
-                                const formData = new FormData(document.querySelector('form'));
-                                formData.set('payment_2_date', format(date, 'yyyy-MM-dd'));
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
+                {/* Payment Schedule */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Payment Schedule</h3>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="py-1 pr-4 font-normal">Payment</TableHead>
+                          <TableHead className="py-1 pr-4 font-normal">Amount</TableHead>
+                          <TableHead className="py-1 font-normal">Due Date</TableHead>
+                          <TableHead className="py-1 pr-4 font-normal">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[1, 2, 3].map((num) => (
+                          <TableRow key={num} className="align-top">
+                            <TableCell className="py-1 pr-4 font-medium">{`Payment ${num}`}</TableCell>
+                            <TableCell className="py-1 pr-4">{getCurrencySymbol(editingBooking.payment_currency)}{editingBooking[`payment_${num}`]?.toLocaleString() || "0"}</TableCell>
+                            <TableCell className="py-1">{editingBooking[`payment_${num}_date`]}</TableCell>
+                            <TableCell className="py-1 pr-4">
+                              <Select name={`payment_${num}_status`} defaultValue={editingBooking[`payment_${num}_status`]}>
+                                <SelectTrigger className="h-8 min-w-[90px]">
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Paid">Paid</SelectItem>
+                                  <SelectItem value="Due">Due</SelectItem>
+                                  <SelectItem value="Overdue">Overdue</SelectItem>
+                                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
 
-                      <div>
-                        <Label htmlFor="payment_2_status" className="mb-2 block">Payment 2 Status</Label>
-                        <Select name="payment_2_status" defaultValue={editingBooking.payment_2_status}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Paid">Paid</SelectItem>
-                            <SelectItem value="Due">Due</SelectItem>
-                            <SelectItem value="Overdue">Overdue</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_3" className="mb-2 block">Payment 3 Amount</Label>
-                        <Input name="payment_3" type="number" step="0.01" defaultValue={editingBooking.payment_3} />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_3_date" className="mb-2 block">Payment 3 Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !editingBooking.payment_3_date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {editingBooking.payment_3_date ? formatDateForDisplay(formatDateForDatePicker(editingBooking.payment_3_date)) : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={formatDateForDatePicker(editingBooking.payment_3_date)}
-                              onSelect={(date) => {
-                                const formData = new FormData(document.querySelector('form'));
-                                formData.set('payment_3_date', format(date, 'yyyy-MM-dd'));
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="payment_3_status" className="mb-2 block">Payment 3 Status</Label>
-                        <Select name="payment_3_status" defaultValue={editingBooking.payment_3_status}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Paid">Paid</SelectItem>
-                            <SelectItem value="Due">Due</SelectItem>
-                            <SelectItem value="Overdue">Overdue</SelectItem>
-                          </SelectContent>
-                        </Select>
+                {/* Payment Status */}
+                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Payment Status</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Amount Due</span>
+                      <p className="text-sm font-medium mt-1">{getCurrencySymbol(editingBooking.payment_currency)} {editingBooking.amount_due?.toLocaleString() || "0"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Status</span>
+                      <div className="mt-0.5">
+                        <Badge className={`${editingBooking.payment_status === "Paid" ? "bg-[#4CAF50] text-white" : editingBooking.payment_status === "Cancelled" ? "bg-secondary text-black" : "bg-[#DE3B3D] text-white"}`}>{editingBooking.payment_status}</Badge>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-
-              <DialogFooter>
+              <DialogFooter className="pt-2">
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
