@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/card";
 import { Ticket, Bed, Bus, Plane, Coffee, Hotel } from "lucide-react";
 
-function Inventory() {
+function Inventory({ defaultTab = "tickets", onTabChange }) {
   return (
     <div className="space-y-4 w-full">
-      <Tabs defaultValue="tickets" className="w-full">
-        <TabsList className="grid grid-cols-6 w-full">
+      <Tabs defaultValue={defaultTab} className="" onValueChange={onTabChange}>
+        <TabsList className="flex flex-wrap gap-4">
           <TabsTrigger value="tickets" className="flex items-center gap-2">
             <Ticket className="h-4 w-4" />
             Tickets

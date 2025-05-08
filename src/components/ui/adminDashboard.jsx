@@ -41,29 +41,20 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-6 w-full">
-      <div>
-        <p className="text-sm text-muted-foreground">
-          Manage users, sales, and operations
-        </p>
-      </div>
 
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="overview" className="">
+        <TabsList className="flex flex-wrap gap-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="sales">Sales</TabsTrigger>
           <TabsTrigger value="operations">Operations</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="mt-6">
-          <div className="mb-4">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Dashboard Overview</h3>
-            <p className="text-muted-foreground">Key metrics and quick actions</p>
-          </div>
+        <TabsContent value="overview" className="mt-2">
           <BookingsChart />
         </TabsContent>
 
-        <TabsContent value="users" className="mt-6">
+        <TabsContent value="users" className="mt-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-foreground">Users Management</CardTitle>

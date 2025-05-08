@@ -2,6 +2,7 @@ import { useState } from "react";
 import api from "../lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -27,13 +28,14 @@ function Login() {
   return (
     <div className="flex min-h-screen relative">
       {/* Create account link at top right */}
-      <div className="absolute top-6 right-6">
+      <div className="absolute top-6 right-6 mr-12">
         <a
           href="/register"
           className="text-sm font-medium text-gray-500 hover:underline"
         >
           Want to create an account with us?
         </a>
+        <ThemeToggleButton />
       </div>
 
       {/* Left Side */}

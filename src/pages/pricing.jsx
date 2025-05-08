@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DynamicBreadcrumb } from "@/components/ui/dy-breadcrumb";
+import { AppHeader } from "@/components/ui/app-header";
 import { InternalPricing } from "@/components/ui/internalPricing";
 import { ExternalPricing } from "@/components/ui/externalPricing";
 import { BookingForm } from "@/components/ui/bookingForm";
@@ -13,6 +13,7 @@ import api from "@/lib/api"; // Import your api
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format, differenceInCalendarDays } from "date-fns";
+import { BadgePoundSterling } from "lucide-react";
 
 function PricingSheet() {
   const [numberOfAdults, setNumberOfAdults] = useState(2);
@@ -174,9 +175,15 @@ function PricingSheet() {
       <AppSidebar />
       <main className="w-full">
         <div className="p-8">
-          <div className="flex gap-6 items-center">
-            <SidebarTrigger />
-            <DynamicBreadcrumb />
+        <AppHeader className="mb-6" />
+
+          <div className="mt-6">
+            <div className="flex items-center gap-3 mb-8">
+              <BadgePoundSterling className="w-8 h-8 text-primary" />
+              <h2 className="text-2xl font-bold">
+                GPGT's Pricing
+              </h2>
+            </div>
           </div>
 
           <div className="flex w-full justify-between mt-4 gap-6">
@@ -270,8 +277,8 @@ function PricingSheet() {
             {/* Conditionally render based on role */}
             {role === "Admin" && (
               <div className="w-full">
-                <Tabs defaultValue="internal" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                <Tabs defaultValue="internal" className="">
+                  <TabsList className="flex gap-4">
                     <TabsTrigger value="internal">Internal Pricing</TabsTrigger>
                     <TabsTrigger value="external">External Pricing</TabsTrigger>
                   </TabsList>

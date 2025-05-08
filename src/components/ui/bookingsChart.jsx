@@ -218,7 +218,7 @@ function BookingsChart() {
       </div>
 
       {/* Overview cards row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
         {/* Bookings Made */}
         <Card className="p-6 flex flex-col justify-between shadow-sm border rounded-xl">
           <div className="flex items-start justify-between">
@@ -270,7 +270,7 @@ function BookingsChart() {
       </div>
 
       {/* P&L Chart and Recent Bookings side by side */}
-      <div className="grid grid-cols-12 gap-6 mb-6">
+      <div className="grid grid-cols-12 gap-4 mb-4">
         <div className="col-span-12 md:col-span-4 h-full flex flex-col">
           <Card className="h-full flex flex-col">
             <CardHeader>
@@ -312,7 +312,7 @@ function BookingsChart() {
       </div>
 
       {/* Charts grid */}
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Bookings Made per Month */}
         <Card>
           <CardHeader>

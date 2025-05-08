@@ -4,6 +4,7 @@ import { RoomsTable } from "@/components/ui/roomsTable";
 import { HotelsTable } from "@/components/ui/hotelsTable";
 import { PackagesTable } from "@/components/ui/packagesTable";
 import { TiersTable } from "@/components/ui/tiersTable";
+import { EventsTable } from "@/components/ui/eventsTable";
 import {
   Card,
   CardContent,
@@ -11,13 +12,17 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Package, Layers } from "lucide-react";
+import { Package, Layers, CalendarDays } from "lucide-react";
 
-function PackagesTiers() {
+function PackagesTiers({ defaultTab = "events", onTabChange }) {
   return (
     <div className="space-y-4 w-full">
-      <Tabs defaultValue="packages" className="w-full">
-        <TabsList className="grid grid-cols-2 w-full">
+      <Tabs defaultValue={defaultTab} className="" onValueChange={onTabChange}>
+        <TabsList className="flex flex-wrap gap-4">
+          <TabsTrigger value="events" className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Events
+          </TabsTrigger>
           <TabsTrigger value="packages" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             Packages
@@ -27,6 +32,10 @@ function PackagesTiers() {
             Package Tiers
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="events" className="mt-6">
+          <EventsTable />
+        </TabsContent>
 
         <TabsContent value="packages" className="mt-6">
           <PackagesTable />

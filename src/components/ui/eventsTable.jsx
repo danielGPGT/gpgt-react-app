@@ -59,86 +59,86 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
-function PackagesTable() {
-  const [packages, setPackages] = useState([]);
+function EventsTable() {
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const [eventFilter, setEventFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [events, setEvents] = useState([]);
+  const [sportFilter, setSportFilter] = useState("all");
+  const [cityFilter, setCityFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingPackage, setEditingPackage] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [packageToDelete, setPackageToDelete] = useState(null);
+  const [eventToDelete, setEventToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedPackages, setSelectedPackages] = useState([]);
+  const [selectedEvents, setSelectedEvents] = useState([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   // Sorting options
   const sortColumns = [
+    { value: "sport", label: "Sport" },
     { value: "event", label: "Event" },
-    { value: "package_name", label: "Package Name" },
-    { value: "package_type", label: "Type" },
-    { value: "url", label: "URL" },
+    { value: "event_start_date", label: "Start Date" },
+    { value: "event_end_date", label: "End Date" },
+    { value: "venue", label: "Venue" },
+    { value: "city", label: "City" },
   ];
   const [sortColumn, setSortColumn] = useState("event");
   const [sortDirection, setSortDirection] = useState("asc");
 
-  useEffect(() => {
-    async function fetchPackages() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await api.get("/packages");
-        setPackages(res.data);
-      } catch (err) {
-        setError("Failed to fetch packages.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchPackages();
-  }, []);
+  // Column mapping for API requests
+  const columnMap = {
+    sport: "Sport",
+    event: "Event",
+    event_id: "Event ID",
+    event_start_date: "Event Start date",
+    event_end_date: "Event End Date",
+    venue: "Venue",
+    city: "City",
+    venue_map: "Venue Map"
+  };
 
   useEffect(() => {
     async function fetchEvents() {
+      setLoading(true);
+      setError(null);
       try {
         const res = await api.get("/event");
         setEvents(res.data);
       } catch (err) {
-        // ignore for now
+        setError("Failed to fetch events.");
+      } finally {
+        setLoading(false);
       }
     }
     fetchEvents();
   }, []);
 
-  // Unique event and type options
-  const eventOptions = useMemo(() => {
-    const unique = Array.from(new Set(packages.map((p) => p.event)));
+  // Unique sport and city options
+  const sportOptions = useMemo(() => {
+    const unique = Array.from(new Set(events.map((e) => e.sport)));
     return unique.filter(Boolean).sort();
-  }, [packages]);
-  const typeOptions = useMemo(() => {
-    const unique = Array.from(new Set(packages.map((p) => p.package_type)));
+  }, [events]);
+  const cityOptions = useMemo(() => {
+    const unique = Array.from(new Set(events.map((e) => e.city)));
     return unique.filter(Boolean).sort();
-  }, [packages]);
+  }, [events]);
 
-  // Filtered and sorted packages
-  const filteredPackages = useMemo(() => {
-    let result = packages.filter((pkg) => {
-      const eventMatch = eventFilter === "all" || pkg.event === eventFilter;
-      const typeMatch = typeFilter === "all" || pkg.package_type === typeFilter;
-      return eventMatch && typeMatch;
+  // Filtered and sorted events
+  const filteredEvents = useMemo(() => {
+    let result = events.filter((event) => {
+      const sportMatch = sportFilter === "all" || event.sport === sportFilter;
+      const cityMatch = cityFilter === "all" || event.city === cityFilter;
+      return sportMatch && cityMatch;
     });
     // Sorting
     if (sortColumn) {
@@ -151,50 +151,53 @@ function PackagesTable() {
       });
     }
     return result;
-  }, [packages, eventFilter, typeFilter, sortColumn, sortDirection]);
+  }, [events, sportFilter, cityFilter, sortColumn, sortDirection]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [eventFilter, typeFilter]);
+  }, [sportFilter, cityFilter]);
 
   // Add/Edit form state
-  const initialPackageState = {
+  const initialEventState = {
+    sport: "",
     event: "",
-    event_id: "",
-    package_name: "",
-    package_type: "",
-    url: "",
+    event_start_date: "",
+    event_end_date: "",
+    venue: "",
+    city: "",
+    venue_map: "",
   };
-  const [formData, setFormData] = useState(initialPackageState);
+  const [formData, setFormData] = useState(initialEventState);
   const [formErrors, setFormErrors] = useState({});
 
   // Add/Edit handlers
   const openAddDialog = () => {
-    setFormData(initialPackageState);
+    setFormData(initialEventState);
     setFormErrors({});
     setIsAddDialogOpen(true);
   };
-  const openEditDialog = (pkg) => {
-    setEditingPackage(pkg);
+  const openEditDialog = (event) => {
+    setEditingEvent(event);
     setFormData({
-      event: pkg.event,
-      event_id: pkg.event_id,
-      package_name: pkg.package_name,
-      package_type: pkg.package_type,
-      url: pkg.url || "",
+      sport: event.sport,
+      event: event.event,
+      event_start_date: event.event_start_date,
+      event_end_date: event.event_end_date,
+      venue: event.venue,
+      city: event.city,
+      venue_map: event.venue_map || "",
     });
     setFormErrors({});
     setIsEditDialogOpen(true);
   };
-  const handleDeleteClick = (pkg) => {
-    setPackageToDelete(pkg);
+  const handleDeleteClick = (event) => {
+    setEventToDelete(event);
     setShowDeleteDialog(true);
   };
 
   // Validate form fields
   const validateField = (field, value) => {
-    console.log(`Validating ${field}:`, value); // Debug log
     const errors = { ...formErrors };
     if (!value || value.trim() === "") {
       errors[field] = "Required";
@@ -205,29 +208,20 @@ function PackagesTable() {
     return Object.keys(errors).length === 0;
   };
   const handleFieldChange = (field, value) => {
-    console.log(`Field change - ${field}:`, value); // Debug log
-    setFormData((prev) => {
-      const newData = { ...prev, [field]: value };
-      console.log("New form data:", newData); // Debug log
-      return newData;
-    });
+    setFormData((prev) => ({ ...prev, [field]: value }));
     validateField(field, value);
   };
 
-  // Add package
-  const handleAddPackage = async () => {
-    console.log("Form data before validation:", formData); // Debug log
-
-    // Check for duplicate package
-    const isDuplicate = packages.some(
-      (pkg) =>
-        pkg.event === formData.event &&
-        pkg.package_type === formData.package_type
+  // Add event
+  const handleAddEvent = async () => {
+    // Check for duplicate event
+    const isDuplicate = events.some(
+      (e) => e.event === formData.event && e.sport === formData.sport
     );
 
     if (isDuplicate) {
       setFormErrors({
-        api: `A ${formData.package_type} package already exists for ${formData.event}`,
+        api: `An event "${formData.event}" already exists for ${formData.sport}`,
       });
       return;
     }
@@ -235,41 +229,36 @@ function PackagesTable() {
     if (!validateField("event", formData.event)) return;
     setIsAdding(true);
     try {
-      const { package_name, event_id, ...addData } = formData;
-      const payload = {
-        ...addData,
-        event: formData.event,
-      };
-      console.log("Sending payload to API:", payload); // Debug log
-      await api.post("/packages", payload);
-      setSuccessMessage("Package added successfully!");
+      await api.post("/event", formData);
+      setSuccessMessage("Event added successfully!");
       setShowSuccessDialog(true);
       setIsAddDialogOpen(false);
       // Refresh
-      const res = await api.get("/packages");
-      setPackages(res.data);
+      const res = await api.get("/event");
+      setEvents(res.data);
     } catch (error) {
-      console.error("Error adding package:", error);
-      setFormErrors({ api: "Failed to add package" });
+      console.error("Error adding event:", error);
+      setFormErrors({ api: "Failed to add event" });
     } finally {
       setIsAdding(false);
     }
   };
-  // Edit package
-  const handleEditPackage = async () => {
-    if (!editingPackage) return;
 
-    // Check for duplicate package (excluding the current package being edited)
-    const isDuplicate = packages.some(
-      (pkg) =>
-        pkg.event === formData.event &&
-        pkg.package_type === formData.package_type &&
-        pkg.package_id !== editingPackage.package_id
+  // Edit event
+  const handleEditEvent = async () => {
+    if (!editingEvent) return;
+
+    // Check for duplicate event (excluding the current event being edited)
+    const isDuplicate = events.some(
+      (e) =>
+        e.event === formData.event &&
+        e.sport === formData.sport &&
+        e.event_id !== editingEvent.event_id
     );
 
     if (isDuplicate) {
       setFormErrors({
-        api: `A ${formData.package_type} package already exists for ${formData.event}`,
+        api: `An event "${formData.event}" already exists for ${formData.sport}`,
       });
       return;
     }
@@ -277,12 +266,13 @@ function PackagesTable() {
     if (!validateField("event", formData.event)) return;
     setIsEditing(true);
     try {
-      // Compare with original package to find changed fields
+      // Compare with original event to find changed fields
       const changedFields = {};
-
-      if (formData.package_type !== editingPackage.package_type) {
-        changedFields["Package Type"] = formData.package_type;
-      }
+      Object.keys(formData).forEach((key) => {
+        if (formData[key] !== editingEvent[key]) {
+          changedFields[key] = formData[key];
+        }
+      });
 
       // Only update if there are changes
       if (Object.keys(changedFields).length === 0) {
@@ -294,92 +284,93 @@ function PackagesTable() {
 
       // Update only changed fields
       for (const [column, value] of Object.entries(changedFields)) {
-        await api.put(`/packages/Package ID/${editingPackage.package_id}`, {
-          column,
+        await api.put(`/event/Event ID/${editingEvent.event_id}`, {
+          column: columnMap[column],
           value,
         });
       }
 
-      setSuccessMessage("Package updated successfully!");
+      setSuccessMessage("Event updated successfully!");
       setShowSuccessDialog(true);
       setIsEditDialogOpen(false);
       // Refresh
-      const res = await api.get("/packages");
-      setPackages(res.data);
+      const res = await api.get("/event");
+      setEvents(res.data);
     } catch (error) {
-      console.error("Failed to update package:", error);
-      setFormErrors({ api: "Failed to update package" });
+      console.error("Failed to update event:", error);
+      setFormErrors({ api: "Failed to update event" });
     } finally {
       setIsEditing(false);
     }
   };
-  // Delete package
+
+  // Delete event
   const confirmDelete = async () => {
-    if (!packageToDelete) return;
+    if (!eventToDelete) return;
     setIsDeleting(true);
     try {
-      await api.delete(`/packages/Package ID/${packageToDelete.package_id}`);
-      setSuccessMessage("Package deleted successfully!");
+      await api.delete(`/event/Event ID/${eventToDelete.event_id}`);
+      setSuccessMessage("Event deleted successfully!");
       setShowSuccessDialog(true);
       setShowDeleteDialog(false);
       // Refresh
-      const res = await api.get("/packages");
-      setPackages(res.data);
+      const res = await api.get("/event");
+      setEvents(res.data);
     } catch (error) {
-      console.error("Failed to delete package:", error);
-      setFormErrors({ api: "Failed to delete package" });
+      console.error("Failed to delete event:", error);
+      setFormErrors({ api: "Failed to delete event" });
     } finally {
       setIsDeleting(false);
-      setPackageToDelete(null);
+      setEventToDelete(null);
     }
   };
 
   // Add bulk selection handlers
   const handleSelectAll = (checked) => {
     if (checked) {
-      setSelectedPackages(currentItems.map((pkg) => pkg.package_id));
+      setSelectedEvents(currentItems.map((event) => event.event_id));
     } else {
-      setSelectedPackages([]);
+      setSelectedEvents([]);
     }
   };
 
-  const handleSelectPackage = (packageId, checked) => {
+  const handleSelectEvent = (eventId, checked) => {
     if (checked) {
-      setSelectedPackages((prev) => [...prev, packageId]);
+      setSelectedEvents((prev) => [...prev, eventId]);
     } else {
-      setSelectedPackages((prev) => prev.filter((id) => id !== packageId));
+      setSelectedEvents((prev) => prev.filter((id) => id !== eventId));
     }
   };
 
   // Toggle selection mode
   const toggleSelectionMode = () => {
     setIsSelectionMode(!isSelectionMode);
-    setSelectedPackages([]); // Clear selection when toggling mode
+    setSelectedEvents([]); // Clear selection when toggling mode
   };
 
   // Add bulk delete handler
   const handleBulkDelete = async () => {
-    if (selectedPackages.length === 0) return;
+    if (selectedEvents.length === 0) return;
 
     setIsBulkDeleting(true);
     try {
-      // Delete packages one by one
-      for (const packageId of selectedPackages) {
-        await api.delete(`/packages/Package ID/${packageId}`);
+      // Delete events one by one
+      for (const eventId of selectedEvents) {
+        await api.delete(`/event/Event ID/${eventId}`);
       }
 
       setSuccessMessage(
-        `${selectedPackages.length} package(s) deleted successfully!`
+        `${selectedEvents.length} event(s) deleted successfully!`
       );
       setShowSuccessDialog(true);
-      setSelectedPackages([]);
+      setSelectedEvents([]);
 
-      // Refresh the packages list
-      const res = await api.get("/packages");
-      setPackages(res.data);
+      // Refresh the events list
+      const res = await api.get("/event");
+      setEvents(res.data);
     } catch (error) {
-      console.error("Failed to delete packages:", error);
-      toast.error("Failed to delete some packages");
+      console.error("Failed to delete events:", error);
+      toast.error("Failed to delete some events");
     } finally {
       setIsBulkDeleting(false);
     }
@@ -388,7 +379,7 @@ function PackagesTable() {
   if (loading) {
     return (
       <div className="text-center text-muted-foreground p-8">
-        Loading packages...
+        Loading events...
       </div>
     );
   }
@@ -397,10 +388,10 @@ function PackagesTable() {
   }
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredPackages.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredEvents.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredPackages.slice(startIndex, endIndex);
+  const currentItems = filteredEvents.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-4">
@@ -410,29 +401,29 @@ function PackagesTable() {
         <div className="flex gap-4 items-center">
           <Combobox
             options={[
-              { value: "all", label: "All Events" },
-              ...eventOptions.map((event) => ({ value: event, label: event })),
+              { value: "all", label: "All Sports" },
+              ...sportOptions.map((sport) => ({ value: sport, label: sport })),
             ]}
-            value={eventFilter}
-            onChange={setEventFilter}
-            placeholder="Filter by Event"
+            value={sportFilter}
+            onChange={setSportFilter}
+            placeholder="Filter by Sport"
             className="w-[300px]"
           />
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select value={cityFilter} onValueChange={setCityFilter}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by Type" />
+              <SelectValue placeholder="Filter by City" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {typeOptions.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type}
+              <SelectItem value="all">All Cities</SelectItem>
+              {cityOptions.map((city) => (
+                <SelectItem key={city} value={city}>
+                  {city}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        {isSelectionMode && selectedPackages.length > 0 && (
+        {isSelectionMode && selectedEvents.length > 0 && (
           <Button
             variant="destructive"
             size="sm"
@@ -447,7 +438,7 @@ function PackagesTable() {
             ) : (
               <>
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete Selected ({selectedPackages.length})
+                Delete Selected ({selectedEvents.length})
               </>
             )}
           </Button>
@@ -532,7 +523,7 @@ function PackagesTable() {
 
                   <Button onClick={openAddDialog}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Package
+                    Add Event
                   </Button>
                 </div>
               </TableHead>
@@ -541,70 +532,61 @@ function PackagesTable() {
               {isSelectionMode && (
                 <TableHead className="w-[50px]">
                   <Checkbox
-                    checked={selectedPackages.length === currentItems.length}
+                    checked={selectedEvents.length === currentItems.length}
                     onCheckedChange={handleSelectAll}
                     aria-label="Select all"
                     className="h-4 w-4"
                   />
                 </TableHead>
               )}
+              <TableHead>Sport</TableHead>
               <TableHead>Event</TableHead>
-              <TableHead>Package Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>URL</TableHead>
+              <TableHead>Start Date</TableHead>
+              <TableHead>End Date</TableHead>
+              <TableHead>Venue</TableHead>
+              <TableHead>City</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.length > 0 ? (
-              currentItems.map((pkg) => (
-                <TableRow key={pkg.package_id}>
+              currentItems.map((event) => (
+                <TableRow key={event.event_id}>
                   {isSelectionMode && (
                     <TableCell>
                       <Checkbox
-                        checked={selectedPackages.includes(pkg.package_id)}
+                        checked={selectedEvents.includes(event.event_id)}
                         onCheckedChange={(checked) =>
-                          handleSelectPackage(pkg.package_id, checked)
+                          handleSelectEvent(event.event_id, checked)
                         }
-                        aria-label={`Select ${pkg.package_name}`}
+                        aria-label={`Select ${event.event}`}
                         className="h-4 w-4"
                       />
                     </TableCell>
                   )}
-                  <TableCell>{pkg.event}</TableCell>
-                  <TableCell>{pkg.package_name}</TableCell>
-                  <TableCell>{pkg.package_type}</TableCell>
-                  <TableCell>
-                    {pkg.url ? (
-                      <a
-                        href={pkg.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary underline font-medium"
-                      >
-                        View
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground">N/A</span>
-                    )}
-                  </TableCell>
+                  <TableCell>{event.sport}</TableCell>
+                  <TableCell>{event.event}</TableCell>
+                  <TableCell>{event.event_start_date}</TableCell>
+                  <TableCell>{event.event_end_date}</TableCell>
+                  <TableCell>{event.venue}</TableCell>
+                  <TableCell>{event.city}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => openEditDialog(pkg)}
+                        onClick={() => openEditDialog(event)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteClick(pkg)}
+                        onClick={() => handleDeleteClick(event)}
                         disabled={isDeleting}
                       >
                         {isDeleting &&
-                        packageToDelete?.package_id === pkg.package_id ? (
+                        eventToDelete?.event_id === event.event_id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -620,7 +602,7 @@ function PackagesTable() {
                   colSpan={isSelectionMode ? 8 : 7}
                   className="text-center text-muted-foreground"
                 >
-                  No packages found.
+                  No events found.
                 </TableCell>
               </TableRow>
             )}
@@ -666,8 +648,8 @@ function PackagesTable() {
         </Pagination>
         <div className="text-sm text-muted-foreground">
           Showing {startIndex + 1} to{" "}
-          {Math.min(endIndex, filteredPackages.length)} of{" "}
-          {filteredPackages.length} packages
+          {Math.min(endIndex, filteredEvents.length)} of{" "}
+          {filteredEvents.length} events
         </div>
       </div>
 
@@ -678,22 +660,22 @@ function PackagesTable() {
           if (!open) {
             setIsAddDialogOpen(false);
             setIsEditDialogOpen(false);
-            setEditingPackage(null);
+            setEditingEvent(null);
           }
         }}
       >
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {isEditDialogOpen ? "Edit Package" : "Add New Package"}
+              {isEditDialogOpen ? "Edit Event" : "Add New Event"}
             </DialogTitle>
             <DialogDescription>
               {isEditDialogOpen
-                ? "Update the package details"
-                : "Fill in the details for the new package"}
+                ? "Update the event details"
+                : "Fill in the details for the new event"}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-6 py-4 relative max-h-[calc(90vh-200px)] overflow-y-auto">
+          <div className="grid gap-6 py-4 relative">
             {(isAdding || isEditing) && (
               <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
                 <div className="flex flex-col items-center gap-2">
@@ -703,8 +685,8 @@ function PackagesTable() {
                   </div>
                   <p className="text-lg font-medium text-primary">
                     {isEditDialogOpen
-                      ? "Updating Package..."
-                      : "Adding Package..."}
+                      ? "Updating Event..."
+                      : "Adding Event..."}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Please wait while we process your request
@@ -719,89 +701,97 @@ function PackagesTable() {
                   : "space-y-4"
               }
             >
-              {/* Add Dialog: Event (Combobox) */}
-              {!isEditDialogOpen && (
-                <div className="space-y-2">
-                  <Label htmlFor="event">Event</Label>
-                  <Combobox
-                    options={[
-                      { value: "", label: "Select Event" },
-                      ...events.map((event) => ({
-                        value: event.event,
-                        label: event.event,
-                      })),
-                    ]}
-                    value={formData.event}
-                    onChange={(value) => {
-                      console.log("Combobox selected value:", value); // Debug log
-                      if (value) {
-                        handleFieldChange("event", value);
-                      }
-                    }}
-                    placeholder="Select event"
-                    className="w-full"
-                  />
-                  {formErrors.event && (
-                    <p className="text-sm text-red-500">{formErrors.event}</p>
-                  )}
-                </div>
-              )}
-              {/* Edit Dialog: Event (read-only) */}
-              {isEditDialogOpen && (
-                <div className="space-y-2">
-                  <Label htmlFor="event">Event</Label>
-                  <Input
-                    id="event"
-                    value={formData.event || ""}
-                    disabled
-                    readOnly
-                    className="bg-muted"
-                  />
-                </div>
-              )}
-              {/* Edit Dialog: Package Name (read-only) */}
-              {isEditDialogOpen && (
-                <div className="space-y-2">
-                  <Label htmlFor="package_name">Package Name</Label>
-                  <Input
-                    id="package_name"
-                    value={formData.package_name}
-                    disabled
-                    readOnly
-                    className="bg-muted"
-                  />
-                </div>
-              )}
-              {/* Type (Select) */}
+              {/* Sport */}
               <div className="space-y-2">
-                <Label htmlFor="package_type">Package Type</Label>
-                <Select
-                  value={formData.package_type}
-                  onValueChange={(value) =>
-                    handleFieldChange("package_type", value)
-                  }
-                  disabled={isAdding || isEditing}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="VIP">VIP</SelectItem>
-                    <SelectItem value="Grandstand">Grandstand</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* URL */}
-              <div className="space-y-2">
-                <Label htmlFor="url">URL</Label>
+                <Label htmlFor="sport">Sport</Label>
                 <Input
-                  id="url"
-                  value={formData.url}
-                  onChange={(e) => handleFieldChange("url", e.target.value)}
+                  id="sport"
+                  value={formData.sport}
+                  onChange={(e) => handleFieldChange("sport", e.target.value)}
+                  disabled={isAdding || isEditing}
+                  placeholder="e.g., Formula 1"
+                />
+                {formErrors.sport && (
+                  <p className="text-sm text-red-500">{formErrors.sport}</p>
+                )}
+              </div>
+
+              {/* Event Name */}
+              <div className="space-y-2">
+                <Label htmlFor="event">Event Name</Label>
+                <Input
+                  id="event"
+                  value={formData.event}
+                  onChange={(e) => handleFieldChange("event", e.target.value)}
+                  disabled={isAdding || isEditing}
+                  placeholder="e.g., Abu Dhabi Grand Prix 2025"
+                />
+                {formErrors.event && (
+                  <p className="text-sm text-red-500">{formErrors.event}</p>
+                )}
+              </div>
+
+              {/* Start/End Date */}
+              <div className="space-y-2">
+                <Label>Event Dates</Label>
+                <DatePickerWithRange
+                  date={{
+                    from: formData.event_start_date
+                      ? new Date(formData.event_start_date)
+                      : undefined,
+                    to: formData.event_end_date
+                      ? new Date(formData.event_end_date)
+                      : undefined,
+                  }}
+                  setDate={({ from, to }) => {
+                    handleFieldChange(
+                      "event_start_date",
+                      from ? from.toISOString().slice(0, 10) : ""
+                    );
+                    handleFieldChange(
+                      "event_end_date",
+                      to ? to.toISOString().slice(0, 10) : ""
+                    );
+                  }}
+                />
+              </div>
+
+              {/* Venue */}
+              <div className="space-y-2">
+                <Label htmlFor="venue">Venue</Label>
+                <Input
+                  id="venue"
+                  value={formData.venue}
+                  onChange={(e) => handleFieldChange("venue", e.target.value)}
+                  disabled={isAdding || isEditing}
+                  placeholder="e.g., Yas Marina Circuit"
+                />
+              </div>
+
+              {/* City */}
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => handleFieldChange("city", e.target.value)}
+                  disabled={isAdding || isEditing}
+                  placeholder="e.g., Abu Dhabi"
+                />
+              </div>
+
+              {/* Venue Map URL */}
+              <div className="space-y-2">
+                <Label htmlFor="venue_map">Venue Map URL</Label>
+                <Input
+                  id="venue_map"
+                  value={formData.venue_map}
+                  onChange={(e) => handleFieldChange("venue_map", e.target.value)}
                   disabled={isAdding || isEditing}
                   placeholder="https://..."
                 />
               </div>
+
               {formErrors.api && (
                 <div className="text-sm text-red-500 text-center">
                   {formErrors.api}
@@ -815,14 +805,14 @@ function PackagesTable() {
               onClick={() => {
                 setIsAddDialogOpen(false);
                 setIsEditDialogOpen(false);
-                setEditingPackage(null);
+                setEditingEvent(null);
               }}
               disabled={isAdding || isEditing}
             >
               Cancel
             </Button>
             <Button
-              onClick={isEditDialogOpen ? handleEditPackage : handleAddPackage}
+              onClick={isEditDialogOpen ? handleEditEvent : handleAddEvent}
               disabled={isAdding || isEditing}
               className="min-w-[100px]"
             >
@@ -832,14 +822,15 @@ function PackagesTable() {
                   {isEditDialogOpen ? "Updating..." : "Adding..."}
                 </>
               ) : isEditDialogOpen ? (
-                "Update Package"
+                "Update Event"
               ) : (
-                "Add Package"
+                "Add Event"
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
@@ -847,7 +838,7 @@ function PackagesTable() {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              package "{packageToDelete?.package_name}".
+              event "{eventToDelete?.event}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -875,7 +866,7 @@ function PackagesTable() {
                   <div className="w-12 h-12 rounded-full border-4 border-destructive border-t-transparent animate-spin absolute top-0 left-0"></div>
                 </div>
                 <p className="text-lg font-medium text-destructive">
-                  Deleting Package...
+                  Deleting Event...
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Please wait while we process your request
@@ -885,6 +876,7 @@ function PackagesTable() {
           )}
         </AlertDialogContent>
       </AlertDialog>
+
       {/* Success Dialog */}
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
@@ -901,6 +893,7 @@ function PackagesTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       {/* Bulk Delete Confirmation Dialog */}
       <AlertDialog
         open={showBulkDeleteDialog}
@@ -911,7 +904,7 @@ function PackagesTable() {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete{" "}
-              {selectedPackages.length} selected package(s).
+              {selectedEvents.length} selected event(s).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -947,4 +940,4 @@ function PackagesTable() {
   );
 }
 
-export { PackagesTable };
+export { EventsTable };

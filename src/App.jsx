@@ -5,16 +5,19 @@ import { InventoryPage } from "@/pages/inventory";
 import { BookingsPage } from "@/pages/bookings";
 import { FlightsPage } from "@/pages/flights";
 import { PackagesPage } from "@/pages/packages";
+import { SettingsPage } from "@/pages/settings";
+import Documentation from "@/pages/Documentation";
+import Instructions from "@/pages/Instructions";
 import { Routes, Route } from "react-router-dom";
 import RoleBasedRoute from "./components/roleBasedRoute";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 
 function App() {
   return (
     <ThemeProvider>
       <Routes>
         <Route path="/" element={<Login />} />
-        {/* Protected Routes with Role-Based Access */}
         <Route
           path="/dashboard"
           element={
@@ -60,6 +63,30 @@ function App() {
           element={
             <RoleBasedRoute allowedRoles={["Admin"]}>
               <PackagesPage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
+              <SettingsPage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/documentation"
+          element={
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
+              <Documentation />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/instructions"
+          element={
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
+              <Instructions />
             </RoleBasedRoute>
           }
         />

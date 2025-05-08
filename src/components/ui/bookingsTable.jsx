@@ -701,7 +701,7 @@ function BookingsTable() {
                 <TableCell>
                   <span
                     className={
-                      booking["p&l"] >= 0 ? "text-green-500" : "text-red-500"
+                      booking["p&l"] >= 0 ? "text-success" : "text-destructive"
                     }
                   >
                     £ {booking["p&l"].toLocaleString()}
@@ -711,10 +711,10 @@ function BookingsTable() {
                   <Badge
                     className={`${
                       booking.payment_status === "Paid"
-                        ? "bg-[#4CAF50] text-white"
+                        ? "bg-success text-primary-foreground"
                         : booking.payment_status === "Cancelled"
-                        ? "bg-secondary text-black"
-                        : "bg-[#DE3B3D] text-white"
+                        ? "bg-secondary text-secondary-foreground"
+                        : "bg-destructive text-primary-foreground"
                     }`}
                   >
                     {booking.payment_status}
@@ -834,7 +834,7 @@ function BookingsTable() {
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-green-600">
+            <AlertDialogTitle className="text-success">
               Success
             </AlertDialogTitle>
             <AlertDialogDescription>{successMessage}</AlertDialogDescription>
@@ -1393,11 +1393,11 @@ function BookingsTable() {
                               className={`${
                                 viewingBooking[`payment_${num}_status`] ===
                                 "Paid"
-                                  ? "bg-[#4CAF50] text-white"
+                                  ? "bg-success text-success-foreground"
                                   : viewingBooking[`payment_${num}_status`] ===
                                     "Due"
-                                  ? "bg-[#FFC107] text-white"
-                                  : "bg-[#DE3B3D] text-white"
+                                  ? "bg-warning text-warning-foreground"
+                                  : "bg-destructive text-destructive-foreground"
                               }`}
                             >
                               {viewingBooking[`payment_${num}_status`]}
@@ -1431,10 +1431,10 @@ function BookingsTable() {
                       <Badge
                         className={`${
                           viewingBooking.payment_status === "Paid"
-                            ? "bg-[#4CAF50] text-white"
+                            ? "bg-success text-success-foreground"
                             : viewingBooking.payment_status === "Cancelled"
-                            ? "bg-secondary text-black"
-                            : "bg-[#DE3B3D] text-white"
+                            ? "bg-secondary text-secondary-foreground"
+                            : "bg-destructive text-destructive-foreground"
                         }`}
                       >
                         {viewingBooking.payment_status}
@@ -1850,7 +1850,7 @@ function BookingsTable() {
                     <div>
                       <span className="text-xs text-muted-foreground">Status</span>
                       <div className="mt-0.5">
-                        <Badge className={`${editingBooking.payment_status === "Paid" ? "bg-[#4CAF50] text-white" : editingBooking.payment_status === "Cancelled" ? "bg-secondary text-black" : "bg-[#DE3B3D] text-white"}`}>{editingBooking.payment_status}</Badge>
+                        <Badge className={`${editingBooking.payment_status === "Paid" ? "bg-success text-success-foreground" : editingBooking.payment_status === "Cancelled" ? "bg-secondary text-secondary-foreground" : "bg-destructive text-destructive-foreground"}`}>{editingBooking.payment_status}</Badge>
                       </div>
                     </div>
                   </div>

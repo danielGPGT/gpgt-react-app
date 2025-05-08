@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
-import { DynamicBreadcrumb } from "@/components/ui/dy-breadcrumb";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/ui/app-sidebar";
 import { jwtDecode } from "jwt-decode";
 import { PackagesTiers } from "@/components/ui/packages-tiers";
+import { HardHat } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { AppHeader } from "@/components/ui/app-header";
 
 function PackagesPage() {
   const [user, setUser] = useState(null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const tab = searchParams.get("tab") || "events";
 
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -24,29 +29,25 @@ function PackagesPage() {
     fetchCurrentUser();
   }, []);
 
+  const handleTabChange = (newTab) => {
+    navigate(`/packages?tab=${newTab}`);
+  };
+
   return (
     <SidebarProvider>
-      <AppSidebar />
-      <main className="w-full">
-        <div className="p-8">
-          <div className="flex gap-6 items-center">
-            <SidebarTrigger />
-            <DynamicBreadcrumb />
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <main className="flex-1 overflow-y-auto p-8 w-full">
+          <AppHeader className="mb-6" />
+          <div className="flex items-center gap-2 mb-6">
+            <HardHat className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-bold">Package Builder</h1>
           </div>
-
-          <div className="mt-6">
-            <h2 className="text-2xl font-bold">
-              GPGT's Packages & Tiers
-            </h2>
-          </div>
-
-          <div className="flex w-full justify-between mt-6 gap-6">
-            <PackagesTiers />
-          </div>
-        </div>
-      </main>
+          <PackagesTiers defaultTab={tab} onTabChange={handleTabChange} />
+        </main>
+      </div>
     </SidebarProvider>
   );
 }
 
-export { PackagesPage }; 
+export { PackagesPage };

@@ -62,7 +62,7 @@ function TiersTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
+  const itemsPerPage = 10;
   const [packageFilter, setPackageFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [packages, setPackages] = useState([]);
@@ -513,16 +513,6 @@ function TiersTable() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex justify-between items-end">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Package Tiers</h3>
-          <p className="text-muted-foreground">
-            View and manage package tiers, including tickets, hotels, and
-            transfers
-          </p>
-        </div>
-      </div>
 
       {/* Filters */}
       <div className="flex gap-2 justify-between items-end">

@@ -70,6 +70,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 function TicketTable() {
   const [stock, setStock] = useState([]);
@@ -163,6 +164,10 @@ function TicketTable() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedTickets, setSelectedTickets] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   const sortColumns = [
     { value: "event", label: "Event" },
@@ -1733,9 +1738,16 @@ function TicketTable() {
     }, [isEdit, editingTicket]);
 
     // Safe package filtering based on selected event
-    const filteredPackages = packages.filter(
-      (pkg) => !formData?.event || pkg?.event === formData.event
-    );
+    const filteredPackages = packages
+      .filter((pkg) => !formData?.event || pkg?.event === formData.event)
+      .reduce((unique, pkg) => {
+        // Check if we already have this package type
+        const exists = unique.find(item => item.package_type === pkg.package_type);
+        if (!exists) {
+          unique.push(pkg);
+        }
+        return unique;
+      }, []);
 
     const handleFormSubmit = async (formData) => {
       if (isEdit) {
@@ -1758,7 +1770,7 @@ function TicketTable() {
           onOpenChange(open);
         }}
       >
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
@@ -1791,6 +1803,57 @@ function TicketTable() {
     );
   };
 
+  // Add bulk selection handlers
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedTickets(currentItems.map((ticket) => ticket.ticket_id));
+    } else {
+      setSelectedTickets([]);
+    }
+  };
+
+  const handleSelectTicket = (ticketId, checked) => {
+    if (checked) {
+      setSelectedTickets((prev) => [...prev, ticketId]);
+    } else {
+      setSelectedTickets((prev) => prev.filter((id) => id !== ticketId));
+    }
+  };
+
+  // Toggle selection mode
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedTickets([]); // Clear selection when toggling mode
+  };
+
+  // Add bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedTickets.length === 0) return;
+
+    setIsBulkDeleting(true);
+    try {
+      // Delete tickets one by one
+      for (const ticketId of selectedTickets) {
+        await api.delete(`Stock%20-%20tickets/ticket_id/${ticketId}`);
+      }
+
+      setSuccessMessage(
+        `${selectedTickets.length} ticket(s) deleted successfully!`
+      );
+      setShowSuccessDialog(true);
+      setSelectedTickets([]);
+
+      // Refresh the tickets list
+      const res = await api.get("Stock%20-%20tickets");
+      setStock(res.data);
+    } catch (error) {
+      console.error("Failed to delete tickets:", error);
+      toast.error("Failed to delete some tickets");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center text-muted-foreground">
@@ -1801,19 +1864,6 @@ function TicketTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-end">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Ticket Inventory</h3>
-          <p className="text-muted-foreground">
-            Manage and track your ticket inventory, including stock levels and
-            status
-          </p>
-        </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Ticket
-        </Button>
-      </div>
 
       {/* Filters */}
       <div className="flex gap-4 items-center">
@@ -1945,10 +1995,52 @@ function TicketTable() {
             </DropdownMenu>
             <span className="text-sm text-muted-foreground">Sorted by <span className="font-medium">{sortColumns.find(c => c.value === sortColumn)?.label}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})</span>
           </div>
+          <div className="flex gap-4 items-center">{isSelectionMode && selectedTickets.length > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowBulkDeleteDialog(true)}
+            disabled={isBulkDeleting}
+          >
+            {isBulkDeleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Selected ({selectedTickets.length})
+              </>
+            )}
+          </Button>
+        )}
+        <Button
+          variant={isSelectionMode ? "secondary" : "outline"}
+          size="sm"
+          onClick={toggleSelectionMode}
+        >
+          {isSelectionMode ? "Cancel Selection" : "Bulk Actions"}
+        </Button>
+        <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Ticket
+        </Button></div>
+          
         </div>
         <Table>
           <TableHeader className="bg-muted">
             <TableRow>
+              {isSelectionMode && (
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={selectedTickets.length === currentItems.length}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                    className="h-4 w-4"
+                  />
+                </TableHead>
+              )}
               <TableHead>Event</TableHead>
               <TableHead>Ticket Name</TableHead>
               <TableHead>Supplier</TableHead>
@@ -1969,6 +2061,18 @@ function TicketTable() {
 
               return (
                 <TableRow key={item.ticket_id}>
+                  {isSelectionMode && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedTickets.includes(item.ticket_id)}
+                        onCheckedChange={(checked) =>
+                          handleSelectTicket(item.ticket_id, checked)
+                        }
+                        aria-label={`Select ${item.ticket_name}`}
+                        className="h-4 w-4"
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium">{item.event}</TableCell>
                   <TableCell>
                     {isEditing && editingCell.field === "ticket_name" ? (
@@ -2351,6 +2455,49 @@ function TicketTable() {
             <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
               Close
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete{" "}
+              {selectedTickets.length} selected ticket(s).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkDeleteDialog(false)}
+              disabled={isBulkDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                handleBulkDelete();
+                setShowBulkDeleteDialog(false);
+                setIsSelectionMode(false); // Exit selection mode after deletion
+              }}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Selected"
+              )}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

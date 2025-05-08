@@ -1,31 +1,52 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-const ThemeContext = createContext();
+const ThemeContext = createContext({
+  theme: "default",
+  mode: "light",
+  setTheme: () => null,
+  setMode: () => null,
+});
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    // Check localStorage first
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme) return savedTheme;
-    
-    // Then check system preference
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      return "dark";
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("theme") || "default";
+    }
+    return "default";
+  });
+
+  const [mode, setMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("mode") || "light";
     }
     return "light";
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
+    
+    // Set the data-theme and data-mode attributes
+    root.setAttribute("data-theme", theme);
+    root.setAttribute("data-mode", mode);
+    
+    // Store the theme and mode in localStorage
     localStorage.setItem("theme", theme);
-  }, [theme]);
+    localStorage.setItem("mode", mode);
+  }, [theme, mode]);
+
+  const value = {
+    theme,
+    mode,
+    setTheme: (theme) => {
+      setTheme(theme);
+    },
+    setMode: (mode) => {
+      setMode(mode);
+    },
+  };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 }
 
@@ -35,4 +56,13 @@ export const useTheme = () => {
     throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
-}; 
+};
+
+const themes = [
+  "default",
+  "ocean",
+  "retro",
+  "caffeine",
+  "midnight",
+  "vintage",
+]; 

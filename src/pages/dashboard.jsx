@@ -1,12 +1,12 @@
 'use client';
-
-import { useEffect, useState } from "react";
-import { DynamicBreadcrumb } from "@/components/ui/dy-breadcrumb";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/ui/app-sidebar";
+import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { jwtDecode } from "jwt-decode";
 import { AdminDashboard } from "../components/ui/adminDashboard";
+import { Gauge } from "lucide-react";
+import { AppHeader } from "@/components/ui/app-header";
 
 function Dashboard() {
   const [user, setUser] = useState(null);
@@ -64,15 +64,15 @@ function Dashboard() {
       <AppSidebar />
       <main className="w-full">
         <div className="p-8">
-          <div className="flex gap-6 items-center">
-            <SidebarTrigger />
-            <DynamicBreadcrumb />
-          </div>
+        <AppHeader className="mb-6" />
 
           <div className="mt-6">
-            <h2 className="text-2xl font-bold">
-            {user ? `${user.first_name}'s Dashboard` : "Loading..."}
-            </h2>
+            <div className="flex items-center gap-3 mb-8">
+              <Gauge className="w-8 h-8 text-primary" />
+              <h2 className="text-2xl font-bold">
+                {user ? `${user.first_name}'s Dashboard` : "Loading..."}
+              </h2>
+            </div>
           </div>
 
           <div className="flex w-full justify-between mt-6 gap-6">

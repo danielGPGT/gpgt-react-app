@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
-import { DynamicBreadcrumb } from "@/components/ui/dy-breadcrumb";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/ui/app-sidebar";
 import { Inventory } from "@/components/ui/inventory";
 import { jwtDecode } from "jwt-decode";
+import { Package } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { AppHeader } from "@/components/ui/app-header";
 
 function InventoryPage() {
   const [user, setUser] = useState(null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const tab = searchParams.get("tab") || "tickets";
 
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -24,29 +29,25 @@ function InventoryPage() {
     fetchCurrentUser();
   }, []);
 
+  const handleTabChange = (newTab) => {
+    navigate(`/inventory?tab=${newTab}`);
+  };
+
   return (
     <SidebarProvider>
-      <AppSidebar />
-      <main className="w-full">
-        <div className="p-8">
-          <div className="flex gap-6 items-center">
-            <SidebarTrigger />
-            <DynamicBreadcrumb />
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <main className="flex-1 overflow-y-auto p-8 w-full">
+          <AppHeader className="mb-6" />
+          <div className="flex items-center gap-2 mb-6">
+            <Package className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-bold">Inventory</h1>
           </div>
-
-          <div className="mt-6">
-            <h2 className="text-2xl font-bold">
-              GPGT's Inventory
-            </h2>
-          </div>
-
-          <div className="flex w-full justify-between mt-6 gap-6">
-            <Inventory />
-          </div>
-        </div>
-      </main>
+          <Inventory defaultTab={tab} onTabChange={handleTabChange} />
+        </main>
+      </div>
     </SidebarProvider>
   );
 }
 
-export { InventoryPage }; 
+export { InventoryPage };
