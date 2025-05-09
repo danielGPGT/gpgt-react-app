@@ -11,6 +11,8 @@ import {
   Settings,
   Globe,
   Palette,
+  BadgePoundSterling,
+  Gauge,
 } from "lucide-react";
 import { SidebarTrigger } from "./sidebar";
 import { Button } from "./button";
@@ -33,13 +35,15 @@ import api from "@/lib/api";
 import { ThemeSelector } from "@/components/ui/theme-selector";
 
 const pages = [
-  { name: "Packages", path: "/packages", icon: Package },
-  { name: "Flights", path: "/flights", icon: Plane },
-  { name: "Bookings", path: "/bookings", icon: ClipboardList },
-  { name: "Inventory", path: "/inventory", icon: Package },
-  { name: "Documentation", path: "/documentation", icon: BookOpen },
-  { name: "Instructions", path: "/instructions", icon: HelpCircle },
-  { name: "Settings", path: "/settings", icon: Settings },
+  { name: "Dashboard", path: "/dashboard", icon: Gauge, roles: ["Admin", "Internal Sales", "Operations", "External B2B"] },
+  { name: "Pricing", path: "/pricing", icon: BadgePoundSterling, roles: ["Admin", "Internal Sales", "External B2B"] },
+  { name: "Packages", path: "/packages", icon: Package, roles: ["Admin"] },
+  { name: "Flights", path: "/flights", icon: Plane, roles: ["Admin", "Operations", "Internal Sales"] },
+  { name: "Bookings", path: "/bookings", icon: ClipboardList, roles: ["Admin", "Internal Sales", "Operations", "External B2B"] },
+  { name: "Inventory", path: "/inventory", icon: Package, roles: ["Admin", "Operations"] },
+  { name: "Documentation", path: "/documentation", icon: BookOpen, roles: ["Admin", "Internal Sales", "Operations", "External B2B"] },
+  { name: "Instructions", path: "/instructions", icon: HelpCircle, roles: ["Admin", "Internal Sales", "Operations", "External B2B"] },
+  { name: "Settings", path: "/settings", icon: Settings, roles: ["Admin", "Internal Sales", "Operations", "External B2B"] },
 ];
 
 export function AppHeader({ className }) {
@@ -117,7 +121,8 @@ export function AppHeader({ className }) {
   const isAdmin = user?.role === 'Admin';
 
   const filteredPages = pages.filter((page) =>
-    page.name.toLowerCase().includes(searchQuery.toLowerCase())
+    page.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+    page.roles.includes(user?.role)
   );
 
   const handlePageSelect = (path) => {

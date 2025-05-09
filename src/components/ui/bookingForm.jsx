@@ -46,6 +46,7 @@ import { toast } from "react-hot-toast";
 import api from "@/lib/api";
 import { differenceInCalendarDays } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   booker_name: z.string().min(1),
@@ -116,10 +117,9 @@ function BookingForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
-  const [paymentPercents, setPaymentPercents] = useState([33.33, 33.33, 33.34]);
-  const paymentAmounts = paymentPercents.map(p => (totalPrice * p) / 100);
-  const paymentPercentSum = paymentPercents.reduce((a, b) => a + b, 0);
-  const paymentPercentError = paymentPercentSum !== 100;
+  const [customPayments, setCustomPayments] = useState(false);
+  const [paymentPercents, setPaymentPercents] = useState([34, 33, 33]);
+  const [paymentAmounts, setPaymentAmounts] = useState([0, 0, 0]);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -317,6 +317,62 @@ function BookingForm({
     initializeReference();
   }, [selectedEvent?.event_id]);
 
+  // Update payment amounts whenever total price changes
+  useEffect(() => {
+    if (!customPayments) {
+      // Equal payments
+      const equalAmount = totalPrice / 3;
+      const lastAmount = totalPrice - (equalAmount * 2);
+      setPaymentAmounts([equalAmount, equalAmount, lastAmount]);
+    } else {
+      // Custom percentages
+      const amounts = paymentPercents.map(percent => 
+        (totalPrice * percent) / 100
+      );
+      const sum = amounts[0] + amounts[1];
+      amounts[2] = totalPrice - sum;
+      setPaymentAmounts(amounts);
+    }
+  }, [totalPrice, customPayments, paymentPercents]);
+
+  // Function to handle payment percentage changes
+  const handlePaymentChange = (index, newPercent) => {
+    // Convert to number and handle empty input
+    const value = newPercent === '' ? 0 : Number(newPercent);
+    
+    // Ensure the value is between 0 and 100 and is a whole number
+    const validValue = Math.max(0, Math.min(100, Math.round(value)));
+    
+    const newPercents = [...paymentPercents];
+    newPercents[index] = validValue;
+    
+    // Calculate the remaining percentage
+    const remaining = 100 - validValue;
+    
+    // If this is payment 1 or 2, distribute remaining to the other payments
+    if (index === 0) {
+      // Split remaining between payments 2 and 3
+      newPercents[1] = Math.round(remaining / 2);
+      newPercents[2] = remaining - newPercents[1];
+    } else if (index === 1) {
+      // Put remaining in payment 3
+      newPercents[2] = remaining;
+    }
+    
+    setPaymentPercents(newPercents);
+    
+    // Calculate payment amounts without rounding
+    const newAmounts = newPercents.map(percent => 
+      (totalPrice * percent) / 100
+    );
+    
+    // Adjust the last payment to ensure total is exact
+    const sum = newAmounts[0] + newAmounts[1];
+    newAmounts[2] = totalPrice - sum;
+    
+    setPaymentAmounts(newAmounts);
+  };
+
   const handleSubmit = async (values) => {
     if (isSubmitting) return; // Prevent double submission
 
@@ -328,6 +384,18 @@ function BookingForm({
         if (!date) return '';
         return format(new Date(date), "dd-LLL-y");
       };
+
+      // Ensure payment percentages are whole numbers
+      const roundedPercents = paymentPercents.map(p => Math.round(p));
+      
+      // Recalculate payment amounts with rounded percentages
+      const roundedAmounts = roundedPercents.map(percent => 
+        Math.round((totalPrice * percent) / 100)
+      );
+      
+      // Adjust the last payment to ensure total is exact
+      const sum = roundedAmounts[0] + roundedAmounts[1];
+      roundedAmounts[2] = totalPrice - sum;
 
       // Combine booking reference prefix and sequence
       const bookingReference = `${values.booking_reference_prefix}${values.booking_reference}`;
@@ -407,13 +475,13 @@ function BookingForm({
         lounge_pass_quantity: loungePassQuantity,
         lounge_pass_price: selectedLoungePass ? selectedLoungePass.price * loungePassQuantity : 0,
         
-        // Payment details
+        // Payment details with rounded values
         payment_currency: selectedCurrency,
-        payment_1: paymentAmounts[0],
+        payment_1: roundedAmounts[0],
         payment_1_date: formatDate(values.payment1_date),
-        payment_2: paymentAmounts[1],
+        payment_2: roundedAmounts[1],
         payment_2_date: formatDate(values.payment2_date),
-        payment_3: paymentAmounts[2],
+        payment_3: roundedAmounts[2],
         payment_3_date: formatDate(values.payment3_date),
         payment_1_status: values.payment1_status ? "Paid" : "Due",
         payment_2_status: values.payment2_status ? "Paid" : "Due",
@@ -448,9 +516,9 @@ function BookingForm({
             package: selectedPackage?.package_name || 'N/A',
             totalPrice: `${currencySymbols[selectedCurrency]}${totalPrice.toFixed(2)}`,
             paymentSchedule: [
-              { amount: paymentAmounts[0], date: formatDate(values.payment1_date) },
-              { amount: paymentAmounts[1], date: formatDate(values.payment2_date) },
-              { amount: paymentAmounts[2], date: formatDate(values.payment3_date) }
+              { amount: roundedAmounts[0], date: formatDate(values.payment1_date) },
+              { amount: roundedAmounts[1], date: formatDate(values.payment2_date) },
+              { amount: roundedAmounts[2], date: formatDate(values.payment3_date) }
             ]
           });
           
@@ -845,83 +913,126 @@ function BookingForm({
 
           {/* Payment Info */}
           <div className="mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-border pt-4">
-              {[0, 1, 2].map((idx) => (
-                <div className="space-y-2" key={idx}>
-                  <label className="text-xs font-semibold">Payment {idx + 1} (%)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={paymentPercents[idx]}
-                      onChange={e => {
-                        const val = Math.max(0, Math.min(100, Number(e.target.value)));
-                        const newPercents = [...paymentPercents];
-                        newPercents[idx] = val;
-                        setPaymentPercents(newPercents);
-                      }}
-                      className="w-16 border rounded px-2 py-1 text-xs"
-                    />
-                    <span className="text-xs text-muted-foreground">({currencySymbols[selectedCurrency]}{paymentAmounts[idx].toFixed(2)})</span>
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name={`payment${idx + 1}_date`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal bg-background h-8 text-xs",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </FormItem>
-                    )}
+            <div className="border-t border-border pt-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium">Payment Schedule</h3>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={customPayments}
+                    onCheckedChange={setCustomPayments}
+                    id="custom-payments"
                   />
-                  <FormField
-                    control={form.control}
-                    name={`payment${idx + 1}_status`}
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-1 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Mark as Paid</FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
+                  <Label htmlFor="custom-payments" className="text-sm">
+                    Adjust Payment Schedule
+                  </Label>
                 </div>
-              ))}
-              <div className="text-xs text-destructive font-semibold ml-4 col-span-3">
-                {paymentPercentError && 'Total must be 100%'}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[0, 1, 2].map((idx) => (
+                  <div className="space-y-2 p-3 rounded-md border bg-card" key={idx}>
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium">Payment {idx + 1}</label>
+                      {customPayments && (
+                        <span className="text-xs text-muted-foreground">
+                          {paymentPercents[idx]}%
+                        </span>
+                      )}
+                    </div>
+                    
+                    {customPayments && (
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            value={paymentPercents[idx]}
+                            onChange={(e) => {
+                              const newPercent = Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
+                              handlePaymentChange(idx, newPercent);
+                            }}
+                            className={cn(
+                              "w-24 bg-background h-9 text-base",
+                              paymentPercents.reduce((sum, p) => sum + p, 0) !== 100 && "border-red-500"
+                            )}
+                            step="1"
+                            min="0"
+                            max="100"
+                            placeholder="0"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">%</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <FormField
+                        control={form.control}
+                        name={`payment${idx + 1}_date`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal bg-background h-8 text-xs",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {field.value ? (
+                                      format(field.value, "PPP")
+                                    ) : (
+                                      <span>Select date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">
+                          {currencySymbols[selectedCurrency]}{paymentAmounts[idx].toFixed(2)}
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name={`payment${idx + 1}_status`}
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-1">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  className="h-4 w-4"
+                                />
+                              </FormControl>
+                              <FormLabel className="text-xs">Paid</FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-3 px-3 py-2 rounded-md border bg-card flex justify-between items-center">
+                <span className="text-sm font-medium">Total</span>
+                <span className="text-lg font-semibold">
+                  {currencySymbols[selectedCurrency]}{totalPrice.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>

@@ -14,6 +14,7 @@ const themes = [
   { name: "Retro", value: "retro" },
   { name: "Caffeine", value: "caffeine" },
   { name: "Tangerine", value: "tangerine" },
+  { name: "Blossom", value: "blossom" },
 ];
 
 export function ThemeSelector() {

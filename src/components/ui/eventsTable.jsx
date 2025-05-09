@@ -82,6 +82,7 @@ function EventsTable() {
   const [selectedEvents, setSelectedEvents] = useState([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [users, setUsers] = useState([]);
 
   // Sorting options
   const sortColumns = [
@@ -104,7 +105,8 @@ function EventsTable() {
     event_end_date: "Event End Date",
     venue: "Venue",
     city: "City",
-    venue_map: "Venue Map"
+    venue_map: "Venue Map",
+    consultant_id: "Consultant ID",
   };
 
   useEffect(() => {
@@ -112,8 +114,12 @@ function EventsTable() {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get("/event");
-        setEvents(res.data);
+        const [eventsRes, usersRes] = await Promise.all([
+          api.get("/event"),
+          api.get("/users")
+        ]);
+        setEvents(eventsRes.data);
+        setUsers(usersRes.data);
       } catch (err) {
         setError("Failed to fetch events.");
       } finally {
@@ -167,6 +173,7 @@ function EventsTable() {
     venue: "",
     city: "",
     venue_map: "",
+    consultant_id: "",
   };
   const [formData, setFormData] = useState(initialEventState);
   const [formErrors, setFormErrors] = useState({});
@@ -458,7 +465,7 @@ function EventsTable() {
           <TableHeader className="bg-muted">
             <TableRow className="bg-background">
               <TableHead
-                colSpan={isSelectionMode ? 8 : 7}
+                colSpan={isSelectionMode ? 9 : 8}
                 className="p-2 align-middle"
               >
                 <div className="flex items-center gap-2 justify-between">
@@ -545,61 +552,68 @@ function EventsTable() {
               <TableHead>End Date</TableHead>
               <TableHead>Venue</TableHead>
               <TableHead>City</TableHead>
+              <TableHead>Consultant</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.length > 0 ? (
-              currentItems.map((event) => (
-                <TableRow key={event.event_id}>
-                  {isSelectionMode && (
+              currentItems.map((event) => {
+                const consultant = users.find(u => u.user_id === event.consultant_id);
+                return (
+                  <TableRow key={event.event_id}>
+                    {isSelectionMode && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedEvents.includes(event.event_id)}
+                          onCheckedChange={(checked) =>
+                            handleSelectEvent(event.event_id, checked)
+                          }
+                          aria-label={`Select ${event.event}`}
+                          className="h-4 w-4"
+                        />
+                      </TableCell>
+                    )}
+                    <TableCell>{event.sport}</TableCell>
+                    <TableCell>{event.event}</TableCell>
+                    <TableCell>{event.event_start_date}</TableCell>
+                    <TableCell>{event.event_end_date}</TableCell>
+                    <TableCell>{event.venue}</TableCell>
+                    <TableCell>{event.city}</TableCell>
                     <TableCell>
-                      <Checkbox
-                        checked={selectedEvents.includes(event.event_id)}
-                        onCheckedChange={(checked) =>
-                          handleSelectEvent(event.event_id, checked)
-                        }
-                        aria-label={`Select ${event.event}`}
-                        className="h-4 w-4"
-                      />
+                      {consultant ? `${consultant.first_name} ${consultant.last_name}` : '-'}
                     </TableCell>
-                  )}
-                  <TableCell>{event.sport}</TableCell>
-                  <TableCell>{event.event}</TableCell>
-                  <TableCell>{event.event_start_date}</TableCell>
-                  <TableCell>{event.event_end_date}</TableCell>
-                  <TableCell>{event.venue}</TableCell>
-                  <TableCell>{event.city}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(event)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClick(event)}
-                        disabled={isDeleting}
-                      >
-                        {isDeleting &&
-                        eventToDelete?.event_id === event.event_id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(event)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteClick(event)}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting &&
+                          eventToDelete?.event_id === event.event_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={isSelectionMode ? 8 : 7}
+                  colSpan={isSelectionMode ? 9 : 8}
                   className="text-center text-muted-foreground"
                 >
                   No events found.
@@ -790,6 +804,30 @@ function EventsTable() {
                   disabled={isAdding || isEditing}
                   placeholder="https://..."
                 />
+              </div>
+
+              {/* Consultant Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="consultant_id">Consultant</Label>
+                <Select
+                  value={formData.consultant_id || "none"}
+                  onValueChange={(value) => handleFieldChange("consultant_id", value === "none" ? "" : value)}
+                  disabled={isAdding || isEditing}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a consultant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {users
+                      .filter(user => user.role === "Internal Sales")
+                      .map((user) => (
+                        <SelectItem key={user.user_id} value={user.user_id}>
+                          {user.first_name} {user.last_name}
+                        </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {formErrors.api && (

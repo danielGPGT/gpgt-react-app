@@ -61,6 +61,7 @@ import {
   AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
 import { jwtDecode } from "jwt-decode";
+import { X } from "lucide-react";
 
 function ExternalPricing({
   numberOfAdults,
@@ -157,6 +158,9 @@ function ExternalPricing({
   };
 
   const ASK_SPREAD = 0.5 * 0.1; // 0.5% ask added to every exchange rate
+
+  const [showFlightDialog, setShowFlightDialog] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState("none");
 
   async function fetchExchangeRate(base = "GBP", target = "USD") {
     const res = await fetch(
@@ -373,21 +377,28 @@ function ExternalPricing({
         setLoadingLoungePasses(true);
         setLoadingSalesTeams(true);
 
-        const [packagesRes, flightsRes, loungePassesRes, salesTeamsRes] =
+        const [packagesRes, flightsRes, loungePassesRes, usersRes] =
           await Promise.all([
             api.get("/packages", { params: { eventId: foundEvent.event_id } }),
             api.get("/flights", { params: { eventId: foundEvent.event_id } }),
             api.get("/lounge-passes", {
               params: { eventId: foundEvent.event_id },
             }),
-            api.get("/salesTeam", { params: { eventId: foundEvent.event_id } }),
+            api.get("/users"),
           ]);
 
         setPackages(packagesRes.data);
         setFlights(flightsRes.data);
         setLoungePasses(loungePassesRes.data);
-        console.log("Fetched sales teams:", salesTeamsRes.data);
-        setSalesTeams(salesTeamsRes.data);
+        
+        // Find consultant from users data using consultant_id from event
+        if (foundEvent.consultant_id) {
+          const consultant = usersRes.data.find(user => user.user_id === foundEvent.consultant_id);
+          if (consultant) {
+            console.log("Found consultant:", consultant);
+            setSalesTeams([consultant]);
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch packages or flights:", error.message);
         setPackages([]);
@@ -1308,26 +1319,148 @@ function ExternalPricing({
               Loading flights...
             </div>
           ) : (
-            <Select
-              onValueChange={(id) => {
-                const found = flights.find((f) => f.flight_id === id);
-                setSelectedFlight(found);
-              }}
-            >
-              <SelectTrigger className="w-full h-9 text-sm bg-background">
-                <SelectValue placeholder="Select flight" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No Flights</SelectItem>
-                {flights.map((flight) => (
-                  <SelectItem key={flight.flight_id} value={flight.flight_id}>
-                    {flight.airline} • {flight.class} •{" "}
-                    {currencySymbols[selectedCurrency]}
-                    {flight.price}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-4">
+              <Button
+                variant="outline"
+                className="w-full h-auto p-4 relative group hover:border-primary transition-colors text-left flex justify-start"
+                onClick={() => setShowFlightDialog(true)}
+              >
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors">
+                  <Plane className="h-5 w-5" />
+                </div>
+                {selectedFlight ? (
+                  <div className="flex flex-col items-start gap-1 pr-10">
+                    <span className="text-sm font-medium">
+                      {selectedFlight.airline} • {selectedFlight.class}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {selectedFlight.outbound_flight.split(" ")[0]} -{" "}
+                      {selectedFlight.inbound_flight.split(" ")[0]}
+                    </span>
+                  </div>
+                ) : selectedLocation === "none" ? (
+                  <div className="flex flex-col items-start gap-1 pr-10">
+                    <span className="text-sm font-medium">
+                      No Flights Selected
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Click to change selection
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-start gap-1 pr-10">
+                    <span className="text-sm font-medium">Select Flight</span>
+                    <span className="text-xs text-muted-foreground">
+                      Choose from available flights
+                    </span>
+                  </div>
+                )}
+              </Button>
+
+              <AlertDialog
+                open={showFlightDialog}
+                onOpenChange={setShowFlightDialog}
+              >
+                <AlertDialogContent className="max-w-3xl">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-4 top-4"
+                    onClick={() => setShowFlightDialog(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Select Flight</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Choose your departure location and select a flight
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <div className="space-y-4">
+                    <Combobox
+                      options={[
+                        { value: "none", label: "No Flight" },
+                        { value: "all", label: "All Locations" },
+                        ...[
+                          ...new Set(flights.map((f) => f.from_location)),
+                        ].map((location) => ({
+                          value: location,
+                          label: location,
+                        })),
+                      ]}
+                      value={selectedLocation}
+                      onChange={(value) => {
+                        setSelectedLocation(value);
+                        if (value === "none") {
+                          setSelectedFlight(null);
+                          setFlightQuantity(0);
+                          setShowFlightDialog(false);
+                        }
+                      }}
+                      placeholder="Select departure location"
+                    />
+
+                    <ScrollArea className="h-[400px]">
+                      <div className="space-y-2">
+                        {selectedLocation === "none"
+                          ? null
+                          : flights
+                              .filter(
+                                (flight) =>
+                                  !selectedLocation ||
+                                  selectedLocation === "all" ||
+                                  flight.from_location === selectedLocation
+                              )
+                              .map((flight) => (
+                                <div
+                                  key={flight.flight_id}
+                                  className={`p-4 border rounded-md cursor-pointer hover:bg-accent ${
+                                    selectedFlight?.flight_id ===
+                                    flight.flight_id
+                                      ? "bg-accent"
+                                      : ""
+                                  }`}
+                                  onClick={() => {
+                                    setSelectedFlight(flight);
+                                    setFlightQuantity(numberOfAdults);
+                                    setShowFlightDialog(false);
+                                  }}
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="space-y-1">
+                                      <p className="font-medium">
+                                        {flight.airline} • {flight.class}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        From: {flight.from_location}
+                                      </p>
+                                      <div className="text-sm space-y-1">
+                                        <p>
+                                          Outbound: {flight.outbound_flight}
+                                        </p>
+                                        <p>Inbound: {flight.inbound_flight}</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-medium">
+                                        {currencySymbols[selectedCurrency]}
+                                        {flight.price * numberOfAdults}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {currencySymbols[selectedCurrency]}
+                                        {flight.price} per person
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           )}
 
           {selectedFlight && (
@@ -1339,8 +1472,8 @@ function ExternalPricing({
                 Inbound: {selectedFlight.inbound_flight}
               </p>
               <p className="text-foreground">
-                Price (pp): {currencySymbols[selectedCurrency]}
-                {selectedFlight.price}
+                Total Price: {currencySymbols[selectedCurrency]}
+                {selectedFlight.price * numberOfAdults}
               </p>
             </div>
           )}
