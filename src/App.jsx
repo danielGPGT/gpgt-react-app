@@ -5,6 +5,7 @@ import { InventoryPage } from "@/pages/inventory";
 import { BookingsPage } from "@/pages/bookings";
 import { FlightsPage } from "@/pages/flights";
 import { PackagesPage } from "@/pages/packages";
+import { MyAccount } from "@/pages/my-account";
 import { SettingsPage } from "@/pages/settings";
 import Documentation from "@/pages/Documentation";
 import Instructions from "@/pages/Instructions";
@@ -12,10 +13,12 @@ import { Routes, Route } from "react-router-dom";
 import RoleBasedRoute from "./components/roleBasedRoute";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
+import { Toaster } from "sonner";
 
 function App() {
   return (
     <ThemeProvider>
+      <Toaster richColors position="top-right" />
       <Routes>
         <Route path="/" element={<Login />} />
         <Route
@@ -90,6 +93,9 @@ function App() {
             </RoleBasedRoute>
           }
         />
+        <Route path="/my-account" element={<RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
+        <MyAccount />
+        </RoleBasedRoute>} />
       </Routes>
     </ThemeProvider>
   );

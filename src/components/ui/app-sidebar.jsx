@@ -158,14 +158,28 @@ export function AppSidebar() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      const decoded = jwtDecode(token);
-      setUser({
-        first_name: decoded.first_name,
-        last_name: decoded.last_name,
-        role: decoded.role,
-        company: decoded.company,
-        avatar: decoded.avatar,
-      });
+      try {
+        const decoded = jwtDecode(token);
+        // Fetch user data to get the latest avatar
+        api.get('/users').then(response => {
+          const userData = response.data.find(user => user.user_id === decoded.user_id);
+          if (userData) {
+            setUser({
+              first_name: userData.first_name,
+              last_name: userData.last_name,
+              role: userData.role,
+              company: userData.company,
+              avatar: userData.avatar || "",
+            });
+          }
+        }).catch(error => {
+          console.error("Failed to fetch user data:", error);
+        });
+      } catch (error) {
+        console.error("Failed to decode token:", error);
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }
     }
   }, []);
 
@@ -325,14 +339,15 @@ export function AppSidebar() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-3 w-full px-2 py-2 rounded-md hover:bg-muted transition group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-0">
-                <Avatar className="w-12 h-12 rounded-md group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
+                <Avatar className="w-12 h-12 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
                   <AvatarImage
                     src={user.avatar}
                     alt={user.first_name || "User"}
-                    className="w-full h-full object-cover rounded-md border border-primary"
+                    className="w-full h-full object-cover"
                   />
-                  <AvatarFallback className="rounded-md bg-primary text-primary-foreground text-3xl">
-                    {user.first_name?.[0] || "U"}
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {user.first_name?.[0]}
+                    {user.last_name?.[0]}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col min-w-0 text-left">
@@ -345,14 +360,15 @@ export function AppSidebar() {
             <DropdownMenuContent className="w-56" align="start">
               <DropdownMenuLabel>
                 <div className="flex items-center gap-2">
-                  <Avatar className="w-8 h-8 rounded-md">
+                  <Avatar className="w-8 h-8 ">
                     <AvatarImage
                       src={user.avatar}
                       alt={user.first_name || "User"}
-                      className="w-full h-full object-cover rounded-md"
+                      className="w-full h-full object-cover"
                     />
-                    <AvatarFallback className="rounded-md bg-primary text-primary-foreground text-xl">
-                      {user.first_name?.[0] || "U"}
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {user.first_name?.[0]}
+                      {user.last_name?.[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -363,14 +379,18 @@ export function AppSidebar() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
+              <a href="/dashboard" className="flex items-center">
                 <Gauge className="w-4 h-4 mr-2" /> My Dashboard
+                </a>
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <User className="w-4 h-4 mr-2" /> My Account
+              <DropdownMenuItem asChild>
+                <a href="/my-account" className="flex items-center">
+                  <User className="w-4 h-4 mr-0" /> My Account
+                </a>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="w-4 h-4 mr-2" /> Log out
+                <LogOut className="w-4 h-4 mr-0" /> Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

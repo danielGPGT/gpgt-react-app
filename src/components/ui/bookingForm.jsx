@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import PropTypes from 'prop-types';
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import api from "@/lib/api";
 import { differenceInCalendarDays } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";

@@ -194,6 +194,7 @@ function EventsTable() {
       venue: event.venue,
       city: event.city,
       venue_map: event.venue_map || "",
+      consultant_id: event.consultant_id || "",
     });
     setFormErrors({});
     setIsEditDialogOpen(true);
