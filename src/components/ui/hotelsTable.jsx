@@ -62,7 +62,7 @@ function HotelsTable() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingHotel, setEditingHotel] = useState(null);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(15);
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -1256,92 +1256,93 @@ function HotelsTable() {
       {/* Table */}
       <div className="rounded-md border">
         <Table>
-          <TableHeader className="bg-muted">{/* Sorting Dropdown */}
-          <TableRow className="bg-background">
+          <TableHeader className="bg-muted">
+            <TableRow className="bg-background">
               <TableHead colSpan={7} className="p-2 align-middle">
                 <div className="flex items-center gap-2 justify-between">
-                <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="default" size="sm" className="flex items-center gap-2">
-                Sort <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-              {sortColumns.map(col => (
-                <DropdownMenuItem
-                  key={col.value}
-                  onClick={() => setSortColumn(col.value)}
-                  className={sortColumn === col.value ? "font-semibold text-primary" : ""}
-                >
-                  {col.label} {sortColumn === col.value && "✓"}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Direction</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => setSortDirection("asc")}
-                className={sortDirection === "asc" ? "font-semibold text-primary" : ""}
-              >
-                Ascending {sortDirection === "asc" && "▲"}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setSortDirection("desc")}
-                className={sortDirection === "desc" ? "font-semibold text-primary" : ""}
-              >
-                Descending {sortDirection === "desc" && "▼"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <span className="text-sm text-muted-foreground">Sorted by <span className="font-medium">{sortColumns.find(c => c.value === sortColumn)?.label}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})</span>
-        </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Hotel
-        </Button>
-      </div>
-      </TableHead>
-      </TableRow>
-            <TableRow>
-              <TableHead>Event Name</TableHead>
-              <TableHead>Hotel Name</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead>Package Type</TableHead>
-              <TableHead>Actions</TableHead>
+                  <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="default" size="sm" className="flex items-center gap-2">
+                          Sort <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                        {sortColumns.map(col => (
+                          <DropdownMenuItem
+                            key={col.value}
+                            onClick={() => setSortColumn(col.value)}
+                            className={sortColumn === col.value ? "font-semibold text-primary" : ""}
+                          >
+                            {col.label} {sortColumn === col.value && "✓"}
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Direction</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => setSortDirection("asc")}
+                          className={sortDirection === "asc" ? "font-semibold text-primary" : ""}
+                        >
+                          Ascending {sortDirection === "asc" && "▲"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setSortDirection("desc")}
+                          className={sortDirection === "desc" ? "font-semibold text-primary" : ""}
+                        >
+                          Descending {sortDirection === "desc" && "▼"}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <span className="text-xs text-muted-foreground">Sorted by <span className="font-medium">{sortColumns.find(c => c.value === sortColumn)?.label}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})</span>
+                  </div>
+                  <Button onClick={() => setIsAddDialogOpen(true)} size="sm">
+                    <Plus className="mr-2 h-3.5 w-3.5" />
+                    Add Hotel
+                  </Button>
+                </div>
+              </TableHead>
+            </TableRow>
+            <TableRow className="hover:bg-muted">
+              <TableHead className="text-xs py-2">Event Name</TableHead>
+              <TableHead className="text-xs py-2">Hotel Name</TableHead>
+              <TableHead className="text-xs py-2">Rating</TableHead>
+              <TableHead className="text-xs py-2">Package Type</TableHead>
+              <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.map((item) => (
-              <TableRow key={item.hotel_id}>
-                <TableCell className="font-medium">{item.event_name}</TableCell>
-                <TableCell className="font-medium">{item.hotel_name}</TableCell>
-                <TableCell>
+              <TableRow key={item.hotel_id} className="hover:bg-muted/50">
+                <TableCell className="text-xs py-1.5 font-medium">{item.event_name}</TableCell>
+                <TableCell className="text-xs py-1.5 font-medium">{item.hotel_name}</TableCell>
+                <TableCell className="text-xs py-1.5">
                   <div className="flex items-center gap-1">
                     {renderStars(item.stars)}
                   </div>
                 </TableCell>
-                <TableCell>{item.package_type}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
+                <TableCell className="text-xs py-1.5">{item.package_type}</TableCell>
+                <TableCell className="text-xs py-1.5">
+                  <div className="flex gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => openEditDialog(item)}
+                      className="h-7 w-7"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteClick(item)}
                       disabled={isDeleting}
+                      className="h-7 w-7"
                     >
-                      {isDeleting &&
-                      hotelToDelete?.hotel_id === item.hotel_id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                      {isDeleting && hotelToDelete?.hotel_id === item.hotel_id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       )}
                     </Button>
                   </div>

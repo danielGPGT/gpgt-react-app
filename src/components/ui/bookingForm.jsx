@@ -564,31 +564,31 @@ function BookingForm({
 
   return (
     <Form {...form}>
-      <div className="w-8/12 max-w-6xl mx-auto">
+      <div className="w-full mx-auto">
         <form
           onSubmit={form.handleSubmit(handleSubmit)}
-          className="p-4 space-y-4 bg-card rounded-md border-[1px] border shadow-sm w-full max-w-6xl mx-auto"
+          className="p-3 space-y-2 bg-card rounded-md border-[1px] border shadow-sm w-full max-w-6xl mx-auto"
         >
           {/* Booking Reference */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <FormField
               control={form.control}
               name="booking_reference"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Booking Reference</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Booking Reference</FormLabel>
                   <div className="flex items-center gap-2">
                     <FormControl>
                       <Input 
                         value={form.getValues('booking_reference_prefix') || ''}
-                        className="bg-background font-mono w-[180px]"
+                        className="bg-background font-mono w-[180px] text-xs h-7"
                         readOnly 
                       />
                     </FormControl>
                     <FormControl>
                       <Input 
                         {...field}
-                        className="bg-background font-mono w-[80px]"
+                        className="bg-background font-mono w-[80px] text-xs h-7"
                         maxLength={4}
                         pattern="[0-9]*"
                         onChange={(e) => {
@@ -598,24 +598,24 @@ function BookingForm({
                       />
                     </FormControl>
                   </div>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
           </div>
 
           {/* Booker Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <FormField
               control={form.control}
               name="booker_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Booker Name</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Booker Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter booker's name" {...field} className="bg-background" />
+                    <Input placeholder="Enter booker's name" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -624,16 +624,16 @@ function BookingForm({
               name="booker_email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Booker Email</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Booker Email</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
                       placeholder="Enter booker's email"
                       {...field}
-                      className="bg-background"
+                      className="bg-background text-xs h-7"
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -642,28 +642,28 @@ function BookingForm({
               name="booker_phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Booker Phone</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Booker Phone</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter booker's phone" {...field} className="bg-background" />
+                    <Input placeholder="Enter booker's phone" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
           </div>
 
           {/* Address Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
             <FormField
               control={form.control}
               name="address_line_1"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Address Line 1</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Address Line 1</FormLabel>
                   <FormControl>
-                    <Input placeholder="Address Line 1" {...field} className="bg-background" />
+                    <Input placeholder="Address Line 1" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -672,11 +672,11 @@ function BookingForm({
               name="address_line_2"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Address Line 2</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Address Line 2</FormLabel>
                   <FormControl>
-                    <Input placeholder="Optional Address Line 2" {...field} className="bg-background" />
+                    <Input placeholder="Optional Address Line 2" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -685,11 +685,11 @@ function BookingForm({
               name="city"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">City</FormLabel>
+                  <FormLabel className="text-foreground text-xs">City</FormLabel>
                   <FormControl>
-                    <Input placeholder="City" {...field} className="bg-background" />
+                    <Input placeholder="City" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -698,11 +698,11 @@ function BookingForm({
               name="postcode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Postcode</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Postcode</FormLabel>
                   <FormControl>
-                    <Input placeholder="Postcode" {...field} className="bg-background" />
+                    <Input placeholder="Postcode" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -711,28 +711,28 @@ function BookingForm({
               name="country"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Country</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Country</FormLabel>
                   <FormControl>
-                    <Input placeholder="Country" {...field} className="bg-background" />
+                    <Input placeholder="Country" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
           </div>
 
           {/* Traveller Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
             <FormField
               control={form.control}
               name="lead_traveller_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Lead Traveller Name</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Lead Traveller Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Lead Traveller" {...field} className="bg-background" />
+                    <Input placeholder="Lead Traveller" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -742,11 +742,11 @@ function BookingForm({
               name="lead_traveller_phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Lead Traveller Phone</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Lead Traveller Phone</FormLabel>
                   <FormControl>
-                    <Input placeholder="Phone Number" {...field} className="bg-background" />
+                    <Input placeholder="Phone Number" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -756,16 +756,16 @@ function BookingForm({
               name="lead_traveller_email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Lead Traveller Email</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Lead Traveller Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="Email Address" {...field} className="bg-background" />
+                    <Input placeholder="Email Address" {...field} className="bg-background text-xs h-7" />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {Array.from({ length: Math.max(0, numberOfAdults - 1) }).map(
               (_, index) => (
                 <FormField
@@ -774,15 +774,15 @@ function BookingForm({
                   name={`guest_traveller_names.${index}`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground">Guest Traveller {index + 1} Name</FormLabel>
+                      <FormLabel className="text-foreground text-xs">Guest {index + 1} Name</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={`Guest Traveller ${index + 1}`}
+                          placeholder={`Guest ${index + 1}`}
                           {...field}
-                          className="bg-background"
+                          className="bg-background text-xs h-7"
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
@@ -790,20 +790,20 @@ function BookingForm({
             )}
           </div>
           {/* Booking Info */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-t border-border pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
             <FormField
               control={form.control}
               name="booking_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Booking Date</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Booking Date</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start text-left font-normal bg-background",
+                            "w-full justify-start text-left font-normal bg-background text-xs h-7",
                             !field.value && "text-muted-foreground"
                           )}
                         >
@@ -812,7 +812,7 @@ function BookingForm({
                           ) : (
                             <span>Pick a date</span>
                           )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
@@ -825,7 +825,7 @@ function BookingForm({
                       />
                     </PopoverContent>
                   </Popover>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -835,13 +835,13 @@ function BookingForm({
               name="acquisition"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Acquisition</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Acquisition</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full bg-background">
+                      <SelectTrigger className="w-full bg-background text-xs h-7">
                         <SelectValue placeholder="Acquisition source" />
                       </SelectTrigger>
                     </FormControl>
@@ -856,7 +856,7 @@ function BookingForm({
                       <SelectItem value="adwords">Adwords</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -865,13 +865,13 @@ function BookingForm({
               name="booking_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">Booking Type</FormLabel>
+                  <FormLabel className="text-foreground text-xs">Booking Type</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full bg-background">
+                      <SelectTrigger className="w-full bg-background text-xs h-7">
                         <SelectValue placeholder="Booking type" />
                       </SelectTrigger>
                     </FormControl>
@@ -880,7 +880,7 @@ function BookingForm({
                       <SelectItem value="provisional">Provisional</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -889,13 +889,13 @@ function BookingForm({
               name="atol_abtot"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground">ATOL/ABTOT</FormLabel>
+                  <FormLabel className="text-foreground text-xs">ATOL/ABTOT</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full bg-background">
+                      <SelectTrigger className="w-full bg-background text-xs h-7">
                         <SelectValue placeholder="ATOL/ABTOT" />
                       </SelectTrigger>
                     </FormControl>
@@ -905,34 +905,34 @@ function BookingForm({
                       <SelectItem value="na">N/A (Non EU)</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
           </div>
 
           {/* Payment Info */}
-          <div className="mb-4">
-            <div className="border-t border-border pt-3">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium">Payment Schedule</h3>
+          <div className="mb-2">
+            <div className="border-t border-border pt-2">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-medium">Payment Schedule</h3>
                 <div className="flex items-center gap-2">
                   <Switch
                     checked={customPayments}
                     onCheckedChange={setCustomPayments}
                     id="custom-payments"
                   />
-                  <Label htmlFor="custom-payments" className="text-sm">
+                  <Label htmlFor="custom-payments" className="text-xs">
                     Adjust Payment Schedule
                   </Label>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {[0, 1, 2].map((idx) => (
-                  <div className="space-y-2 p-3 rounded-md border bg-card" key={idx}>
+                  <div className="space-y-1 p-2 rounded-md border bg-card" key={idx}>
                     <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium">Payment {idx + 1}</label>
+                      <label className="text-xs font-medium">Payment {idx + 1}</label>
                       {customPayments && (
                         <span className="text-xs text-muted-foreground">
                           {paymentPercents[idx]}%
@@ -951,7 +951,7 @@ function BookingForm({
                               handlePaymentChange(idx, newPercent);
                             }}
                             className={cn(
-                              "w-24 bg-background h-9 text-base",
+                              "w-20 bg-background h-7 text-xs",
                               paymentPercents.reduce((sum, p) => sum + p, 0) !== 100 && "border-red-500"
                             )}
                             step="1"
@@ -959,12 +959,12 @@ function BookingForm({
                             max="100"
                             placeholder="0"
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">%</span>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">%</span>
                         </div>
                       </div>
                     )}
 
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <FormField
                         control={form.control}
                         name={`payment${idx + 1}_date`}
@@ -976,7 +976,7 @@ function BookingForm({
                                   <Button
                                     variant="outline"
                                     className={cn(
-                                      "w-full justify-start text-left font-normal bg-background h-8 text-xs",
+                                      "w-full justify-start text-left font-normal bg-background h-7 text-xs",
                                       !field.value && "text-muted-foreground"
                                     )}
                                   >
@@ -985,7 +985,7 @@ function BookingForm({
                                     ) : (
                                       <span>Select date</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -1003,7 +1003,7 @@ function BookingForm({
                       />
 
                       <div className="flex items-center justify-between">
-                        <div className="text-sm font-medium">
+                        <div className="text-xs font-medium">
                           {currencySymbols[selectedCurrency]}{paymentAmounts[idx].toFixed(2)}
                         </div>
                         <FormField
@@ -1015,7 +1015,7 @@ function BookingForm({
                                 <Checkbox
                                   checked={field.value}
                                   onCheckedChange={field.onChange}
-                                  className="h-4 w-4"
+                                  className="h-3 w-3"
                                 />
                               </FormControl>
                               <FormLabel className="text-xs">Paid</FormLabel>
@@ -1028,25 +1028,25 @@ function BookingForm({
                 ))}
               </div>
               
-              <div className="mt-3 px-3 py-2 rounded-md border bg-card flex justify-between items-center">
-                <span className="text-sm font-medium">Total</span>
-                <span className="text-lg font-semibold">
+              <div className="mt-2 px-2 py-1 rounded-md border bg-card flex justify-between items-center">
+                <span className="text-xs font-medium">Total</span>
+                <span className="text-sm font-semibold">
                   {currencySymbols[selectedCurrency]}{totalPrice.toFixed(2)}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-2">
             <Button 
               type="submit" 
-              size="lg" 
-              className="w-full"
+              size="default" 
+              className="w-full h-8 text-xs"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                   Submitting...
                 </>
               ) : (

@@ -19,6 +19,7 @@ import {
   Pencil,
   Eye,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import {
   Pagination,
@@ -51,6 +52,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
@@ -90,7 +94,25 @@ function BookingsTable() {
   const [viewingBooking, setViewingBooking] = useState(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const itemsPerPage = 10;
+  const itemsPerPage = 15;
+
+  // Add sorting state
+  const [sortColumn, setSortColumn] = useState("booking_date");
+  const [sortDirection, setSortDirection] = useState("asc");
+
+  // Define sortable columns
+  const sortColumns = [
+    { value: "booking_ref", label: "Booking Reference" },
+    { value: "status", label: "Status" },
+    { value: "event_name", label: "Event" },
+    { value: "package_type", label: "Package" },
+    { value: "booker_name", label: "Booker" },
+    { value: "booking_date", label: "Booking Date" },
+    { value: "total_cost", label: "Total Cost" },
+    { value: "total_sold_gbp", label: "Total Sold (GBP)" },
+    { value: "p&l", label: "P&L" },
+    { value: "payment_status", label: "Payment Status" }
+  ];
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -265,9 +287,9 @@ function BookingsTable() {
     ];
   };
 
-  // Filter functions
+  // Update the filterBookings function to include sorting
   const filterBookings = (items) => {
-    return items.filter((item) => {
+    let filtered = items.filter((item) => {
       const searchMatch =
         filters.search === "" ||
         Object.values(item).some((val) =>
@@ -309,6 +331,37 @@ function BookingsTable() {
         dateMatch
       );
     });
+
+    // Apply sorting
+    if (sortColumn) {
+      filtered.sort((a, b) => {
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+
+        // Handle numeric values
+        if (["total_cost", "total_sold_gbp", "p&l"].includes(sortColumn)) {
+          aVal = Number(aVal) || 0;
+          bVal = Number(bVal) || 0;
+          return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+        }
+
+        // Handle dates
+        if (sortColumn === "booking_date") {
+          aVal = new Date(aVal);
+          bVal = new Date(bVal);
+          return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+        }
+
+        // Handle strings
+        aVal = (aVal || "").toString().toLowerCase();
+        bVal = (bVal || "").toString().toLowerCase();
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
   };
 
   // Delete booking
@@ -665,40 +718,100 @@ function BookingsTable() {
       </div>
 
       <div className="rounded-md border">
+        <div className="flex items-center gap-2 p-2 justify-between">
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm" className="flex items-center gap-2">
+                  Sort <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                {sortColumns.map((col) => (
+                  <DropdownMenuItem
+                    key={col.value}
+                    onClick={() => setSortColumn(col.value)}
+                    className={
+                      sortColumn === col.value
+                        ? "font-semibold text-primary"
+                        : ""
+                    }
+                  >
+                    {col.label} {sortColumn === col.value && "✓"}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Direction</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("asc")}
+                  className={
+                    sortDirection === "asc"
+                      ? "font-semibold text-primary"
+                      : ""
+                  }
+                >
+                  Ascending {sortDirection === "asc" && "▲"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("desc")}
+                  className={
+                    sortDirection === "desc"
+                      ? "font-semibold text-primary"
+                      : ""
+                  }
+                >
+                  Descending {sortDirection === "desc" && "▼"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="text-sm text-muted-foreground">
+              Sorted by{" "}
+              <span className="font-medium">
+                {sortColumns.find((c) => c.value === sortColumn)?.label}
+              </span>{" "}
+              ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+            </span>
+          </div>
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Booking
+          </Button>
+        </div>
         <Table>
           <TableHeader className="bg-muted">
-            <TableRow>
-              <TableHead>Booking Ref</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Event</TableHead>
-              <TableHead>Package</TableHead>
-              <TableHead>Booker</TableHead>
-              <TableHead>Booking Date</TableHead>
-              <TableHead>Total Cost</TableHead>
-              <TableHead>Total Sold (GBP)</TableHead>
-              <TableHead>P&L</TableHead>
-              <TableHead>Payment Status</TableHead>
-              <TableHead>Actions</TableHead>
+            <TableRow className="hover:bg-muted">
+              <TableHead className="text-xs py-2">Booking Ref</TableHead>
+              <TableHead className="text-xs py-2">Status</TableHead>
+              <TableHead className="text-xs py-2">Event</TableHead>
+              <TableHead className="text-xs py-2">Package</TableHead>
+              <TableHead className="text-xs py-2">Booker</TableHead>
+              <TableHead className="text-xs py-2">Booking Date</TableHead>
+              <TableHead className="text-xs py-2">Total Cost</TableHead>
+              <TableHead className="text-xs py-2">Total Sold (GBP)</TableHead>
+              <TableHead className="text-xs py-2">P&L</TableHead>
+              <TableHead className="text-xs py-2">Payment Status</TableHead>
+              <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.map((booking) => (
-              <TableRow key={booking.booking_id}>
-                <TableCell className="font-medium">
+              <TableRow key={booking.booking_id} className="hover:bg-muted/50">
+                <TableCell className="text-xs py-1.5 font-medium">
                   {booking.booking_ref}
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs py-1.5">
                   <Badge variant="secondary">{booking.status}</Badge>
                 </TableCell>
-                <TableCell>{booking.event_name}</TableCell>
-                <TableCell>{booking.package_type}</TableCell>
-                <TableCell>{booking.booker_name}</TableCell>
-                <TableCell>{booking.booking_date}</TableCell>
-                <TableCell>£ {booking.total_cost.toLocaleString()}</TableCell>
-                <TableCell>
+                <TableCell className="text-xs py-1.5">{booking.event_name}</TableCell>
+                <TableCell className="text-xs py-1.5">{booking.package_type}</TableCell>
+                <TableCell className="text-xs py-1.5">{booking.booker_name}</TableCell>
+                <TableCell className="text-xs py-1.5">{booking.booking_date}</TableCell>
+                <TableCell className="text-xs py-1.5">£ {booking.total_cost.toLocaleString()}</TableCell>
+                <TableCell className="text-xs py-1.5">
                   £ {booking.total_sold_gbp.toLocaleString()}
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs py-1.5">
                   <span
                     className={
                       booking["p&l"] >= 0 ? "text-success" : "text-destructive"
@@ -707,7 +820,7 @@ function BookingsTable() {
                     £ {booking["p&l"].toLocaleString()}
                   </span>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs py-1.5">
                   <Badge
                     className={`${
                       booking.payment_status === "Paid"
@@ -720,8 +833,8 @@ function BookingsTable() {
                     {booking.payment_status}
                   </Badge>
                 </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
+                <TableCell className="text-xs py-1.5">
+                  <div className="flex gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -729,8 +842,9 @@ function BookingsTable() {
                         setViewingBooking(booking);
                         setIsViewDialogOpen(true);
                       }}
+                      className="h-7 w-7"
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -739,15 +853,17 @@ function BookingsTable() {
                         setEditingBooking(booking);
                         setIsEditDialogOpen(true);
                       }}
+                      className="h-7 w-7"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteBooking(booking.booking_id)}
+                      className="h-7 w-7"
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </div>
                 </TableCell>

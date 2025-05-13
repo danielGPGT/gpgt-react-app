@@ -81,7 +81,7 @@ function TicketTable() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState(null);
-  const itemsPerPage = 10;
+  const itemsPerPage = 15;
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -111,7 +111,7 @@ function TicketTable() {
     ordered: false,
     paid: false,
     tickets_received: false,
-    markup: "0%",
+    markup: "55%",
     event_days: "",
     ticket_type: "",
     video_wall: false,
@@ -2030,9 +2030,9 @@ function TicketTable() {
         </div>
         <Table>
           <TableHeader className="bg-muted">
-            <TableRow>
+            <TableRow className="hover:bg-muted">
               {isSelectionMode && (
-                <TableHead className="w-[50px]">
+                <TableHead className="w-[50px] text-xs py-2">
                   <Checkbox
                     checked={selectedTickets.length === currentItems.length}
                     onCheckedChange={handleSelectAll}
@@ -2041,260 +2041,113 @@ function TicketTable() {
                   />
                 </TableHead>
               )}
-              <TableHead>Event</TableHead>
-              <TableHead>Ticket Name</TableHead>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Reference</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Used</TableHead>
-              <TableHead>Remaining</TableHead>
-              <TableHead>Unit Cost (GBP)</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="text-xs py-2">Event</TableHead>
+              <TableHead className="text-xs py-2">Ticket Name</TableHead>
+              <TableHead className="text-xs py-2">Supplier</TableHead>
+              <TableHead className="text-xs py-2">Reference</TableHead>
+              <TableHead className="text-xs py-2">Stock</TableHead>
+              <TableHead className="text-xs py-2">Used</TableHead>
+              <TableHead className="text-xs py-2">Remaining</TableHead>
+              <TableHead className="text-xs py-2">Unit Cost (GBP)</TableHead>
+              <TableHead className="text-xs py-2">Status</TableHead>
+              <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentItems.map((item) => {
-              const isEditing = editingCell.rowId === item.ticket_id;
-              const remaining = item.remaining;
-              const isPTO = remaining === "purchased_to_order";
-
-              return (
-                <TableRow key={item.ticket_id}>
-                  {isSelectionMode && (
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedTickets.includes(item.ticket_id)}
-                        onCheckedChange={(checked) =>
-                          handleSelectTicket(item.ticket_id, checked)
-                        }
-                        aria-label={`Select ${item.ticket_name}`}
-                        className="h-4 w-4"
-                      />
-                    </TableCell>
-                  )}
-                  <TableCell className="font-medium">{item.event}</TableCell>
-                  <TableCell>
-                    {isEditing && editingCell.field === "ticket_name" ? (
-                      <Input
-                        value={cellValue}
-                        onChange={(e) => setCellValue(e.target.value)}
-                        onBlur={() =>
-                          handleCellSave(item.ticket_id, "ticket_name")
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            handleCellSave(item.ticket_id, "ticket_name");
-                          if (e.key === "Escape") handleCellCancel();
-                        }}
-                        autoFocus
-                      />
-                    ) : (
-                      <div
-                        onClick={() =>
-                          handleCellEdit(
-                            item.ticket_id,
-                            "ticket_name",
-                            item.ticket_name
-                          )
-                        }
-                      >
-                        {item.ticket_name}
-                      </div>
-                    )}
+            {currentItems.map((item) => (
+              <TableRow key={item.ticket_id} className="hover:bg-muted/50">
+                {isSelectionMode && (
+                  <TableCell className="text-xs py-1.5">
+                    <Checkbox
+                      checked={selectedTickets.includes(item.ticket_id)}
+                      onCheckedChange={(checked) =>
+                        handleSelectTicket(item.ticket_id, checked)
+                      }
+                      aria-label={`Select ${item.ticket_name}`}
+                      className="h-4 w-4"
+                    />
                   </TableCell>
-                  <TableCell>
-                    {isEditing && editingCell.field === "supplier" ? (
-                      <Input
-                        value={cellValue}
-                        onChange={(e) => setCellValue(e.target.value)}
-                        onBlur={() =>
-                          handleCellSave(item.ticket_id, "supplier")
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            handleCellSave(item.ticket_id, "supplier");
-                          if (e.key === "Escape") handleCellCancel();
-                        }}
-                        autoFocus
-                      />
-                    ) : (
-                      <div
-                        onClick={() =>
-                          handleCellEdit(
-                            item.ticket_id,
-                            "supplier",
-                            item.supplier
-                          )
-                        }
-                      >
-                        {item.supplier}
-                      </div>
+                )}
+                <TableCell className="text-xs py-1.5 font-medium">{item.event}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.ticket_name}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.supplier}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.ref}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.actual_stock}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.used}</TableCell>
+                <TableCell className="text-xs py-1.5">
+                  <Badge
+                    variant="outline"
+                    className={`font-medium ${
+                      item.remaining === "purchased_to_order"
+                        ? "bg-info/10"
+                        : Number(item.remaining) < 5
+                        ? "bg-primary/10"
+                        : Number(item.remaining) < 10
+                        ? "bg-warning/10"
+                        : "bg-success/10"
+                    }`}
+                  >
+                    {item.remaining === "purchased_to_order" ? "PTO" : item.remaining}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-xs py-1.5">
+                  £{typeof item["unit_cost_(gbp)"] === "number"
+                    ? item["unit_cost_(gbp)"].toFixed(2)
+                    : "0.00"}
+                </TableCell>
+                <TableCell className="text-xs py-1.5">
+                  <div className="flex items-center gap-1">
+                    {item.ordered && (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Ordered
+                      </Badge>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    {isEditing && editingCell.field === "ref" ? (
-                      <Input
-                        value={cellValue}
-                        onChange={(e) => setCellValue(e.target.value)}
-                        onBlur={() => handleCellSave(item.ticket_id, "ref")}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            handleCellSave(item.ticket_id, "ref");
-                          if (e.key === "Escape") handleCellCancel();
-                        }}
-                        autoFocus
-                      />
-                    ) : (
-                      <div
-                        onClick={() =>
-                          handleCellEdit(item.ticket_id, "ref", item.ref)
-                        }
-                      >
-                        {item.ref}
-                      </div>
+                    {item.paid && (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Paid
+                      </Badge>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    {isEditing && editingCell.field === "actual_stock" ? (
-                      <Input
-                        type="number"
-                        value={cellValue}
-                        onChange={(e) => setCellValue(e.target.value)}
-                        onBlur={() =>
-                          handleCellSave(item.ticket_id, "actual_stock")
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            handleCellSave(item.ticket_id, "actual_stock");
-                          if (e.key === "Escape") handleCellCancel();
-                        }}
-                        autoFocus
-                      />
-                    ) : (
-                      <div
-                        onClick={() =>
-                          handleCellEdit(
-                            item.ticket_id,
-                            "actual_stock",
-                            item.actual_stock
-                          )
-                        }
-                      >
-                        {item.actual_stock}
-                      </div>
+                    {item.tickets_received && (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Received
+                      </Badge>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    {isEditing && editingCell.field === "used" ? (
-                      <Input
-                        type="number"
-                        value={cellValue}
-                        onChange={(e) => setCellValue(e.target.value)}
-                        onBlur={() => handleCellSave(item.ticket_id, "used")}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            handleCellSave(item.ticket_id, "used");
-                          if (e.key === "Escape") handleCellCancel();
-                        }}
-                        autoFocus
-                      />
-                    ) : (
-                      <div
-                        onClick={() =>
-                          handleCellEdit(item.ticket_id, "used", item.used)
-                        }
-                      >
-                        {item.used}
-                      </div>
+                    {item.is_provsional && (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <XCircle className="h-3 w-3" />
+                        Provisional
+                      </Badge>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={`font-medium ${
-                        isPTO
-                          ? "bg-info/10"
-                          : remaining < 5
-                          ? "bg-primary/10"
-                          : remaining < 10
-                          ? "bg-warning/10"
-                          : "bg-success/10"
-                      }`}
+                  </div>
+                </TableCell>
+                <TableCell className="text-xs py-1.5">
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setEditingTicket(item);
+                        setIsEditDialogOpen(true);
+                      }}
+                      className="h-7 w-7"
                     >
-                      {isPTO ? "PTO" : remaining}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    £
-                    {typeof item["unit_cost_(gbp)"] === "number"
-                      ? item["unit_cost_(gbp)"].toFixed(2)
-                      : "0.00"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {item.ordered && (
-                        <Badge
-                          variant="outline"
-                          className="flex items-center gap-1"
-                        >
-                          <CheckCircle2 className="h-3 w-3" />
-                          Ordered
-                        </Badge>
-                      )}
-                      {item.paid && (
-                        <Badge
-                          variant="outline"
-                          className="flex items-center gap-1"
-                        >
-                          <CheckCircle2 className="h-3 w-3" />
-                          Paid
-                        </Badge>
-                      )}
-                      {item.tickets_received && (
-                        <Badge
-                          variant="outline"
-                          className="flex items-center gap-1"
-                        >
-                          <CheckCircle2 className="h-3 w-3" />
-                          Received
-                        </Badge>
-                      )}
-                      {item.is_provsional && (
-                        <Badge
-                          variant="outline"
-                          className="flex items-center gap-1"
-                        >
-                          <XCircle className="h-3 w-3" />
-                          Provisional
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setEditingTicket(item);
-                          setIsEditDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteTicket(item.ticket_id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteTicket(item.ticket_id)}
+                      className="h-7 w-7"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>

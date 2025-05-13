@@ -92,7 +92,7 @@ function UsersTable() {
   });
   const [sortColumn, setSortColumn] = useState("first_name");
   const [sortDirection, setSortDirection] = useState("asc");
-  const usersPerPage = 10;
+  const usersPerPage = 15;
 
   useEffect(() => {
     async function fetchUsers() {

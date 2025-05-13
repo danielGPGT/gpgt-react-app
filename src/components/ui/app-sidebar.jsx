@@ -142,6 +142,35 @@ const menuItems = [
       },
     ],
   },
+  {
+    title: "Payments",
+    icon: BadgePoundSterling,
+    allowedRoles: ["Admin"],
+    subItems: [
+      {
+        title: "Ticket Payments",
+        url: "/",
+        icon: Ticket,
+      },
+      {
+        title: "Hotel Payments",
+        url: "/",
+        icon: Hotel,
+      },
+      {
+        title: "Circuit Payments",
+        url: "/",
+        icon: Bus,
+      },
+      {
+        title: "Airport Payments",
+        url: "/",
+        icon: Bus,
+      },
+      
+    ],
+  },
+  
 ];
 
 export function AppSidebar() {
@@ -241,7 +270,10 @@ export function AppSidebar() {
                             !isActive && "text-foreground hover:bg-muted hover:text-foreground"
                           )}
                         >
-                          <item.icon className="!w-4 !h-4" />
+                          <item.icon className={cn(
+                            "!w-4 !h-4",
+                            isActive ? "text-primary-foreground" : "text-primary"
+                          )} />
                           <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
                           <ChevronDown 
                             className={cn(
@@ -260,7 +292,10 @@ export function AppSidebar() {
                                 className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                               >
                                 <a href={subItem.url} className="flex items-center gap-2">
-                                  <subItem.icon className="!w-4 !h-4" />
+                                  <subItem.icon className={cn(
+                                    "!w-4 !h-4",
+                                    location.pathname === subItem.url ? "text-primary-foreground" : "text-primary"
+                                  )} />
                                   <span>{subItem.title}</span>
                                 </a>
                               </SidebarMenuButton>
@@ -284,7 +319,10 @@ export function AppSidebar() {
                       )}
                     >
                       <a href={item.url} className="flex items-center gap-2">
-                        <item.icon className="!w-4 !h-4" />
+                        <item.icon className={cn(
+                          "!w-4 !h-4",
+                          isActive ? "text-primary-foreground" : "text-primary"
+                        )} />
                         <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
                       </a>
                     </SidebarMenuButton>
@@ -306,7 +344,10 @@ export function AppSidebar() {
                 className="flex items-center gap-2 text-foreground hover:bg-muted hover:text-foreground"
               >
                 <a href="/settings" className="flex items-center gap-2">
-                  <Settings className="!w-4 !h-4" />
+                  <Settings className={cn(
+                    "!w-4 !h-4",
+                    location.pathname === "/settings" ? "text-primary-foreground" : "text-primary"
+                  )} />
                   <span className="group-data-[collapsible=icon]:hidden">Settings</span>
                 </a>
               </SidebarMenuButton>
@@ -318,7 +359,10 @@ export function AppSidebar() {
                 className="flex items-center gap-2 text-foreground hover:bg-muted hover:text-foreground"
               >
                 <a href="/documentation" className="flex items-center gap-2">
-                  <BookOpen className="!w-4 !h-4" />
+                  <BookOpen className={cn(
+                    "!w-4 !h-4",
+                    location.pathname === "/documentation" ? "text-primary-foreground" : "text-primary"
+                  )} />
                   <span className="group-data-[collapsible=icon]:hidden">Documentation</span>
                 </a>
               </SidebarMenuButton>
@@ -330,7 +374,10 @@ export function AppSidebar() {
                 className="flex items-center gap-2 text-foreground hover:bg-muted hover:text-foreground"
               >
                 <a href="/instructions" className="flex items-center gap-2">
-                  <HelpCircle className="!w-4 !h-4" />
+                  <HelpCircle className={cn(
+                    "!w-4 !h-4",
+                    location.pathname === "/instructions" ? "text-primary-foreground" : "text-primary"
+                  )} />
                   <span className="group-data-[collapsible=icon]:hidden">Instructions</span>
                 </a>
               </SidebarMenuButton>
@@ -380,17 +427,23 @@ export function AppSidebar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem>
               <a href="/dashboard" className="flex items-center">
-                <Gauge className="w-4 h-4 mr-2" /> My Dashboard
+                <Gauge className={cn(
+                  "w-4 h-4 mr-2",
+                  location.pathname === "/dashboard" ? "text-primary-foreground" : "text-primary"
+                )} /> My Dashboard
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <a href="/my-account" className="flex items-center">
-                  <User className="w-4 h-4 mr-0" /> My Account
+                  <User className={cn(
+                    "w-4 h-4 mr-0",
+                    location.pathname === "/my-account" ? "text-primary-foreground" : "text-primary"
+                  )} /> My Account
                 </a>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="w-4 h-4 mr-0" /> Log out
+                <LogOut className="w-4 h-4 mr-0 text-primary" /> Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

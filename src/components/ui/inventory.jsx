@@ -2,6 +2,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketTable } from "@/components/ui/ticketTable";
 import { RoomsTable } from "@/components/ui/roomsTable";
 import { HotelsTable } from "@/components/ui/hotelsTable";
+import { LoungePassTable } from "@/components/ui/LoungePassTable";
+import { AirportTransferTable } from "@/components/ui/airportTransferTable";
 import {
   Card,
   CardContent,
@@ -71,19 +73,7 @@ function Inventory({ defaultTab = "tickets", onTabChange }) {
         </TabsContent>
 
         <TabsContent value="airport" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Airport Transfer Inventory</CardTitle>
-              <CardDescription>
-                Manage airport transfer inventory
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center text-muted-foreground py-8">
-                Airport transfer inventory management coming soon...
-              </div>
-            </CardContent>
-          </Card>
+          <AirportTransferTable />
         </TabsContent>
 
         <TabsContent value="flights" className="mt-6">
@@ -101,17 +91,7 @@ function Inventory({ defaultTab = "tickets", onTabChange }) {
         </TabsContent>
 
         <TabsContent value="lounge" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Lounge Pass Inventory</CardTitle>
-              <CardDescription>Manage lounge pass inventory</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center text-muted-foreground py-8">
-                Lounge pass inventory management coming soon...
-              </div>
-            </CardContent>
-          </Card>
+          <LoungePassTable />
         </TabsContent>
       </Tabs>
     </div>

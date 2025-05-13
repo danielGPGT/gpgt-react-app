@@ -66,9 +66,10 @@ function PackagesTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 15;
   const [eventFilter, setEventFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [events, setEvents] = useState([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -138,7 +139,12 @@ function PackagesTable() {
     let result = packages.filter((pkg) => {
       const eventMatch = eventFilter === "all" || pkg.event === eventFilter;
       const typeMatch = typeFilter === "all" || pkg.package_type === typeFilter;
-      return eventMatch && typeMatch;
+      const searchMatch = searchQuery === "" || 
+        pkg.event.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pkg.package_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pkg.package_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (pkg.url && pkg.url.toLowerCase().includes(searchQuery.toLowerCase()));
+      return eventMatch && typeMatch && searchMatch;
     });
     // Sorting
     if (sortColumn) {
@@ -151,12 +157,12 @@ function PackagesTable() {
       });
     }
     return result;
-  }, [packages, eventFilter, typeFilter, sortColumn, sortDirection]);
+  }, [packages, eventFilter, typeFilter, sortColumn, sortDirection, searchQuery]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [eventFilter, typeFilter]);
+  }, [eventFilter, typeFilter, searchQuery]);
 
   // Add/Edit form state
   const initialPackageState = {
@@ -408,6 +414,12 @@ function PackagesTable() {
       {/* Filters */}
       <div className="flex items-end gap-2 justify-between">
         <div className="flex gap-4 items-center">
+          <Input
+            placeholder="Search packages..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-[300px]"
+          />
           <Combobox
             options={[
               { value: "all", label: "All Events" },
@@ -463,83 +475,71 @@ function PackagesTable() {
 
       {/* Table */}
       <div className="rounded-md border">
+        <div className="flex items-center gap-2 p-2 justify-between">
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm" className="flex items-center gap-2">
+                  Sort <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                {sortColumns.map((col) => (
+                  <DropdownMenuItem
+                    key={col.value}
+                    onClick={() => setSortColumn(col.value)}
+                    className={
+                      sortColumn === col.value
+                        ? "font-semibold text-primary"
+                        : ""
+                    }
+                  >
+                    {col.label} {sortColumn === col.value && "✓"}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Direction</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("asc")}
+                  className={
+                    sortDirection === "asc"
+                      ? "font-semibold text-primary"
+                      : ""
+                  }
+                >
+                  Ascending {sortDirection === "asc" && "▲"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("desc")}
+                  className={
+                    sortDirection === "desc"
+                      ? "font-semibold text-primary"
+                      : ""
+                  }
+                >
+                  Descending {sortDirection === "desc" && "▼"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="text-sm text-muted-foreground">
+              Sorted by{" "}
+              <span className="font-medium">
+                {sortColumns.find((c) => c.value === sortColumn)?.label}
+              </span>{" "}
+              ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+            </span>
+          </div>
+          <Button onClick={openAddDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Package
+          </Button>
+        </div>
         <Table>
           <TableHeader className="bg-muted">
-            <TableRow className="bg-background">
-              <TableHead
-                colSpan={isSelectionMode ? 8 : 7}
-                className="p-2 align-middle"
-              >
-                <div className="flex items-center gap-2 justify-between">
-                  <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="flex items-center gap-2"
-                        >
-                          Sort <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                        {sortColumns.map((col) => (
-                          <DropdownMenuItem
-                            key={col.value}
-                            onClick={() => setSortColumn(col.value)}
-                            className={
-                              sortColumn === col.value
-                                ? "font-semibold text-primary"
-                                : ""
-                            }
-                          >
-                            {col.label} {sortColumn === col.value && "✓"}
-                          </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Direction</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => setSortDirection("asc")}
-                          className={
-                            sortDirection === "asc"
-                              ? "font-semibold text-primary"
-                              : ""
-                          }
-                        >
-                          Ascending {sortDirection === "asc" && "▲"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setSortDirection("desc")}
-                          className={
-                            sortDirection === "desc"
-                              ? "font-semibold text-primary"
-                              : ""
-                          }
-                        >
-                          Descending {sortDirection === "desc" && "▼"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <span className="text-sm text-muted-foreground">
-                      Sorted by{" "}
-                      <span className="font-medium">
-                        {sortColumns.find((c) => c.value === sortColumn)?.label}
-                      </span>{" "}
-                      ({sortDirection === "asc" ? "A-Z" : "Z-A"})
-                    </span>
-                  </div>
-
-                  <Button onClick={openAddDialog}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Package
-                  </Button>
-                </div>
-              </TableHead>
-            </TableRow>
-            <TableRow>
+            <TableRow className="hover:bg-muted">
               {isSelectionMode && (
-                <TableHead className="w-[50px]">
+                <TableHead className="w-[50px] text-xs py-2">
                   <Checkbox
                     checked={selectedPackages.length === currentItems.length}
                     onCheckedChange={handleSelectAll}
@@ -548,19 +548,19 @@ function PackagesTable() {
                   />
                 </TableHead>
               )}
-              <TableHead>Event</TableHead>
-              <TableHead>Package Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>URL</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="text-xs py-2">Event</TableHead>
+              <TableHead className="text-xs py-2">Package Name</TableHead>
+              <TableHead className="text-xs py-2">Type</TableHead>
+              <TableHead className="text-xs py-2">URL</TableHead>
+              <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.length > 0 ? (
               currentItems.map((pkg) => (
-                <TableRow key={pkg.package_id}>
+                <TableRow key={pkg.package_id} className="hover:bg-muted/50">
                   {isSelectionMode && (
-                    <TableCell>
+                    <TableCell className="text-xs py-1.5">
                       <Checkbox
                         checked={selectedPackages.includes(pkg.package_id)}
                         onCheckedChange={(checked) =>
@@ -571,10 +571,10 @@ function PackagesTable() {
                       />
                     </TableCell>
                   )}
-                  <TableCell>{pkg.event}</TableCell>
-                  <TableCell>{pkg.package_name}</TableCell>
-                  <TableCell>{pkg.package_type}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs py-1.5">{pkg.event}</TableCell>
+                  <TableCell className="text-xs py-1.5">{pkg.package_name}</TableCell>
+                  <TableCell className="text-xs py-1.5">{pkg.package_type}</TableCell>
+                  <TableCell className="text-xs py-1.5">
                     {pkg.url ? (
                       <a
                         href={pkg.url}
@@ -588,26 +588,28 @@ function PackagesTable() {
                       <span className="text-muted-foreground">N/A</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+                  <TableCell className="text-xs py-1.5">
+                    <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => openEditDialog(pkg)}
+                        className="h-7 w-7"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteClick(pkg)}
                         disabled={isDeleting}
+                        className="h-7 w-7"
                       >
                         {isDeleting &&
                         packageToDelete?.package_id === pkg.package_id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         )}
                       </Button>
                     </div>
@@ -617,8 +619,8 @@ function PackagesTable() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={isSelectionMode ? 8 : 7}
-                  className="text-center text-muted-foreground"
+                  colSpan={isSelectionMode ? 6 : 5}
+                  className="text-center text-muted-foreground text-xs py-1.5"
                 >
                   No packages found.
                 </TableCell>

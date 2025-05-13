@@ -62,9 +62,10 @@ function TiersTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 15;
   const [packageFilter, setPackageFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [packages, setPackages] = useState([]);
   const [hotels, setHotels] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -139,10 +140,31 @@ function TiersTable() {
   // Filtered and sorted tiers
   const filteredTiers = useMemo(() => {
     let result = tiers.filter((tier) => {
-      const packageMatch =
-        packageFilter === "all" || tier.package_name === packageFilter;
+      const packageMatch = packageFilter === "all" || tier.package_name === packageFilter;
       const typeMatch = typeFilter === "all" || tier.tier_type === typeFilter;
-      return packageMatch && typeMatch;
+      const searchMatch = searchQuery === "" || 
+        tier.package_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tier.tier_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tier.ticket_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (() => {
+          const hotel = hotels.find(h => h.hotel_id === tier.hotel_id);
+          return hotel ? hotel.hotel_name.toLowerCase().includes(searchQuery.toLowerCase()) : false;
+        })() ||
+        (() => {
+          const room = rooms.find(r => r.room_id === tier.room_id);
+          return room ? 
+            `${room.room_category || ""} ${room.room_type || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) : 
+            false;
+        })() ||
+        (() => {
+          const ct = circuitTransfers.find(c => c.circuit_transfer_id === tier.circuit_transfer_id);
+          return ct ? ct.transport_type.toLowerCase().includes(searchQuery.toLowerCase()) : false;
+        })() ||
+        (() => {
+          const at = airportTransfers.find(a => a.airport_transfer_id === tier.airport_transfer_id);
+          return at ? at.transport_type.toLowerCase().includes(searchQuery.toLowerCase()) : false;
+        })();
+      return packageMatch && typeMatch && searchMatch;
     });
     // Sorting
     if (sortColumn) {
@@ -155,12 +177,12 @@ function TiersTable() {
       });
     }
     return result;
-  }, [tiers, packageFilter, typeFilter, sortColumn, sortDirection]);
+  }, [tiers, packageFilter, typeFilter, sortColumn, sortDirection, searchQuery, hotels, rooms, circuitTransfers, airportTransfers]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [packageFilter, typeFilter]);
+  }, [packageFilter, typeFilter, searchQuery]);
 
   // Add/Edit form state
   const initialTierState = {
@@ -516,130 +538,128 @@ function TiersTable() {
 
       {/* Filters */}
       <div className="flex gap-2 justify-between items-end">
-      <div className="flex gap-4 items-center">
-        <Combobox
-          options={[
-            { value: "all", label: "All Packages" },
-            ...packageOptions.map((pkg) => ({ value: pkg, label: pkg })),
-          ]}
-          value={packageFilter}
-          onChange={setPackageFilter}
-          placeholder="Filter by Package"
-          className="w-[300px]"
-        />
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {typeOptions.map((type) => (
-              <SelectItem key={type} value={type}>
-                {type}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-4 items-center">
+          <Input
+            placeholder="Search tiers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-[300px]"
+          />
+          <Combobox
+            options={[
+              { value: "all", label: "All Packages" },
+              ...packageOptions.map((pkg) => ({ value: pkg, label: pkg })),
+            ]}
+            value={packageFilter}
+            onChange={setPackageFilter}
+            placeholder="Filter by Package"
+            className="w-[300px]"
+          />
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {typeOptions.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          // onClick={toggleSelectionMode} // Uncomment and implement toggleSelectionMode when adding logic
+        >
+          Bulk Actions
+        </Button>
       </div>
-          <Button
-            variant="outline"
-            size="sm"
-            // onClick={toggleSelectionMode} // Uncomment and implement toggleSelectionMode when adding logic
-          >
-            Bulk Actions
-          </Button>
-          </div>
       {/* Table */}
       <div className="rounded-md border">
+        <div className="flex items-center gap-2 p-2 justify-between">
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm" className="flex items-center gap-2">
+                  Sort <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                {sortColumns.map((col) => (
+                  <DropdownMenuItem
+                    key={col.value}
+                    onClick={() => setSortColumn(col.value)}
+                    className={
+                      sortColumn === col.value
+                        ? "font-semibold text-primary"
+                        : ""
+                    }
+                  >
+                    {col.label} {sortColumn === col.value && "✓"}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Direction</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("asc")}
+                  className={
+                    sortDirection === "asc"
+                      ? "font-semibold text-primary"
+                      : ""
+                  }
+                >
+                  Ascending {sortDirection === "asc" && "▲"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("desc")}
+                  className={
+                    sortDirection === "desc"
+                      ? "font-semibold text-primary"
+                      : ""
+                  }
+                >
+                  Descending {sortDirection === "desc" && "▼"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="text-sm text-muted-foreground">
+              Sorted by{" "}
+              <span className="font-medium">
+                {sortColumns.find((c) => c.value === sortColumn)?.label}
+              </span>{" "}
+              ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+            </span>
+          </div>
+          <Button onClick={openAddDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Tier
+          </Button>
+        </div>
         <Table>
           <TableHeader className="bg-muted">
-            <TableRow>
-              <TableHead colSpan={8} className="p-2 align-middle">
-                <div className="flex items-center gap-2 justify-between">
-                  <div className="flex items-center gap-2 ">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="flex items-center gap-2"
-                        >
-                          Sort <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                        {sortColumns.map((col) => (
-                          <DropdownMenuItem
-                            key={col.value}
-                            onClick={() => setSortColumn(col.value)}
-                            className={
-                              sortColumn === col.value
-                                ? "font-semibold text-primary"
-                                : ""
-                            }
-                          >
-                            {col.label} {sortColumn === col.value && "✓"}
-                          </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Direction</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => setSortDirection("asc")}
-                          className={
-                            sortDirection === "asc"
-                              ? "font-semibold text-primary"
-                              : ""
-                          }
-                        >
-                          Ascending {sortDirection === "asc" && "▲"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setSortDirection("desc")}
-                          className={
-                            sortDirection === "desc"
-                              ? "font-semibold text-primary"
-                              : ""
-                          }
-                        >
-                          Descending {sortDirection === "desc" && "▼"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <span className="text-sm text-muted-foreground">
-                      Sorted by{" "}
-                      <span className="font-medium">
-                        {sortColumns.find((c) => c.value === sortColumn)?.label}
-                      </span>{" "}
-                      ({sortDirection === "asc" ? "A-Z" : "Z-A"})
-                    </span>
-                  </div>
-                  <Button onClick={openAddDialog}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Tier
-                  </Button>
-                </div>
-              </TableHead>
-            </TableRow>
-            <TableRow>
-              <TableHead>Package</TableHead>
-              <TableHead>Tier Type</TableHead>
-              <TableHead>Ticket</TableHead>
-              <TableHead>Hotel</TableHead>
-              <TableHead>Room</TableHead>
-              <TableHead>Circuit Transfer</TableHead>
-              <TableHead>Airport Transfer</TableHead>
-              <TableHead>Actions</TableHead>
+            <TableRow className="hover:bg-muted">
+              <TableHead className="text-xs py-2">Package</TableHead>
+              <TableHead className="text-xs py-2">Tier Type</TableHead>
+              <TableHead className="text-xs py-2">Ticket</TableHead>
+              <TableHead className="text-xs py-2">Hotel</TableHead>
+              <TableHead className="text-xs py-2">Room</TableHead>
+              <TableHead className="text-xs py-2">Circuit Transfer</TableHead>
+              <TableHead className="text-xs py-2">Airport Transfer</TableHead>
+              <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.length > 0 ? (
               currentItems.map((tier) => (
-                <TableRow key={tier.tier_id}>
-                  <TableCell>{tier.package_name}</TableCell>
-                  <TableCell>{tier.tier_type}</TableCell>
-                  <TableCell>{tier.ticket_name}</TableCell>
-                  <TableCell>
+                <TableRow key={tier.tier_id} className="hover:bg-muted/50">
+                  <TableCell className="text-xs py-1.5">{tier.package_name}</TableCell>
+                  <TableCell className="text-xs py-1.5">{tier.tier_type}</TableCell>
+                  <TableCell className="text-xs py-1.5">{tier.ticket_name}</TableCell>
+                  <TableCell className="text-xs py-1.5">
                     {(() => {
                       const hotel = hotels.find(
                         (h) => h.hotel_id === tier.hotel_id
@@ -647,7 +667,7 @@ function TiersTable() {
                       return hotel ? hotel.hotel_name : tier.hotel_id || "N/A";
                     })()}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs py-1.5">
                     {(() => {
                       const room = rooms.find(
                         (r) => r.room_id === tier.room_id
@@ -659,7 +679,7 @@ function TiersTable() {
                         : tier.room_id || "N/A";
                     })()}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs py-1.5">
                     {(() => {
                       const ct = circuitTransfers.find(
                         (c) =>
@@ -670,7 +690,7 @@ function TiersTable() {
                         : tier.circuit_transfer_id || "N/A";
                     })()}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs py-1.5">
                     {(() => {
                       const at = airportTransfers.find(
                         (a) =>
@@ -681,26 +701,28 @@ function TiersTable() {
                         : tier.airport_transfer_id || "N/A";
                     })()}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+                  <TableCell className="text-xs py-1.5">
+                    <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => openEditDialog(tier)}
+                        className="h-7 w-7"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteClick(tier)}
                         disabled={isDeleting}
+                        className="h-7 w-7"
                       >
                         {isDeleting &&
                         tierToDelete?.tier_id === tier.tier_id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         )}
                       </Button>
                     </div>
@@ -711,7 +733,7 @@ function TiersTable() {
               <TableRow>
                 <TableCell
                   colSpan={8}
-                  className="text-center text-muted-foreground"
+                  className="text-center text-muted-foreground text-xs py-1.5"
                 >
                   No tiers found.
                 </TableCell>

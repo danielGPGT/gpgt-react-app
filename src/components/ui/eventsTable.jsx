@@ -65,9 +65,10 @@ function EventsTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 15;
   const [sportFilter, setSportFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -144,7 +145,12 @@ function EventsTable() {
     let result = events.filter((event) => {
       const sportMatch = sportFilter === "all" || event.sport === sportFilter;
       const cityMatch = cityFilter === "all" || event.city === cityFilter;
-      return sportMatch && cityMatch;
+      const searchMatch = searchQuery === "" || 
+        event.event.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.sport.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.city.toLowerCase().includes(searchQuery.toLowerCase());
+      return sportMatch && cityMatch && searchMatch;
     });
     // Sorting
     if (sortColumn) {
@@ -157,12 +163,12 @@ function EventsTable() {
       });
     }
     return result;
-  }, [events, sportFilter, cityFilter, sortColumn, sortDirection]);
+  }, [events, sportFilter, cityFilter, sortColumn, sortDirection, searchQuery]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [sportFilter, cityFilter]);
+  }, [sportFilter, cityFilter, searchQuery]);
 
   // Add/Edit form state
   const initialEventState = {
@@ -407,6 +413,12 @@ function EventsTable() {
       {/* Filters */}
       <div className="flex items-end gap-2 justify-between">
         <div className="flex gap-4 items-center">
+          <Input
+            placeholder="Search events..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-[300px]"
+          />
           <Combobox
             options={[
               { value: "all", label: "All Sports" },
@@ -462,83 +474,71 @@ function EventsTable() {
 
       {/* Table */}
       <div className="rounded-md border">
+        <div className="flex items-center gap-2 p-2 justify-between">
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm" className="flex items-center gap-2">
+                  Sort <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                {sortColumns.map((col) => (
+                  <DropdownMenuItem
+                    key={col.value}
+                    onClick={() => setSortColumn(col.value)}
+                    className={
+                      sortColumn === col.value
+                        ? "font-semibold text-primary"
+                        : ""
+                    }
+                  >
+                    {col.label} {sortColumn === col.value && "✓"}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Direction</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("asc")}
+                  className={
+                    sortDirection === "asc"
+                      ? "font-semibold text-primary"
+                      : ""
+                  }
+                >
+                  Ascending {sortDirection === "asc" && "▲"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("desc")}
+                  className={
+                    sortDirection === "desc"
+                      ? "font-semibold text-primary"
+                      : ""
+                  }
+                >
+                  Descending {sortDirection === "desc" && "▼"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="text-sm text-muted-foreground">
+              Sorted by{" "}
+              <span className="font-medium">
+                {sortColumns.find((c) => c.value === sortColumn)?.label}
+              </span>{" "}
+              ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+            </span>
+          </div>
+          <Button onClick={openAddDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Event
+          </Button>
+        </div>
         <Table>
           <TableHeader className="bg-muted">
-            <TableRow className="bg-background">
-              <TableHead
-                colSpan={isSelectionMode ? 9 : 8}
-                className="p-2 align-middle"
-              >
-                <div className="flex items-center gap-2 justify-between">
-                  <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="flex items-center gap-2"
-                        >
-                          Sort <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                        {sortColumns.map((col) => (
-                          <DropdownMenuItem
-                            key={col.value}
-                            onClick={() => setSortColumn(col.value)}
-                            className={
-                              sortColumn === col.value
-                                ? "font-semibold text-primary"
-                                : ""
-                            }
-                          >
-                            {col.label} {sortColumn === col.value && "✓"}
-                          </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Direction</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => setSortDirection("asc")}
-                          className={
-                            sortDirection === "asc"
-                              ? "font-semibold text-primary"
-                              : ""
-                          }
-                        >
-                          Ascending {sortDirection === "asc" && "▲"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setSortDirection("desc")}
-                          className={
-                            sortDirection === "desc"
-                              ? "font-semibold text-primary"
-                              : ""
-                          }
-                        >
-                          Descending {sortDirection === "desc" && "▼"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <span className="text-sm text-muted-foreground">
-                      Sorted by{" "}
-                      <span className="font-medium">
-                        {sortColumns.find((c) => c.value === sortColumn)?.label}
-                      </span>{" "}
-                      ({sortDirection === "asc" ? "A-Z" : "Z-A"})
-                    </span>
-                  </div>
-
-                  <Button onClick={openAddDialog}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Event
-                  </Button>
-                </div>
-              </TableHead>
-            </TableRow>
-            <TableRow>
+            <TableRow className="hover:bg-muted">
               {isSelectionMode && (
-                <TableHead className="w-[50px]">
+                <TableHead className="w-[50px] text-xs py-2">
                   <Checkbox
                     checked={selectedEvents.length === currentItems.length}
                     onCheckedChange={handleSelectAll}
@@ -547,75 +547,85 @@ function EventsTable() {
                   />
                 </TableHead>
               )}
-              <TableHead>Sport</TableHead>
-              <TableHead>Event</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
-              <TableHead>Venue</TableHead>
-              <TableHead>City</TableHead>
-              <TableHead>Consultant</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="text-xs py-2">Sport</TableHead>
+              <TableHead className="text-xs py-2">Event</TableHead>
+              <TableHead className="text-xs py-2">Start Date</TableHead>
+              <TableHead className="text-xs py-2">End Date</TableHead>
+              <TableHead className="text-xs py-2">Venue</TableHead>
+              <TableHead className="text-xs py-2">City</TableHead>
+              <TableHead className="text-xs py-2">Venue Map</TableHead>
+              <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.length > 0 ? (
-              currentItems.map((event) => {
-                const consultant = users.find(u => u.user_id === event.consultant_id);
-                return (
-                  <TableRow key={event.event_id}>
-                    {isSelectionMode && (
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedEvents.includes(event.event_id)}
-                          onCheckedChange={(checked) =>
-                            handleSelectEvent(event.event_id, checked)
-                          }
-                          aria-label={`Select ${event.event}`}
-                          className="h-4 w-4"
-                        />
-                      </TableCell>
+              currentItems.map((event) => (
+                <TableRow key={event.event_id} className="hover:bg-muted/50">
+                  {isSelectionMode && (
+                    <TableCell className="text-xs py-1.5">
+                      <Checkbox
+                        checked={selectedEvents.includes(event.event_id)}
+                        onCheckedChange={(checked) =>
+                          handleSelectEvent(event.event_id, checked)
+                        }
+                        aria-label={`Select ${event.event}`}
+                        className="h-4 w-4"
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell className="text-xs py-1.5">{event.sport}</TableCell>
+                  <TableCell className="text-xs py-1.5">{event.event}</TableCell>
+                  <TableCell className="text-xs py-1.5">{event.event_start_date}</TableCell>
+                  <TableCell className="text-xs py-1.5">{event.event_end_date}</TableCell>
+                  <TableCell className="text-xs py-1.5">{event.venue}</TableCell>
+                  <TableCell className="text-xs py-1.5">{event.city}</TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {event.venue_map ? (
+                      <a
+                        href={event.venue_map}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline font-medium"
+                      >
+                        View
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">N/A</span>
                     )}
-                    <TableCell>{event.sport}</TableCell>
-                    <TableCell>{event.event}</TableCell>
-                    <TableCell>{event.event_start_date}</TableCell>
-                    <TableCell>{event.event_end_date}</TableCell>
-                    <TableCell>{event.venue}</TableCell>
-                    <TableCell>{event.city}</TableCell>
-                    <TableCell>
-                      {consultant ? `${consultant.first_name} ${consultant.last_name}` : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(event)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteClick(event)}
-                          disabled={isDeleting}
-                        >
-                          {isDeleting &&
-                          eventToDelete?.event_id === event.event_id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditDialog(event)}
+                        className="h-7 w-7"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteClick(event)}
+                        disabled={isDeleting}
+                        className="h-7 w-7"
+                      >
+                        {isDeleting &&
+                        eventToDelete?.event_id === event.event_id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        )}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
             ) : (
               <TableRow>
                 <TableCell
                   colSpan={isSelectionMode ? 9 : 8}
-                  className="text-center text-muted-foreground"
+                  className="text-center text-muted-foreground text-xs py-1.5"
                 >
                   No events found.
                 </TableCell>

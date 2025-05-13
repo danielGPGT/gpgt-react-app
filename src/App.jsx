@@ -40,7 +40,7 @@ function App() {
         <Route
           path="/inventory"
           element={
-            <RoleBasedRoute allowedRoles={["Admin", "Operations"]}>
+            <RoleBasedRoute allowedRoles={["Admin", "Operations", "Internal Sales"]}>
               <InventoryPage />
             </RoleBasedRoute>
           }
@@ -48,7 +48,7 @@ function App() {
         <Route
           path="/bookings"
           element={
-            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations"]}>
               <BookingsPage />
             </RoleBasedRoute>
           }

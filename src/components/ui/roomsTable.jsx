@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 import {
   Table,
@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Search, Filter, Pencil } from "lucide-react";
+import { Plus, Trash2, Search, Filter, Pencil, ChevronDown } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -42,6 +42,9 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -55,7 +58,7 @@ function RoomsTable() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
-  const itemsPerPage = 10;
+  const itemsPerPage = 15;
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -87,6 +90,25 @@ function RoomsTable() {
   };
 
   const [newRoom, setNewRoom] = useState(initialRoomState);
+
+  // Sorting states
+  const [sortColumn, setSortColumn] = useState("hotel_name");
+  const [sortDirection, setSortDirection] = useState("asc");
+
+  // Define sortable columns
+  const sortColumns = [
+    { value: "hotel_name", label: "Hotel Name" },
+    { value: "room_category", label: "Room Category" },
+    { value: "room_type", label: "Room Type" },
+    { value: "source", label: "Source" },
+    { value: "check_in_date", label: "Check-in Date" },
+    { value: "check_out_date", label: "Check-out Date" },
+    { value: "booked", label: "Booked" },
+    { value: "used", label: "Used" },
+    { value: "remaining", label: "Remaining" },
+    { value: "price_per_night_(gbp)", label: "Price per Night" },
+    { value: "nights", label: "Nights" }
+  ];
 
   useEffect(() => {
     fetchInitialData();
@@ -150,6 +172,36 @@ function RoomsTable() {
     });
   };
 
+  // Apply sorting to the filtered rooms
+  const sortedAndFilteredRooms = useMemo(() => {
+    return [...filterRooms(rooms)].sort((a, b) => {
+      const aValue = a[sortColumn];
+      const bValue = b[sortColumn];
+
+      // Handle numeric values
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+
+      // Handle date values
+      if (sortColumn.includes('date')) {
+        const aDate = new Date(aValue.split('/').reverse().join('-'));
+        const bDate = new Date(bValue.split('/').reverse().join('-'));
+        return sortDirection === 'asc' ? aDate - bDate : bDate - aDate;
+      }
+
+      // Handle string values
+      const comparison = String(aValue).localeCompare(String(bValue));
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [rooms, filters, sortColumn, sortDirection]);
+
+  // Update pagination to use sorted data
+  const totalPages = Math.ceil(sortedAndFilteredRooms.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = sortedAndFilteredRooms.slice(startIndex, endIndex);
+
   const handleAddRoom = async () => {
     try {
       const roomData = {
@@ -210,13 +262,6 @@ function RoomsTable() {
     setEditingRoom(preparedRoom);
     setIsEditDialogOpen(true);
   };
-
-  // Apply filters and calculate pagination
-  const filteredRooms = filterRooms(rooms);
-  const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredRooms.slice(startIndex, endIndex);
 
   const calculatePricePerNight = (price, nights) => {
     if (!price || !nights || nights === 0) return 0;
@@ -542,139 +587,106 @@ function RoomsTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-end">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Room Inventory</h3>
-          <p className="text-muted-foreground">
-            Track room availability, bookings, and pricing information
-          </p>
-        </div>
-
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Room
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search rooms..."
-              value={filters.search}
-              onChange={(e) =>
-                setFilters({ ...filters, search: e.target.value })
-              }
-              className="pl-8"
-            />
-          </div>
-        </div>
-        <Select
-          value={filters.hotel}
-          onValueChange={(value) => setFilters({ ...filters, hotel: value })}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Hotel" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Hotels</SelectItem>
-            {getUniqueHotels().map((hotel) => (
-              <SelectItem key={hotel} value={hotel}>
-                {hotel}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.roomType}
-          onValueChange={(value) => setFilters({ ...filters, roomType: value })}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Room Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Room Types</SelectItem>
-            {getUniqueRoomTypes().map((type) => (
-              <SelectItem key={type} value={type}>
-                {type}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.source}
-          onValueChange={(value) => setFilters({ ...filters, source: value })}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Source" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Sources</SelectItem>
-            {getUniqueSources().map((source) => (
-              <SelectItem key={source} value={source}>
-                {source}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Table */}
       <div className="rounded-md border">
+        <div className="flex items-center gap-2 p-2 justify-between">
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm" className="flex items-center gap-2">
+                  Sort <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                {sortColumns.map(col => (
+                  <DropdownMenuItem
+                    key={col.value}
+                    onClick={() => setSortColumn(col.value)}
+                    className={sortColumn === col.value ? "font-semibold text-primary" : ""}
+                  >
+                    {col.label} {sortColumn === col.value && "✓"}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Direction</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("asc")}
+                  className={sortDirection === "asc" ? "font-semibold text-primary" : ""}
+                >
+                  Ascending {sortDirection === "asc" && "▲"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("desc")}
+                  className={sortDirection === "desc" ? "font-semibold text-primary" : ""}
+                >
+                  Descending {sortDirection === "desc" && "▼"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="text-sm text-muted-foreground">
+              Sorted by <span className="font-medium">{sortColumns.find(c => c.value === sortColumn)?.label}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+            </span>
+          </div>
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Room
+          </Button>
+        </div>
         <Table>
           <TableHeader className="bg-muted">
-            <TableRow>
-              <TableHead>Hotel</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Room Type</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Check-in</TableHead>
-              <TableHead>Check-out</TableHead>
-              <TableHead>Booked</TableHead>
-              <TableHead>Used</TableHead>
-              <TableHead>Remaining</TableHead>
-              <TableHead>Price/Night</TableHead>
-              <TableHead>Nights</TableHead>
-              <TableHead>Actions</TableHead>
+            <TableRow className="hover:bg-muted">
+              <TableHead className="text-xs py-2">Hotel</TableHead>
+              <TableHead className="text-xs py-2">Category</TableHead>
+              <TableHead className="text-xs py-2">Room Type</TableHead>
+              <TableHead className="text-xs py-2">Source</TableHead>
+              <TableHead className="text-xs py-2">Check-in</TableHead>
+              <TableHead className="text-xs py-2">Check-out</TableHead>
+              <TableHead className="text-xs py-2">Booked</TableHead>
+              <TableHead className="text-xs py-2">Used</TableHead>
+              <TableHead className="text-xs py-2">Remaining</TableHead>
+              <TableHead className="text-xs py-2">Price/Night</TableHead>
+              <TableHead className="text-xs py-2">Nights</TableHead>
+              <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.map((item) => (
-              <TableRow key={item.room_id}>
-                <TableCell className="font-medium">{item.hotel_name}</TableCell>
-                <TableCell>{item.room_category}</TableCell>
-                <TableCell>{item.room_type}</TableCell>
-                <TableCell>{item.source}</TableCell>
-                <TableCell>{item.check_in_date}</TableCell>
-                <TableCell>{item.check_out_date}</TableCell>
-                <TableCell>{item.booked}</TableCell>
-                <TableCell>{item.used}</TableCell>
-                <TableCell>
+              <TableRow key={item.room_id} className="hover:bg-muted/50">
+                <TableCell className="text-xs py-1.5 font-medium">{item.hotel_name}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.room_category}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.room_type}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.source}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.check_in_date}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.check_out_date}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.booked}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.used}</TableCell>
+                <TableCell className="text-xs py-1.5">
                   <Badge
                     variant={item.remaining > 0 ? "default" : "destructive"}
+                    className="text-xs"
                   >
                     {item.remaining}
                   </Badge>
                 </TableCell>
-                <TableCell>£{item["price_per_night_(gbp)"]}</TableCell>
-                <TableCell>{item.nights}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
+                <TableCell className="text-xs py-1.5">£{item["price_per_night_(gbp)"]}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.nights}</TableCell>
+                <TableCell className="text-xs py-1.5">
+                  <div className="flex gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => openEditDialog(item)}
+                      className="h-7 w-7"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteRoom(item.room_id)}
+                      className="h-7 w-7"
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </div>
                 </TableCell>
@@ -687,8 +699,8 @@ function RoomsTable() {
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {startIndex + 1} to {Math.min(endIndex, filteredRooms.length)}{" "}
-          of {filteredRooms.length} rooms
+          Showing {startIndex + 1} to {Math.min(endIndex, sortedAndFilteredRooms.length)}{" "}
+          of {sortedAndFilteredRooms.length} rooms
         </div>
         <Pagination>
           <PaginationContent>
