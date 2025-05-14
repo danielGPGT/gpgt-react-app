@@ -61,6 +61,11 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
+import { BookingForm } from "@/components/ui/bookingForm";
+import PropTypes from "prop-types";
+import QuotePDF from "./QuotePDF";
+import { FileText } from "lucide-react";
+import { jwtDecode } from "jwt-decode";
 
 function InternalPricing({
   numberOfAdults,
@@ -115,6 +120,7 @@ function InternalPricing({
   setOriginalNights,
   flightQuantity,
   setFlightQuantity,
+  salesTeam,
 }) {
   const { theme } = useTheme();
   const [events, setEvents] = useState([]);
@@ -152,6 +158,13 @@ function InternalPricing({
 
   const [showFlightDialog, setShowFlightDialog] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState("");
+
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [showQuote, setShowQuote] = useState(false);
+
+  const [userEmail, setUserEmail] = useState("");
+  const [userAvatar, setUserAvatar] = useState("");
+  const [userPhone, setUserPhone] = useState("");
 
   const minNights = selectedRoom?.nights || 1;
 
@@ -782,6 +795,20 @@ function InternalPricing({
     selectedAirportTransfer,
     selectedFlight,
   ]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setUserEmail(decoded.email);
+        setUserAvatar(decoded.avatar || '');
+        setUserPhone(decoded.phone || '');
+      } catch (error) {
+        console.error("Failed to decode token:", error);
+      }
+    }
+  }, []);
 
   if (loadingEvents) {
     return <div className="p-8">Loading events...</div>;
@@ -1673,9 +1700,144 @@ function InternalPricing({
             {Number(totalPrice).toFixed(0)}
           </h2>
         </div>
+
+        <div className="flex gap-4">
+          <Button 
+            className="mt-4"
+            onClick={() => setShowBookingForm(true)}
+          >
+            Create Booking
+          </Button>
+          <Button 
+            className="mt-4"
+            variant="outline"
+            onClick={() => setShowQuote(true)}
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Generate Quote
+          </Button>
+        </div>
       </div>
+
+      <BookingForm
+        open={showBookingForm}
+        onOpenChange={setShowBookingForm}
+        selectedEvent={selectedEvent}
+        selectedPackage={selectedPackage}
+        selectedHotel={selectedHotel}
+        selectedRoom={selectedRoom}
+        selectedTicket={selectedTicket}
+        selectedFlight={selectedFlight}
+        selectedLoungePass={selectedLoungePass}
+        selectedCircuitTransfer={selectedCircuitTransfer}
+        selectedAirportTransfer={selectedAirportTransfer}
+        ticketQuantity={ticketQuantity}
+        roomQuantity={roomQuantity}
+        loungePassQuantity={loungePassQuantity}
+        circuitTransferQuantity={circuitTransferQuantity}
+        airportTransferQuantity={airportTransferQuantity}
+        flightQuantity={flightQuantity}
+        flightPNR={flightPNR}
+        ticketingDeadline={ticketingDeadline}
+        paymentStatus={paymentStatus}
+        originalNights={originalNights}
+        salesTeam={salesTeam}
+        dateRange={dateRange}
+        numberOfAdults={numberOfAdults}
+        totalPrice={totalPrice}
+        selectedCurrency={selectedCurrency}
+      />
+
+      <Dialog open={showQuote} onOpenChange={setShowQuote}>
+        <DialogContent className="w-[95vw] h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Quote</DialogTitle>
+          </DialogHeader>
+          <QuotePDF
+            selectedEvent={selectedEvent}
+            selectedPackage={selectedPackage}
+            selectedTier={selectedTier}
+            selectedHotel={selectedHotel}
+            selectedRoom={selectedRoom}
+            selectedTicket={selectedTicket}
+            selectedFlight={selectedFlight}
+            selectedLoungePass={selectedLoungePass}
+            selectedCircuitTransfer={selectedCircuitTransfer}
+            selectedAirportTransfer={selectedAirportTransfer}
+            ticketQuantity={ticketQuantity}
+            roomQuantity={roomQuantity}
+            loungePassQuantity={loungePassQuantity}
+            circuitTransferQuantity={circuitTransferQuantity}
+            airportTransferQuantity={airportTransferQuantity}
+            flightQuantity={flightQuantity}
+            dateRange={dateRange}
+            numberOfAdults={numberOfAdults}
+            totalPrice={totalPrice}
+            selectedCurrency={selectedCurrency}
+            userEmail={userEmail}
+            userAvatar={userAvatar}
+            userPhone={userPhone}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+InternalPricing.propTypes = {
+  numberOfAdults: PropTypes.number,
+  setNumberOfAdults: PropTypes.func,
+  totalPrice: PropTypes.number,
+  setTotalPrice: PropTypes.func,
+  selectedCurrency: PropTypes.string,
+  setSelectedCurrency: PropTypes.func,
+  selectedEvent: PropTypes.object,
+  setSelectedEvent: PropTypes.func,
+  selectedPackage: PropTypes.object,
+  setSelectedPackage: PropTypes.func,
+  selectedHotel: PropTypes.object,
+  setSelectedHotel: PropTypes.func,
+  selectedRoom: PropTypes.object,
+  setSelectedRoom: PropTypes.func,
+  selectedTicket: PropTypes.object,
+  setSelectedTicket: PropTypes.func,
+  selectedFlight: PropTypes.object,
+  setSelectedFlight: PropTypes.func,
+  selectedLoungePass: PropTypes.object,
+  setSelectedLoungePass: PropTypes.func,
+  selectedCircuitTransfer: PropTypes.object,
+  setSelectedCircuitTransfer: PropTypes.func,
+  selectedAirportTransfer: PropTypes.object,
+  setSelectedAirportTransfer: PropTypes.func,
+  roomQuantity: PropTypes.number,
+  setRoomQuantity: PropTypes.func,
+  ticketQuantity: PropTypes.number,
+  setTicketQuantity: PropTypes.func,
+  loungePassQuantity: PropTypes.number,
+  setLoungePassQuantity: PropTypes.func,
+  circuitTransferQuantity: PropTypes.number,
+  setCircuitTransferQuantity: PropTypes.func,
+  airportTransferQuantity: PropTypes.number,
+  setAirportTransferQuantity: PropTypes.func,
+  createFlightBooking: PropTypes.bool,
+  setCreateFlightBooking: PropTypes.func,
+  flightPNR: PropTypes.string,
+  setFlightPNR: PropTypes.func,
+  ticketingDeadline: PropTypes.instanceOf(Date),
+  setTicketingDeadline: PropTypes.func,
+  paymentStatus: PropTypes.string,
+  setPaymentStatus: PropTypes.func,
+  createLoungeBooking: PropTypes.bool,
+  setCreateLoungeBooking: PropTypes.func,
+  loungeBookingRef: PropTypes.string,
+  setLoungeBookingRef: PropTypes.func,
+  dateRange: PropTypes.object,
+  setDateRange: PropTypes.func,
+  originalNights: PropTypes.number,
+  setOriginalNights: PropTypes.func,
+  flightQuantity: PropTypes.number,
+  setFlightQuantity: PropTypes.func,
+  salesTeam: PropTypes.string,
+};
 
 export { InternalPricing };

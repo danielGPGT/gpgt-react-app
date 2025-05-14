@@ -738,7 +738,7 @@ function ExternalPricing({
   }
 
   return (
-    <div className="p-4 space-y-4 bg-card rounded-md border shadow-sm w-full max-w-6xl mx-auto">
+    <div className="p-4 space-y-4 bg-card rounded-md border shadow-sm w-full mx-auto">
       {/* Event & Package & Tier */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>

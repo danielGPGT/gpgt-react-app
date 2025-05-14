@@ -24,7 +24,8 @@ import {
   Coffee,
   Hotel,
   CalendarDays,
-  Layers
+  Layers,
+  CalendarCog
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -169,6 +170,13 @@ const menuItems = [
       },
       
     ],
+  },
+
+  {
+    title: "Itinerary",
+    icon: CalendarCog,
+    url: "/itenary",
+    allowedRoles: ["Admin"],
   },
   
 ];

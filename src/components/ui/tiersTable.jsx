@@ -389,6 +389,7 @@ function TiersTable() {
         package_name: pkg.package_name,
         tier_type: formData.tier_type,
         ticket_name: ticket.ticket_name,
+        ticket_id: "",
         hotel_id: formData.hotel_id,
         room_id: formData.room_id,
         circuit_transfer_id: formData.circuit_transfer_id,

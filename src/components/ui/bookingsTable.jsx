@@ -97,11 +97,12 @@ function BookingsTable() {
   const itemsPerPage = 15;
 
   // Add sorting state
-  const [sortColumn, setSortColumn] = useState("booking_date");
+  const [sortColumn, setSortColumn] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
 
   // Define sortable columns
   const sortColumns = [
+    { value: null, label: "No Sorting" },
     { value: "booking_ref", label: "Booking Reference" },
     { value: "status", label: "Status" },
     { value: "event_name", label: "Event" },
@@ -332,7 +333,7 @@ function BookingsTable() {
       );
     });
 
-    // Apply sorting
+    // Apply sorting only if a sort column is selected
     if (sortColumn) {
       filtered.sort((a, b) => {
         let aVal = a[sortColumn];
@@ -766,17 +767,19 @@ function BookingsTable() {
               </DropdownMenuContent>
             </DropdownMenu>
             <span className="text-sm text-muted-foreground">
-              Sorted by{" "}
-              <span className="font-medium">
-                {sortColumns.find((c) => c.value === sortColumn)?.label}
-              </span>{" "}
-              ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+              {sortColumn ? (
+                <>
+                  Sorted by{" "}
+                  <span className="font-medium">
+                    {sortColumns.find((c) => c.value === sortColumn)?.label}
+                  </span>{" "}
+                  ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+                </>
+              ) : (
+                "No sorting applied"
+              )}
             </span>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Booking
-          </Button>
         </div>
         <Table>
           <TableHeader className="bg-muted">

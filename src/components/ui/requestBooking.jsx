@@ -358,7 +358,7 @@ function RequestBooking({
   };
 
   return (
-    <div className="w-8/12 space-y-4">
+    <div className="w-full space-y-4">
       {alertDialog && (
         <AlertDialog open={!!alertDialog} onOpenChange={() => setAlertDialog(null)}>
           <AlertDialogContent className="max-w-2xl bg-card">

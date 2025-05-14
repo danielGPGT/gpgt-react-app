@@ -47,6 +47,14 @@ import api from "@/lib/api";
 import { differenceInCalendarDays } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { jwtDecode } from "jwt-decode";
 
 const formSchema = z.object({
   booker_name: z.string().min(1),
@@ -65,9 +73,6 @@ const formSchema = z.object({
   acquisition: z.string(),
   booking_type: z.string(),
   atol_abtot: z.string(),
-  payment1_date: z.coerce.date(),
-  payment2_date: z.coerce.date(),
-  payment3_date: z.coerce.date(),
   payment1_status: z.boolean().default(false),
   payment2_status: z.boolean().default(false),
   payment3_status: z.boolean().default(false),
@@ -108,7 +113,9 @@ function BookingForm({
   ticketingDeadline,
   paymentStatus,
   originalNights,
-  salesTeam
+  salesTeam,
+  open,
+  onOpenChange
 }) {
   const { theme } = useTheme();
   const [showAlert, setShowAlert] = useState(false);
@@ -120,6 +127,7 @@ function BookingForm({
   const [customPayments, setCustomPayments] = useState(false);
   const [paymentPercents, setPaymentPercents] = useState([34, 33, 33]);
   const [paymentAmounts, setPaymentAmounts] = useState([0, 0, 0]);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -130,6 +138,33 @@ function BookingForm({
       booking_reference_prefix: generateBookingReference(selectedEvent).prefix,
     },
   });
+
+  // Add useEffect to get current user
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const decoded = jwtDecode(token);
+        const res = await api.get("/users");
+        const users = res.data;
+
+        // Try match by user_id or email depending on your token
+        const user = users.find(
+          (u) => u.user_id === decoded.user_id || u.email === decoded.email
+        );
+
+        if (user) {
+          setCurrentUser(user);
+        }
+      } catch (error) {
+        console.error("Failed to fetch current user:", error);
+      }
+    }
+
+    fetchCurrentUser();
+  }, []);
 
   // Function to get the next sequence number
   async function getNextSequenceNumber(prefix) {
@@ -378,6 +413,7 @@ function BookingForm({
 
     try {
       setIsSubmitting(true);
+      console.log('Form values:', values); // Log form values
 
       // Format dates for the API
       const formatDate = (date) => {
@@ -400,6 +436,11 @@ function BookingForm({
       // Combine booking reference prefix and sequence
       const bookingReference = `${values.booking_reference_prefix}${values.booking_reference}`;
 
+      // Get payment dates from package or use current date for upfront payment
+      const payment1Date = formatDate(new Date()); // Current date for upfront payment
+      const payment2Date = selectedPackage?.payment_date_2 || '';
+      const payment3Date = selectedPackage?.payment_date_3 || '';
+
       // Prepare the booking data according to API requirements
       const bookingData = {
         // Status and reference
@@ -408,7 +449,7 @@ function BookingForm({
         
         // Booking details
         booking_type: values.booking_type,
-        consultant: salesTeam ? `${salesTeam.first_name} ${salesTeam.last_name}` : '',
+        consultant: currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : '',
         acquisition: values.acquisition,
         event_id: selectedEvent?.event_id || '',
         package_id: selectedPackage?.package_id || '',
@@ -478,11 +519,11 @@ function BookingForm({
         // Payment details with rounded values
         payment_currency: selectedCurrency,
         payment_1: roundedAmounts[0],
-        payment_1_date: formatDate(values.payment1_date),
+        payment_1_date: payment1Date,
         payment_2: roundedAmounts[1],
-        payment_2_date: formatDate(values.payment2_date),
+        payment_2_date: payment2Date,
         payment_3: roundedAmounts[2],
-        payment_3_date: formatDate(values.payment3_date),
+        payment_3_date: payment3Date,
         payment_1_status: values.payment1_status ? "Paid" : "Due",
         payment_2_status: values.payment2_status ? "Paid" : "Due",
         payment_3_status: values.payment3_status ? "Paid" : "Due",
@@ -516,9 +557,9 @@ function BookingForm({
             package: selectedPackage?.package_name || 'N/A',
             totalPrice: `${currencySymbols[selectedCurrency]}${totalPrice.toFixed(2)}`,
             paymentSchedule: [
-              { amount: roundedAmounts[0], date: formatDate(values.payment1_date) },
-              { amount: roundedAmounts[1], date: formatDate(values.payment2_date) },
-              { amount: roundedAmounts[2], date: formatDate(values.payment3_date) }
+              { amount: roundedAmounts[0], date: payment1Date },
+              { amount: roundedAmounts[1], date: payment2Date },
+              { amount: roundedAmounts[2], date: payment3Date }
             ]
           });
           
@@ -549,593 +590,573 @@ function BookingForm({
         setIsSubmitting(false);
       }
     } catch (error) {
-      console.error('Failed to create booking:', error);
-      
-      // Log the error response data if available
-      if (error.response?.data) {
-        console.error('Server error response:', error.response.data);
-      }
-      
-      // Show more specific error message
-      const errorMessage = error.response?.data?.message || 'Failed to create booking. Please try again.';
-      toast.error(errorMessage);
+      console.error('Form validation error:', error);
+      toast.error('Please check all required fields are filled correctly.');
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <div className="w-full mx-auto">
-        <form
-          onSubmit={form.handleSubmit(handleSubmit)}
-          className="p-3 space-y-2 bg-card rounded-md border-[1px] border shadow-sm w-full max-w-6xl mx-auto"
-        >
-          {/* Booking Reference */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField
-              control={form.control}
-              name="booking_reference"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Booking Reference</FormLabel>
-                  <div className="flex items-center gap-2">
-                    <FormControl>
-                      <Input 
-                        value={form.getValues('booking_reference_prefix') || ''}
-                        className="bg-background font-mono w-[180px] text-xs h-7"
-                        readOnly 
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <Input 
-                        {...field}
-                        className="bg-background font-mono w-[80px] text-xs h-7"
-                        maxLength={4}
-                        pattern="[0-9]*"
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/[^0-9]/g, '');
-                          field.onChange(value);
-                        }}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-          </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold">Create Booking</DialogTitle>
+          <DialogDescription>
+            Fill in the booking details below
+          </DialogDescription>
+        </DialogHeader>
 
-          {/* Booker Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField
-              control={form.control}
-              name="booker_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Booker Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter booker's name" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="booker_email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Booker Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="Enter booker's email"
-                      {...field}
-                      className="bg-background text-xs h-7"
-                    />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="booker_phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Booker Phone</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter booker's phone" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Address Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
-            <FormField
-              control={form.control}
-              name="address_line_1"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Address Line 1</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Address Line 1" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address_line_2"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Address Line 2</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Optional Address Line 2" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">City</FormLabel>
-                  <FormControl>
-                    <Input placeholder="City" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="postcode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Postcode</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Postcode" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="country"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Country</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Country" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Traveller Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
-            <FormField
-              control={form.control}
-              name="lead_traveller_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Lead Traveller Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Lead Traveller" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="lead_traveller_phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Lead Traveller Phone</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Phone Number" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="lead_traveller_email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Lead Traveller Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Email Address" {...field} className="bg-background text-xs h-7" />
-                  </FormControl>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {Array.from({ length: Math.max(0, numberOfAdults - 1) }).map(
-              (_, index) => (
-                <FormField
-                  key={index}
-                  control={form.control}
-                  name={`guest_traveller_names.${index}`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-foreground text-xs">Guest {index + 1} Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={`Guest ${index + 1}`}
-                          {...field}
-                          className="bg-background text-xs h-7"
-                        />
-                      </FormControl>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
-                  )}
-                />
-              )
-            )}
-          </div>
-          {/* Booking Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
-            <FormField
-              control={form.control}
-              name="booking_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Booking Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal bg-background text-xs h-7",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="acquisition"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Acquisition</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full bg-background text-xs h-7">
-                        <SelectValue placeholder="Acquisition source" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="referral">Referral</SelectItem>
-                      <SelectItem value="newsletter">Newsletter</SelectItem>
-                      <SelectItem value="unknown">Unknown</SelectItem>
-                      <SelectItem value="meta">Meta</SelectItem>
-                      <SelectItem value="repeat">Repeat</SelectItem>
-                      <SelectItem value="organic">Organic</SelectItem>
-                      <SelectItem value="b2b">B2B (Travel agent)</SelectItem>
-                      <SelectItem value="adwords">Adwords</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="booking_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">Booking Type</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full bg-background text-xs h-7">
-                        <SelectValue placeholder="Booking type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="actual">Actual</SelectItem>
-                      <SelectItem value="provisional">Provisional</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="atol_abtot"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-foreground text-xs">ATOL/ABTOT</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full bg-background text-xs h-7">
-                        <SelectValue placeholder="ATOL/ABTOT" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="abtot">ABTOT</SelectItem>
-                      <SelectItem value="atol">ATOL (Package)</SelectItem>
-                      <SelectItem value="na">N/A (Non EU)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Payment Info */}
-          <div className="mb-2">
-            <div className="border-t border-border pt-2">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-medium">Payment Schedule</h3>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={customPayments}
-                    onCheckedChange={setCustomPayments}
-                    id="custom-payments"
-                  />
-                  <Label htmlFor="custom-payments" className="text-xs">
-                    Adjust Payment Schedule
-                  </Label>
+        <div className="grid grid-cols-2 gap-8">
+          {/* Left Column - Summary */}
+          <div className="space-y-6">
+            <div className="bg-muted/50 p-4 rounded-lg space-y-4">
+              <h3 className="font-semibold text-lg">Booking Summary</h3>
+              
+              {/* Event & Package */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Event & Package</h4>
+                <div className="text-sm space-y-1">
+                  <p><span className="font-medium">Event:</span> {selectedEvent?.event || "Not selected"}</p>
+                  <p><span className="font-medium">Package:</span> {selectedPackage?.package_name || "Not selected"}</p>
+                  <p><span className="font-medium">Number of Adults:</span> {numberOfAdults}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                {[0, 1, 2].map((idx) => (
-                  <div className="space-y-1 p-2 rounded-md border bg-card" key={idx}>
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-medium">Payment {idx + 1}</label>
-                      {customPayments && (
-                        <span className="text-xs text-muted-foreground">
-                          {paymentPercents[idx]}%
-                        </span>
-                      )}
-                    </div>
-                    
-                    {customPayments && (
-                      <div className="flex items-center gap-2">
-                        <div className="relative">
-                          <Input
-                            type="number"
-                            value={paymentPercents[idx]}
-                            onChange={(e) => {
-                              const newPercent = Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
-                              handlePaymentChange(idx, newPercent);
-                            }}
-                            className={cn(
-                              "w-20 bg-background h-7 text-xs",
-                              paymentPercents.reduce((sum, p) => sum + p, 0) !== 100 && "border-red-500"
-                            )}
-                            step="1"
-                            min="0"
-                            max="100"
-                            placeholder="0"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">%</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-1">
-                      <FormField
-                        control={form.control}
-                        name={`payment${idx + 1}_date`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button
-                                    variant="outline"
-                                    className={cn(
-                                      "w-full justify-start text-left font-normal bg-background h-7 text-xs",
-                                      !field.value && "text-muted-foreground"
-                                    )}
-                                  >
-                                    {field.value ? (
-                                      format(field.value, "PPP")
-                                    ) : (
-                                      <span>Select date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={field.value}
-                                  onSelect={field.onChange}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs font-medium">
-                          {currencySymbols[selectedCurrency]}{paymentAmounts[idx].toFixed(2)}
-                        </div>
-                        <FormField
-                          control={form.control}
-                          name={`payment${idx + 1}_status`}
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-1">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                  className="h-3 w-3"
-                                />
-                              </FormControl>
-                              <FormLabel className="text-xs">Paid</FormLabel>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              {/* Hotel & Room */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Hotel & Room</h4>
+                <div className="text-sm space-y-1">
+                  <p><span className="font-medium">Hotel:</span> {selectedHotel?.hotel_name || "Not selected"}</p>
+                  <p><span className="font-medium">Room:</span> {selectedRoom?.room_category || "Not selected"} - {selectedRoom?.room_type || "Not selected"}</p>
+                  <p><span className="font-medium">Room Quantity:</span> {roomQuantity}</p>
+                  <p><span className="font-medium">Check-in:</span> {dateRange?.from ? format(dateRange.from, "PPP") : "Not selected"}</p>
+                  <p><span className="font-medium">Check-out:</span> {dateRange?.to ? format(dateRange.to, "PPP") : "Not selected"}</p>
+                </div>
               </div>
-              
-              <div className="mt-2 px-2 py-1 rounded-md border bg-card flex justify-between items-center">
-                <span className="text-xs font-medium">Total</span>
-                <span className="text-sm font-semibold">
-                  {currencySymbols[selectedCurrency]}{totalPrice.toFixed(2)}
-                </span>
+
+              {/* Ticket */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Ticket</h4>
+                <div className="text-sm space-y-1">
+                  <p><span className="font-medium">Ticket Type:</span> {selectedTicket?.ticket_name || "Not selected"}</p>
+                  <p><span className="font-medium">Quantity:</span> {ticketQuantity}</p>
+                </div>
+              </div>
+
+              {/* Transfers */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Transfers</h4>
+                <div className="text-sm space-y-1">
+                  <p><span className="font-medium">Circuit Transfer:</span> {selectedCircuitTransfer?.transport_type || "Not selected"}</p>
+                  <p><span className="font-medium">Airport Transfer:</span> {selectedAirportTransfer?.transport_type || "Not selected"}</p>
+                </div>
+              </div>
+
+              {/* Flight */}
+              {selectedFlight && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Flight</h4>
+                  <div className="text-sm space-y-1">
+                    <p><span className="font-medium">Airline:</span> {selectedFlight.airline}</p>
+                    <p><span className="font-medium">Class:</span> {selectedFlight.class}</p>
+                    <p><span className="font-medium">Outbound:</span> {selectedFlight.outbound_flight}</p>
+                    <p><span className="font-medium">Inbound:</span> {selectedFlight.inbound_flight}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Lounge Pass */}
+              {selectedLoungePass && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Lounge Pass</h4>
+                  <div className="text-sm space-y-1">
+                    <p><span className="font-medium">Type:</span> {selectedLoungePass.variant}</p>
+                    <p><span className="font-medium">Quantity:</span> {loungePassQuantity}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Total Price */}
+              <div className="pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Total Price:</span>
+                  <span className="text-lg font-bold">
+                    {currencySymbols[selectedCurrency]}{Number(totalPrice).toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="pt-2">
-            <Button 
-              type="submit" 
-              size="default" 
-              className="w-full h-8 text-xs"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                "Submit Booking"
-              )}
-            </Button>
-          </div>
-        </form>
-      </div>
+          {/* Right Column - Booking Form */}
+          <div>
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(handleSubmit)}
+                className="space-y-4"
+              >
+                {/* Booking Reference */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="booking_reference"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Booking Reference</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <FormControl>
+                            <Input 
+                              value={form.getValues('booking_reference_prefix') || ''}
+                              className="bg-background font-mono w-[180px] text-xs h-7"
+                              readOnly 
+                            />
+                          </FormControl>
+                          <FormControl>
+                            <Input 
+                              {...field}
+                              className="bg-background font-mono w-[80px] text-xs h-7"
+                              maxLength={4}
+                              pattern="[0-9]*"
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/[^0-9]/g, '');
+                                field.onChange(value);
+                              }}
+                            />
+                          </FormControl>
+                        </div>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-      {/* Booking Confirmation Dialog */}
-      <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <AlertDialogContent className="sm:max-w-[600px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl font-bold">Booking Confirmation</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              {bookingDetails && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="font-semibold">Booking Reference:</p>
-                      <p>{bookingDetails.bookingRef}</p>
+                {/* Booker Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="booker_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Booker Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter booker's name" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="booker_email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Booker Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="Enter booker's email"
+                            {...field}
+                            className="bg-background text-xs h-7"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="booker_phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Booker Phone</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter booker's phone" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Address Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
+                  <FormField
+                    control={form.control}
+                    name="address_line_1"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Address Line 1</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Address Line 1" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="address_line_2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Address Line 2</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Optional Address Line 2" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">City</FormLabel>
+                        <FormControl>
+                          <Input placeholder="City" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="postcode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Postcode</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Postcode" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Country</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Country" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Traveller Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
+                  <FormField
+                    control={form.control}
+                    name="lead_traveller_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Lead Traveller Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Lead Traveller" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lead_traveller_phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Lead Traveller Phone</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Phone Number" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lead_traveller_email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Lead Traveller Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Email Address" {...field} className="bg-background text-xs h-7" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Array.from({ length: Math.max(0, numberOfAdults - 1) }).map(
+                    (_, index) => (
+                      <FormField
+                        key={index}
+                        control={form.control}
+                        name={`guest_traveller_names.${index}`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-foreground text-xs">Guest {index + 1} Name</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder={`Guest ${index + 1}`}
+                                {...field}
+                                className="bg-background text-xs h-7"
+                              />
+                            </FormControl>
+                            <FormMessage className="text-xs" />
+                          </FormItem>
+                        )}
+                      />
+                    )
+                  )}
+                </div>
+                {/* Booking Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
+                  <FormField
+                    control={form.control}
+                    name="booking_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Booking Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal bg-background text-xs h-7",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="acquisition"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Acquisition</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full bg-background text-xs h-7">
+                              <SelectValue placeholder="Acquisition source" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="referral">Referral</SelectItem>
+                            <SelectItem value="newsletter">Newsletter</SelectItem>
+                            <SelectItem value="unknown">Unknown</SelectItem>
+                            <SelectItem value="meta">Meta</SelectItem>
+                            <SelectItem value="repeat">Repeat</SelectItem>
+                            <SelectItem value="organic">Organic</SelectItem>
+                            <SelectItem value="b2b">B2B (Travel agent)</SelectItem>
+                            <SelectItem value="adwords">Adwords</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="booking_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">Booking Type</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full bg-background text-xs h-7">
+                              <SelectValue placeholder="Booking type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="actual">Actual</SelectItem>
+                            <SelectItem value="provisional">Provisional</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="atol_abtot"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground text-xs">ATOL/ABTOT</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full bg-background text-xs h-7">
+                              <SelectValue placeholder="ATOL/ABTOT" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="abtot">ABTOT</SelectItem>
+                            <SelectItem value="atol">ATOL (Package)</SelectItem>
+                            <SelectItem value="na">N/A (Non EU)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Payment Info */}
+                <div className="mb-2">
+                  <div className="border-t border-border pt-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xs font-medium">Payment Schedule</h3>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={customPayments}
+                          onCheckedChange={setCustomPayments}
+                          id="custom-payments"
+                        />
+                        <Label htmlFor="custom-payments" className="text-xs">
+                          Adjust Payment Schedule
+                        </Label>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold">Booker Name:</p>
-                      <p>{bookingDetails.bookerName}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="font-semibold">Event:</p>
-                      <p>{bookingDetails.event}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">Package:</p>
-                      <p>{bookingDetails.package}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="font-semibold">Total Price:</p>
-                    <p className="text-xl font-bold">{bookingDetails.totalPrice}</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold mb-2">Payment Schedule:</p>
-                    <div className="space-y-2">
-                      {bookingDetails.paymentSchedule.map((payment, index) => (
-                        <div key={index} className="flex justify-between items-center">
-                          <span>Payment {index + 1}:</span>
-                          <span className="font-medium">
-                            {currencySymbols[selectedCurrency]}{payment.amount.toFixed(2)} due {payment.date}
-                          </span>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      {[0, 1, 2].map((idx) => (
+                        <div className="space-y-1 p-2 rounded-md border bg-card" key={idx}>
+                          <div className="flex justify-between items-center">
+                            <label className="text-xs font-medium">Payment {idx + 1}</label>
+                            {customPayments && (
+                              <span className="text-xs text-muted-foreground">
+                                {paymentPercents[idx]}%
+                              </span>
+                            )}
+                          </div>
+                          
+                          {customPayments && (
+                            <div className="flex items-center gap-2">
+                              <div className="relative">
+                                <Input
+                                  type="number"
+                                  value={paymentPercents[idx]}
+                                  onChange={(e) => {
+                                    const newPercent = Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
+                                    handlePaymentChange(idx, newPercent);
+                                  }}
+                                  className={cn(
+                                    "w-20 bg-background h-7 text-xs",
+                                    paymentPercents.reduce((sum, p) => sum + p, 0) !== 100 && "border-red-500"
+                                  )}
+                                  step="1"
+                                  min="0"
+                                  max="100"
+                                  placeholder="0"
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">%</span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground">
+                              {idx === 0 ? (
+                                "Due on booking"
+                              ) : (
+                                selectedPackage?.[`payment_date_${idx + 1}`] || "Date not set"
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs font-medium">
+                                {currencySymbols[selectedCurrency]}{paymentAmounts[idx].toFixed(2)}
+                              </div>
+                              <FormField
+                                control={form.control}
+                                name={`payment${idx + 1}_status`}
+                                render={({ field }) => (
+                                  <FormItem className="flex flex-row items-center space-x-1">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                        className="h-3 w-3"
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-xs">Paid</FormLabel>
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
+                    
+                    <div className="mt-2 px-2 py-1 rounded-md border bg-card flex justify-between items-center">
+                      <span className="text-xs font-medium">Total</span>
+                      <span className="text-sm font-semibold">
+                        {currencySymbols[selectedCurrency]}{totalPrice.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => {
-              setShowConfirmation(false);
-              // Reset form or navigate away if needed
-            }}>
-              Close
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
-      {/* Error Alert Dialog */}
-      <AlertDialog open={showAlert} onOpenChange={setShowAlert}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {alertType === "success" ? "Success" : "Error"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {alertMessage}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowAlert(false)}>
-              OK
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Form>
+                <div className="pt-4">
+                  <Button 
+                    type="submit" 
+                    size="default" 
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Submit Booking"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1167,7 +1188,9 @@ BookingForm.propTypes = {
   ticketingDeadline: PropTypes.instanceOf(Date),
   paymentStatus: PropTypes.string,
   originalNights: PropTypes.number,
-  salesTeam: PropTypes.object
+  salesTeam: PropTypes.object,
+  open: PropTypes.bool,
+  onOpenChange: PropTypes.func
 };
 
 export { BookingForm };
