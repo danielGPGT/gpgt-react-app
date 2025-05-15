@@ -815,153 +815,181 @@ function InternalPricing({
   }
 
   return (
-    <div className="p-4 space-y-4 bg-card rounded-md border shadow-sm w-full max-w-6xl mx-auto h-full">
+    <div className="p-4  bg-card rounded-md border shadow-sm w-full mx-auto h-full flex flex-row gap-4">
       {/* Event & Package */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <h2 className="text-xs font-semibold mb-1 text-foreground">Select Sport</h2>
-          <Select value={selectedSport} onValueChange={setSelectedSport}>
-            <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
-              <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                <Trophy className="h-4 w-4" />
-              </div>
-              <SelectValue placeholder="All Sports" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sports</SelectItem>
-              {sports.map((sport, index) => (
-                <SelectItem key={index} value={sport}>
-                  {sport}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="space-y-3 w-8/12">
+        {/* Sport and Event Selection */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <h2 className="text-xs font-semibold mb-1 text-foreground">Select Sport</h2>
+            <Select value={selectedSport} onValueChange={setSelectedSport}>
+              <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
+                <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                  <Trophy className="h-4 w-4 text-primary" />
+                </div>
+                <SelectValue placeholder="All Sports" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sports</SelectItem>
+                {sports.map((sport, index) => (
+                  <SelectItem key={index} value={sport}>
+                    {sport}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <h2 className="text-xs font-semibold mb-1 text-foreground">Select Event</h2>
+            <Select onValueChange={handleEventSelect}>
+              <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
+                <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                </div>
+                <SelectValue placeholder="Choose event" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredEvents.map((event) => (
+                  <SelectItem key={event.event_id} value={event.event_id}>
+                    {event.event || event.event_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xs font-semibold mb-1 text-foreground">
-            Select Event
-          </h2>
-          <Select onValueChange={handleEventSelect}>
-            <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
-              <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                <CalendarDays className="h-4 w-4" />
-              </div>
-              <SelectValue placeholder="Choose event" />
-            </SelectTrigger>
-            <SelectContent>
-              {filteredEvents.map((event) => (
-                <SelectItem key={event.event_id} value={event.event_id}>
-                  {event.event || event.event_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+
+        {/* Package and Tier Selection */}
         {selectedEvent && (
-          <div>
-            <h2 className="text-xs font-semibold mb-1 text-foreground">
-              Select Package
-            </h2>
-            {loadingPackages ? (
-              <div className="text-xs text-muted-foreground">
-                Loading packages...
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <h2 className="text-xs font-semibold mb-1 text-foreground">Select Package</h2>
+              {loadingPackages ? (
+                <div className="text-xs text-muted-foreground">Loading packages...</div>
+              ) : (
+                <Select onValueChange={handlePackageSelect} value={selectedPackage?.package_id}>
+                  <SelectTrigger className="w-full bg-background relative group hover:border-primary transition-colors">
+                    <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                      <Package className="h-4 w-4 text-primary" />
+                    </div>
+                    <SelectValue placeholder="Choose a package..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {packages.map((pkg, idx) => (
+                      <SelectItem key={idx} value={pkg.package_id}>
+                        {pkg.package_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            {selectedPackage && (
+              <div>
+                <h2 className="text-xs font-semibold mb-1 text-foreground">Select Tier</h2>
+                {loadingTiers ? (
+                  <div className="text-xs text-muted-foreground">Loading tiers...</div>
+                ) : (
+                  <Select onValueChange={handleTierSelect} value={selectedTier?.tier_id}>
+                    <SelectTrigger className="w-full bg-background relative group hover:border-primary transition-colors">
+                      <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                        <Layers className="h-4 w-4" />
+                      </div>
+                      <SelectValue placeholder="Choose a tier...">
+                        {selectedTier ? (
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">{selectedTier.tier_type}</span>
+                          </div>
+                        ) : (
+                          "Choose a tier..."
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Tier</SelectItem>
+                      {packageTiers.map((tier) => (
+                        <SelectItem key={tier.tier_id} value={tier.tier_id}>
+                          {tier.tier_type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
-            ) : (
-              <Select
-                onValueChange={handlePackageSelect}
-                value={selectedPackage?.package_id}
-              >
-                <SelectTrigger className="w-full bg-background relative group hover:border-primary transition-colors">
-                  <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                    <Package className="h-4 w-4" />
-                  </div>
-                  <SelectValue placeholder="Choose a package..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {packages.map((pkg, idx) => (
-                    <SelectItem key={idx} value={pkg.package_id}>
-                      {pkg.package_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             )}
           </div>
         )}
 
+        {/* Hotel and Adults */}
         {selectedPackage && (
-          <div>
-            <h2 className="text-xs font-semibold mb-1 text-foreground">
-              Select Tier
-            </h2>
-            {loadingTiers ? (
-              <div className="text-xs text-muted-foreground">
-                Loading tiers...
-              </div>
-            ) : (
-              <Select
-                onValueChange={handleTierSelect}
-                value={selectedTier?.tier_id}
-              >
-                <SelectTrigger className="w-full bg-background relative group hover:border-primary transition-colors">
-                  <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                    <Layers className="h-4 w-4" />
-                  </div>
-                  <SelectValue placeholder="Choose a tier...">
-                    {selectedTier ? (
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">{selectedTier.tier_type}</span>
-                      </div>
-                    ) : (
-                      "Choose a tier..."
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Tier</SelectItem>
-                  {packageTiers.map((tier) => (
-                    <SelectItem key={tier.tier_id} value={tier.tier_id}>
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">{tier.tier_type}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+          <div className="flex justify-between items-end gap-4">
+            <div className="flex-col w-6/12">
+              <h2 className="text-xs font-semibold mb-1 text-foreground">Select Hotel</h2>
+              {loadingHotels ? (
+                <div className="text-xs text-muted-foreground">Loading hotels...</div>
+              ) : (
+                <Select onValueChange={(id) => handleHotelSelect(id)} value={selectedHotel?.hotel_id}>
+                  <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
+                    <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                      <Hotel className="h-4 w-4 text-primary" />
+                    </div>
+                    <SelectValue placeholder="Choose hotel">
+                      {selectedHotel ? selectedHotel.hotel_name : "Choose hotel"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {hotels.map((hotel) => (
+                      <SelectItem key={hotel.hotel_id} value={hotel.hotel_id}>
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{hotel.hotel_name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {Array(hotel.stars).fill("★").join("")}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs font-semibold">Adults</h2>
+              <QuantitySelector
+                value={numberOfAdults}
+                onChange={setNumberOfAdults}
+                min={1}
+                max={100}
+              />
+            </div>
           </div>
         )}
-      </div>
 
-      <div className="flex w-full justify-between items-end gap-4">
-        {/* Hotel */}
-        {selectedPackage && (
-          <div className="w-full">
-            <h2 className="text-xs font-semibold mb-1 text-foreground">
-              Select Hotel
-            </h2>
-            {loadingHotels ? (
-              <div className="text-xs text-muted-foreground">
-                Loading hotels...
-              </div>
+        
+
+        {/* Room Selection */}
+        {selectedHotel && (
+          <div className="p-2 border rounded-md space-y-1 bg-card">
+            <h2 className="text-xs font-semibold text-foreground">Select Room</h2>
+            {loadingRooms ? (
+              <div className="text-xs text-muted-foreground">Loading rooms...</div>
             ) : (
-              <Select onValueChange={(id) => handleHotelSelect(id)} value={selectedHotel?.hotel_id}>
-                <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
+              <Select onValueChange={handleRoomSelect} value={selectedRoom?.room_id}>
+                <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
                   <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                    <Hotel className="h-4 w-4" />
+                    <Bed className="h-4 w-4 text-primary" />
                   </div>
-                  <SelectValue placeholder="Choose hotel">
-                    {selectedHotel ? selectedHotel.hotel_name : "Choose hotel"}
+                  <SelectValue placeholder="Choose a room...">
+                    {selectedRoom ? `${selectedRoom.room_category} - ${selectedRoom.room_type}` : "Choose a room..."}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {hotels.map((hotel) => (
-                    <SelectItem key={hotel.hotel_id} value={hotel.hotel_id}>
+                  {rooms.map((room) => (
+                    <SelectItem key={room.room_id} value={room.room_id} className="text-xs" disabled={parseInt(room.remaining) <= 0}>
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">{hotel.hotel_name}</span>
+                        <span className="font-medium">{room.room_category} - {room.room_type}</span>
                         <span className="text-xs text-muted-foreground">
-                          {Array(hotel.stars).fill("★").join("")}
+                          {parseInt(room.remaining) > 0 ? `${room.remaining} rooms left` : "Sold Out"}
                         </span>
                       </div>
                     </SelectItem>
@@ -969,147 +997,52 @@ function InternalPricing({
                 </SelectContent>
               </Select>
             )}
-          </div>
-        )}
-        {/* Adults */}
-        {selectedPackage && (
-          <div className="flex items-center gap-4 w-full justify-end">
-            <h2 className="text-xs font-semibold">Adults</h2>
-            <QuantitySelector
-              value={numberOfAdults}
-              onChange={setNumberOfAdults}
-              min={1}
-              max={100}
-            />
-          </div>
-        )}
-      </div>
 
-      {selectedHotel && (
-        <div className="p-3 border rounded-md space-y-1 bg-card">
-          <h2 className="text-xs font-semibold text-foreground">Select Room</h2>
-
-          {loadingRooms ? (
-            <div className="text-xs text-muted-foreground">
-              Loading rooms...
-            </div>
-          ) : (
-            <Select onValueChange={handleRoomSelect} value={selectedRoom?.room_id}>
-              <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
-                <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                  <Bed className="h-4 w-4" />
-                </div>
-                <SelectValue placeholder="Choose a room...">
-                  {selectedRoom ? `${selectedRoom.room_category} - ${selectedRoom.room_type}` : "Choose a room..."}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {rooms.map((room) => (
-                  <SelectItem
-                    key={room.room_id}
-                    value={room.room_id}
-                    className="text-xs"
-                    disabled={parseInt(room.remaining) <= 0}
-                  >
-                    <div className="flex flex-col items-start">
-                      <span className="font-medium">{room.room_category} - {room.room_type}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {parseInt(room.remaining) > 0
-                          ? `${room.remaining} rooms left`
-                          : "Sold Out"}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {selectedRoom && (
-            <div className="flex justify-between gap-4 pt-3 text-xs align-bottom items-end ">
-              {/* Left Info */}
-              <div className="space-y-0">
-                {/* Dialog Trigger */}
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-fit text-xs bg-primary text-primary-foreground pointer-events-auto"
-                    >
-                      More Room info
-                    </Button>
-                  </DialogTrigger>
-
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="mb-2 text-foreground">
-                        {selectedRoom.room_category} - {selectedRoom.room_type}
-                      </DialogTitle>
-                      <DialogDescription>
-                        Room details for{" "}
-                        <strong className="text-foreground">
-                          {selectedRoom.hotel_name}
-                        </strong>
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="text-sm text-muted-foreground mt-2 space-y-2">
-                      {/* Room Details */}
-                      <div className="space-y-2">
+            {selectedRoom && (
+              <div className="flex justify-between gap-3 pt-2 text-xs align-bottom items-end">
+                <div className="space-y-1">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-fit text-xs bg-primary text-primary-foreground">
+                        More Room info
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="mb-2 text-foreground">
+                          {selectedRoom.room_category} - {selectedRoom.room_type}
+                        </DialogTitle>
+                        <DialogDescription>
+                          Room details for <strong className="text-foreground">{selectedRoom.hotel_name}</strong>
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="text-sm text-muted-foreground mt-2 space-y-2">
                         <div className="grid grid-cols-2 gap-2">
-                          <p className="font-semibold text-foreground">
-                            Room Category:
-                          </p>
+                          <p className="font-semibold text-foreground">Room Category:</p>
                           <p>{selectedRoom.room_category}</p>
-                          <p className="font-semibold text-foreground">
-                            Room Type:
-                          </p>
+                          <p className="font-semibold text-foreground">Room Type:</p>
                           <p>{selectedRoom.room_type}</p>
-                          <p className="font-semibold text-foreground">
-                            Flexibility:
-                          </p>
+                          <p className="font-semibold text-foreground">Flexibility:</p>
                           <p>{selectedRoom.room_flexibility}</p>
-                          <p className="font-semibold text-foreground">
-                            Max Guests:
-                          </p>
+                          <p className="font-semibold text-foreground">Max Guests:</p>
                           <p>{selectedRoom.max_guests}</p>
-                          <p className="font-semibold text-foreground">
-                            Breakfast:
-                          </p>
+                          <p className="font-semibold text-foreground">Breakfast:</p>
                           <p>{selectedRoom["breakfast_(2_people)"]}</p>
-                          <p className="font-semibold text-foreground">
-                            Rooms Available:
-                          </p>
+                          <p className="font-semibold text-foreground">Rooms Available:</p>
                           <p>{selectedRoom.remaining}</p>
                         </div>
                       </div>
-                    </div>
-
-                    <DialogFooter className="pt-4"></DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                <div className="pt-2">
-                  <p className="font-semibold mb-1 text-foreground">
-                    Check in - Check out:
-                  </p>
-                  <DatePickerWithRange
-                    date={dateRange}
-                    setDate={handleDateChange}
-                  />
+                    </DialogContent>
+                  </Dialog>
+                  <div className="pt-2">
+                    <p className="font-semibold mb-1 text-foreground">Check in - Check out:</p>
+                    <DatePickerWithRange date={dateRange} setDate={handleDateChange} />
+                  </div>
                 </div>
-              </div>
-
-              {/* Right Quantity + Pricing */}
-              <div className="space-y-2">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2 mb-4 align-items-end">
-                    <p className="font-semibold text-foreground">
-                      Room Quantity
-                    </p>
-                    <p className="text-muted-foreground">
-                      (Max {selectedRoom.max_guests} guests per room)
-                    </p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="font-semibold text-foreground">Room Quantity</p>
+                    <p className="text-muted-foreground">(Max {selectedRoom.max_guests} guests per room)</p>
                   </div>
                   <QuantitySelector
                     value={roomQuantity}
@@ -1119,217 +1052,45 @@ function InternalPricing({
                   />
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Ticket */}
-      {selectedPackage && (
-        <div className="p-3 border rounded-md space-y-2 bg-card">
-          <h2 className="text-xs font-semibold text-foreground">
-            Select Ticket
-          </h2>
-          {loadingTickets ? (
-            <div className="text-xs text-muted-foreground">
-              Loading tickets...
-            </div>
-          ) : (
-            <Select onValueChange={handleTicketSelect} value={selectedTicket?.ticket_id}>
-              <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
-                <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                  <Ticket className="h-4 w-4" />
-                </div>
-                <SelectValue placeholder="Choose ticket">
-                  {selectedTicket ? selectedTicket.ticket_name : "Choose ticket"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No Ticket</SelectItem>
-                {tickets.map((ticket) => (
-                  <SelectItem
-                    key={ticket.ticket_id}
-                    value={ticket.ticket_id}
-                    disabled={parseInt(ticket.remaining) <= 0 && ticket.remaining !== "purchased_to_order"}
-                    className={`text-xs ${
-                      parseInt(ticket.remaining) <= 0 && ticket.remaining !== "purchased_to_order"
-                        ? "text-muted-foreground"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex flex-col items-start">
-                      <span className="font-medium">{ticket.ticket_name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {ticket.ticket_type} • {
-                          ticket.remaining === "purchased_to_order" 
-                            ? "Purchased to Order"
-                            : parseInt(ticket.remaining) > 0
-                              ? `${ticket.remaining} tickets left`
-                              : "Sold Out"
-                        }
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {selectedTicket && (
-            <div className="flex items-center justify-between gap-4 text-xs pt-2 w-full">
-              <div className="flex flex-col gap-2">
-                {/* Dialog Trigger */}
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-fit text-xs bg-primary text-primary-foreground pointer-events-auto"
-                    >
-                      More Ticket info
-                    </Button>
-                  </DialogTrigger>
-
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="mb-2 text-foreground">
-                        {selectedTicket.ticket_name}
-                      </DialogTitle>
-                      <DialogDescription>
-                        Ticket details for{" "}
-                        <strong className="text-foreground">
-                          {selectedTicket.ticket_name}
-                        </strong>
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="text-sm text-muted-foreground mt-2 space-y-2">
-                      {/* Ticket Type */}
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          Ticket Type: {selectedTicket.ticket_type}
-                        </p>
-                      </div>
-
-                      {/* Event Days */}
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          Event Days: {selectedTicket.event_days}
-                        </p>
-                      </div>
-
-                      {/* Icons */}
-                      <div className="flex items-center gap-2 pt-2">
-                        {selectedTicket.video_wall && (
-                          <Badge>
-                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
-                              <MonitorPlay className="w-4 h-4 text-primary-foreground" />
-                              <span>Video Wall</span>
-                            </div>
-                          </Badge>
-                        )}
-                        {selectedTicket.covered_seat && (
-                          <Badge>
-                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
-                              <Umbrella className="w-4 h-4 text-primary-foreground" />
-                              <span>Covered Seat</span>
-                            </div>
-                          </Badge>
-                        )}
-                        {selectedTicket.numbered_seat && (
-                          <Badge>
-                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
-                              <Hash className="w-4 h-4 text-primary-foreground" />
-                              <span>Numbered Seat</span>
-                            </div>
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-
-                    <DialogFooter className="pt-4"></DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-
-              {/* Quantity selector */}
-              <QuantitySelector
-                value={ticketQuantity}
-                onChange={setTicketQuantity}
-                min={1}
-                max={parseInt(selectedTicket.remaining) || 100}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {selectedHotel && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
-          {/* Circuit Transfer */}
-          <div className="p-3 border rounded-md space-y-2 bg-card">
-            <h2 className="text-xs font-semibold text-foreground">
-              Circuit Transfer
-            </h2>
-            {loadingCircuitTransfers ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
-            ) : (
-              <Select onValueChange={handleCircuitTransferSelect} value={selectedCircuitTransfer?.circuit_transfer_id}>
-                <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
-                  <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                    <Bus className="h-4 w-4" />
-                  </div>
-                  <SelectValue placeholder="Select circuit transfer">
-                    {selectedCircuitTransfer ? selectedCircuitTransfer.transport_type : "Select circuit transfer"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {circuitTransfers && circuitTransfers.map((transfer) => (
-                    <SelectItem
-                      key={transfer.circuit_transfer_id}
-                      value={transfer.circuit_transfer_id}
-                      className="text-xs"
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">{transfer.transport_type}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             )}
           </div>
+        )}
 
-          {/* Airport Transfer */}
-          <div className="p-3 border rounded-md space-y-2 bg-card">
-            <h2 className="text-xs font-semibold text-foreground">
-              Airport Transfer
-            </h2>
-            {loadingAirportTransfers ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+        {/* Ticket Selection */}
+        {selectedPackage && (
+          <div className="p-2 border rounded-md space-y-1 bg-card">
+            <h2 className="text-xs font-semibold text-foreground">Select Ticket</h2>
+            {loadingTickets ? (
+              <div className="text-xs text-muted-foreground">Loading tickets...</div>
             ) : (
-              <Select onValueChange={handleAirportTransferSelect} value={selectedAirportTransfer?.airport_transfer_id}>
+              <Select onValueChange={handleTicketSelect} value={selectedTicket?.ticket_id}>
                 <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
                   <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                    <Bus className="h-4 w-4" />
+                    <Ticket className="h-4 w-4 text-primary" />
                   </div>
-                  <SelectValue placeholder="Select airport transfer">
-                    {selectedAirportTransfer ? selectedAirportTransfer.transport_type : "Select airport transfer"}
+                  <SelectValue placeholder="Choose ticket">
+                    {selectedTicket ? selectedTicket.ticket_name : "Choose ticket"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {airportTransfers && airportTransfers.map((transfer) => (
+                  <SelectItem value="none">No Ticket</SelectItem>
+                  {tickets.map((ticket) => (
                     <SelectItem
-                      key={transfer.airport_transfer_id}
-                      value={transfer.airport_transfer_id}
-                      className="text-xs"
+                      key={ticket.ticket_id}
+                      value={ticket.ticket_id}
+                      disabled={parseInt(ticket.remaining) <= 0 && ticket.remaining !== "purchased_to_order"}
+                      className={`text-xs ${parseInt(ticket.remaining) <= 0 && ticket.remaining !== "purchased_to_order" ? "text-muted-foreground" : ""}`}
                     >
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">{transfer.transport_type}</span>
+                        <span className="font-medium">{ticket.ticket_name}</span>
                         <span className="text-xs text-muted-foreground">
-                          (Max {transfer.max_capacity} people)
+                          {ticket.ticket_type} • {
+                            ticket.remaining === "purchased_to_order" 
+                              ? "Purchased to Order"
+                              : parseInt(ticket.remaining) > 0
+                                ? `${ticket.remaining} tickets left`
+                                : "Sold Out"
+                          }
                         </span>
                       </div>
                     </SelectItem>
@@ -1338,385 +1099,537 @@ function InternalPricing({
               </Select>
             )}
 
-            {selectedAirportTransfer && (
-              <p className="text-xs pt-1">
-                Transfers Needed:{" "}
-                {Math.ceil(
-                  numberOfAdults / (selectedAirportTransfer.max_capacity || 1)
-                )}
-              </p>
+            {selectedTicket && (
+              <div className="flex items-center justify-between gap-3 text-xs pt-2">
+                <div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-fit text-xs bg-primary text-primary-foreground">
+                        More Ticket info
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="mb-2 text-foreground">
+                          {selectedTicket.ticket_name}
+                        </DialogTitle>
+                        <DialogDescription>
+                          Ticket details for <strong className="text-foreground">{selectedTicket.ticket_name}</strong>
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="text-sm text-muted-foreground mt-2 space-y-2">
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            Ticket Type: {selectedTicket.ticket_type}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            Event Days: {selectedTicket.event_days}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 pt-2">
+                          {selectedTicket.video_wall && (
+                            <Badge>
+                              <div className="flex items-center gap-1 text-xs text-primary-foreground">
+                                <MonitorPlay className="w-4 h-4 text-primary-foreground" />
+                                <span>Video Wall</span>
+                              </div>
+                            </Badge>
+                          )}
+                          {selectedTicket.covered_seat && (
+                            <Badge>
+                              <div className="flex items-center gap-1 text-xs text-primary-foreground">
+                                <Umbrella className="w-4 h-4 text-primary-foreground" />
+                                <span>Covered Seat</span>
+                              </div>
+                            </Badge>
+                          )}
+                          {selectedTicket.numbered_seat && (
+                            <Badge>
+                              <div className="flex items-center gap-1 text-xs text-primary-foreground">
+                                <Hash className="w-4 h-4 text-primary-foreground" />
+                                <span>Numbered Seat</span>
+                              </div>
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <QuantitySelector
+                  value={ticketQuantity}
+                  onChange={setTicketQuantity}
+                  min={1}
+                  max={parseInt(selectedTicket.remaining) || 100}
+                />
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Flights */}
-      {selectedEvent && (
-        <div className="p-3 border rounded-md space-y-2 bg-card">
-          <h2 className="text-xs font-semibold text-foreground">Flight</h2>
-          {loadingFlights ? (
-            <div className="text-xs text-muted-foreground">
-              Loading flights...
+        {/* Transfers */}
+        {selectedHotel && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-2 border rounded-md space-y-1 bg-card">
+              <h2 className="text-xs font-semibold text-foreground">Circuit Transfer</h2>
+              {loadingCircuitTransfers ? (
+                <div className="text-xs text-muted-foreground">Loading...</div>
+              ) : (
+                <Select onValueChange={handleCircuitTransferSelect} value={selectedCircuitTransfer?.circuit_transfer_id}>
+                  <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
+                    <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                      <Bus className="h-4 w-4 text-primary" />
+                    </div>
+                    <SelectValue placeholder="Select circuit transfer">
+                      {selectedCircuitTransfer ? selectedCircuitTransfer.transport_type : "Select circuit transfer"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {circuitTransfers && circuitTransfers.map((transfer) => (
+                      <SelectItem key={transfer.circuit_transfer_id} value={transfer.circuit_transfer_id} className="text-xs">
+                        {transfer.transport_type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
-          ) : (
-            <div className="space-y-4">
-              <Button
-                variant="outline"
-                className="w-full h-auto p-4 relative group hover:border-primary transition-colors text-left flex justify-start"
-                onClick={() => setShowFlightDialog(true)}
-              >
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors">
-                  <Plane className="h-5 w-5" />
-                </div>
-                {selectedFlight ? (
-                  <div className="flex flex-col items-start gap-1 pr-10">
-                    <span className="text-sm font-medium">
-                      {selectedFlight.airline} • {selectedFlight.class}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {selectedFlight.outbound_flight.split(" ")[0]} -{" "}
-                      {selectedFlight.inbound_flight.split(" ")[0]}
-                    </span>
-                  </div>
-                ) : selectedLocation === "none" ? (
-                  <div className="flex flex-col items-start gap-1 pr-10">
-                    <span className="text-sm font-medium">
-                      No Flights Selected
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Click to change selection
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-start gap-1 pr-10">
-                    <span className="text-sm font-medium">Select Flight</span>
-                    <span className="text-xs text-muted-foreground">
-                      Choose from available flights
-                    </span>
-                  </div>
-                )}
-              </Button>
 
-              <AlertDialog
-                open={showFlightDialog}
-                onOpenChange={setShowFlightDialog}
-              >
-                <AlertDialogContent className="max-w-3xl">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-4 top-4"
-                    onClick={() => setShowFlightDialog(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Select Flight</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Choose your departure location and select a flight
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
+            <div className="p-2 border rounded-md space-y-1 bg-card">
+              <h2 className="text-xs font-semibold text-foreground">Airport Transfer</h2>
+              {loadingAirportTransfers ? (
+                <div className="text-xs text-muted-foreground">Loading...</div>
+              ) : (
+                <Select onValueChange={handleAirportTransferSelect} value={selectedAirportTransfer?.airport_transfer_id}>
+                  <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
+                    <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                      <Bus className="h-4 w-4 text-primary" />
+                    </div>
+                    <SelectValue placeholder="Select airport transfer">
+                      {selectedAirportTransfer ? selectedAirportTransfer.transport_type : "Select airport transfer"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {airportTransfers && airportTransfers.map((transfer) => (
+                      <SelectItem key={transfer.airport_transfer_id} value={transfer.airport_transfer_id} className="text-xs">
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{transfer.transport_type}</span>
+                          <span className="text-xs text-muted-foreground">
+                            (Max {transfer.max_capacity} people)
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {selectedAirportTransfer && (
+                <p className="text-xs pt-1">
+                  Transfers Needed: {Math.ceil(numberOfAdults / (selectedAirportTransfer.max_capacity || 1))}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
-                  <div className="space-y-4">
-                    <Combobox
-                      options={[
-                        { value: "none", label: "No Flight" },
-                        { value: "all", label: "All Locations" },
-                        ...[
-                          ...new Set(flights.map((f) => f.from_location)),
-                        ].map((location) => ({
-                          value: location,
-                          label: location,
-                        })),
-                      ]}
-                      value={selectedLocation}
-                      onChange={(value) => {
-                        setSelectedLocation(value);
-                        if (value === "none") {
-                          setSelectedFlight(null);
-                          setFlightQuantity(0);
-                          setCreateFlightBooking(false);
-                          setFlightPNR("");
-                          setTicketingDeadline(null);
-                          setPaymentStatus("");
-                          setShowFlightDialog(false);
-                        }
-                      }}
-                      placeholder="Select departure location"
-                    />
+        {/* Flight Selection */}
+        {selectedEvent && (
+          <div className="p-2 border rounded-md space-y-1 bg-card">
+            <h2 className="text-xs font-semibold text-foreground">Flight</h2>
+            {loadingFlights ? (
+              <div className="text-xs text-muted-foreground">Loading flights...</div>
+            ) : (
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full h-auto p-2 relative group hover:border-primary transition-colors text-left flex justify-start"
+                  onClick={() => setShowFlightDialog(true)}
+                >
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors">
+                    <Plane className="h-4 w-4 text-primary" />
+                  </div>
+                  {selectedFlight ? (
+                    <div className="flex flex-col items-start gap-1 pr-8">
+                      <span className="text-sm font-medium">
+                        {selectedFlight.airline} • {selectedFlight.class}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {selectedFlight.outbound_flight.split(" ")[0]} - {selectedFlight.inbound_flight.split(" ")[0]}
+                      </span>
+                    </div>
+                  ) : selectedLocation === "none" ? (
+                    <div className="flex flex-col items-start gap-1 pr-8">
+                      <span className="text-sm font-medium">No Flights Selected</span>
+                      <span className="text-xs text-muted-foreground">Click to change selection</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-start gap-1 pr-8">
+                      <span className="text-sm font-medium">Select Flight</span>
+                      <span className="text-xs text-muted-foreground">Choose from available flights</span>
+                    </div>
+                  )}
+                </Button>
 
-                    <ScrollArea className="h-[400px]">
-                      <div className="space-y-2">
-                        {selectedLocation === "none"
-                          ? null
-                          : flights
-                              .filter(
-                                (flight) =>
-                                  !selectedLocation ||
-                                  selectedLocation === "all" ||
-                                  flight.from_location === selectedLocation
-                              )
-                              .map((flight) => (
-                                <div
-                                  key={flight.flight_id}
-                                  className={`p-4 border rounded-md cursor-pointer hover:bg-accent ${
-                                    selectedFlight?.flight_id ===
-                                    flight.flight_id
-                                      ? "bg-accent"
-                                      : ""
-                                  }`}
-                                  onClick={() => {
-                                    setSelectedFlight(flight);
-                                    setShowFlightDialog(false);
-                                  }}
-                                >
-                                  <div className="flex justify-between items-start">
-                                    <div className="space-y-1">
-                                      <p className="font-medium">
-                                        {flight.airline} • {flight.class}
-                                      </p>
-                                      <p className="text-sm text-muted-foreground">
-                                        From: {flight.from_location}
-                                      </p>
-                                      <div className="text-sm space-y-1">
-                                        <p>
-                                          Outbound: {flight.outbound_flight}
+                <AlertDialog open={showFlightDialog} onOpenChange={setShowFlightDialog}>
+                  <AlertDialogContent className="max-w-3xl">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-4 top-4"
+                      onClick={() => setShowFlightDialog(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Select Flight</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Choose your departure location and select a flight
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <div className="space-y-4">
+                      <Combobox
+                        options={[
+                          { value: "none", label: "No Flight" },
+                          { value: "all", label: "All Locations" },
+                          ...[...new Set(flights.map((f) => f.from_location))].map((location) => ({
+                            value: location,
+                            label: location,
+                          })),
+                        ]}
+                        value={selectedLocation}
+                        onChange={(value) => {
+                          setSelectedLocation(value);
+                          if (value === "none") {
+                            setSelectedFlight(null);
+                            setFlightQuantity(0);
+                            setCreateFlightBooking(false);
+                            setFlightPNR("");
+                            setTicketingDeadline(null);
+                            setPaymentStatus("");
+                            setShowFlightDialog(false);
+                          }
+                        }}
+                        placeholder="Select departure location"
+                      />
+
+                      <ScrollArea className="h-[400px]">
+                        <div className="space-y-2">
+                          {selectedLocation === "none"
+                            ? null
+                            : flights
+                                .filter(
+                                  (flight) =>
+                                    !selectedLocation ||
+                                    selectedLocation === "all" ||
+                                    flight.from_location === selectedLocation
+                                )
+                                .map((flight) => (
+                                  <div
+                                    key={flight.flight_id}
+                                    className={`p-3 border rounded-md cursor-pointer hover:bg-accent ${
+                                      selectedFlight?.flight_id === flight.flight_id ? "bg-accent" : ""
+                                    }`}
+                                    onClick={() => {
+                                      setSelectedFlight(flight);
+                                      setShowFlightDialog(false);
+                                    }}
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <div className="space-y-1">
+                                        <p className="font-medium">
+                                          {flight.airline} • {flight.class}
                                         </p>
-                                        <p>Inbound: {flight.inbound_flight}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                          From: {flight.from_location}
+                                        </p>
+                                        <div className="text-sm space-y-1">
+                                          <p>Outbound: {flight.outbound_flight}</p>
+                                          <p>Inbound: {flight.inbound_flight}</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="font-medium">
+                                          {currencySymbols[selectedCurrency]}
+                                          {flight.price * numberOfAdults}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {currencySymbols[selectedCurrency]}
+                                          {flight.price} per person
+                                        </p>
                                       </div>
                                     </div>
-                                    <div className="text-right">
-                                      <p className="font-medium">
-                                        {currencySymbols[selectedCurrency]}
-                                        {flight.price * numberOfAdults}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {currencySymbols[selectedCurrency]}
-                                        {flight.price} per person
-                                      </p>
-                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-
-          {selectedFlight && (
-            <div className="text-xs space-y-1 pt-1">
-              <p className="text-foreground">
-                Outbound: {selectedFlight.outbound_flight}
-              </p>
-              <p className="text-foreground">
-                Inbound: {selectedFlight.inbound_flight}
-              </p>
-              <p className="text-foreground">
-                Total Price: {currencySymbols[selectedCurrency]}
-                {selectedFlight.price * numberOfAdults}
-              </p>
-
-              <div className="flex items-center space-x-2 pt-2">
-                <Switch
-                  id="create-flight-booking"
-                  checked={createFlightBooking}
-                  onCheckedChange={(checked) => setCreateFlightBooking(checked)}
-                />
-                <Label
-                  htmlFor="create-flight-booking"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Create Booking
-                </Label>
+                                ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
+            )}
 
-              {createFlightBooking && (
-                <div className="space-y-2 pt-2 flex w-full gap-4">
-                  <div className="space-y-1 w-full">
-                    <Label className="text-xs text-foreground">
-                      Payment Status
-                    </Label>
-                    <Select
-                      value={paymentStatus}
-                      onValueChange={setPaymentStatus}
-                    >
-                      <SelectTrigger className="h-8 w-full text-xs bg-background">
-                        <SelectValue placeholder="Select payment status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="booked_ticketed_paid">
-                          Booked - Ticketed - Paid
-                        </SelectItem>
-                        <SelectItem value="booked_ticketed_not_paid">
-                          Booked - Ticketed - Not Paid
-                        </SelectItem>
-                        <SelectItem value="booked_not_ticketed">
-                          Booked - Not Ticketed
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+            {selectedFlight && (
+              <div className="text-xs space-y-1 pt-1">
+                <p className="text-foreground">Outbound: {selectedFlight.outbound_flight}</p>
+                <p className="text-foreground">Inbound: {selectedFlight.inbound_flight}</p>
+                <p className="text-foreground">
+                  Total Price: {currencySymbols[selectedCurrency]}
+                  {selectedFlight.price * numberOfAdults}
+                </p>
+
+                <div className="flex items-center space-x-2 pt-2">
+                  <Switch
+                    id="create-flight-booking"
+                    checked={createFlightBooking}
+                    onCheckedChange={(checked) => setCreateFlightBooking(checked)}
+                  />
+                  <Label htmlFor="create-flight-booking" className="text-sm font-medium text-foreground">
+                    Create Booking
+                  </Label>
+                </div>
+
+                {createFlightBooking && (
+                  <div className="space-y-2 pt-2 flex w-full gap-3">
+                    <div className="space-y-1 w-full">
+                      <Label className="text-xs text-foreground">Payment Status</Label>
+                      <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                        <SelectTrigger className="h-8 w-full text-xs bg-background">
+                          <SelectValue placeholder="Select payment status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="booked_ticketed_paid">Booked - Ticketed - Paid</SelectItem>
+                          <SelectItem value="booked_ticketed_not_paid">Booked - Ticketed - Not Paid</SelectItem>
+                          <SelectItem value="booked_not_ticketed">Booked - Not Ticketed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1 w-full">
+                      <Label className="text-xs text-foreground">Flight PNR</Label>
+                      <Input
+                        placeholder="Enter PNR"
+                        value={flightPNR}
+                        onChange={(e) => setFlightPNR(e.target.value)}
+                        className="h-8 text-xs bg-background"
+                      />
+                    </div>
+                    <div className="space-y-1 w-full">
+                      <Label className="text-xs text-foreground">Ticketing Deadline</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal h-8 text-xs bg-background",
+                              !ticketingDeadline && "text-muted-foreground"
+                            )}
+                          >
+                            {ticketingDeadline ? format(ticketingDeadline, "PPP") : <span>Pick a date</span>}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={ticketingDeadline}
+                            onSelect={setTicketingDeadline}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
-                  <div className="space-y-1 w-full">
-                    <Label className="text-xs text-foreground">
-                      Flight PNR
-                    </Label>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Lounge Pass */}
+        {selectedEvent && (
+          <div className="p-2 border rounded-md space-y-1 bg-card">
+            <h2 className="text-xs font-semibold text-foreground">Lounge Pass</h2>
+            {loadingLoungePasses ? (
+              <div className="text-xs text-muted-foreground">Loading lounge passes...</div>
+            ) : (
+              <Select onValueChange={handleLoungePassSelect}>
+                <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
+                  <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                    <Coffee className="h-4 w-4 text-primary" />
+                  </div>
+                  <SelectValue placeholder="Select lounge pass" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {loungePasses.map((lp) => (
+                    <SelectItem key={lp.lounge_pass_id} value={lp.lounge_pass_id}>
+                      {lp.variant}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {selectedLoungePass && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-foreground">Quantity:</span>
+                  <QuantitySelector
+                    value={loungePassQuantity}
+                    onChange={setLoungePassQuantity}
+                    min={1}
+                    max={10}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="create-lounge-booking"
+                    checked={createLoungeBooking}
+                    onCheckedChange={(checked) => setCreateLoungeBooking(checked)}
+                  />
+                  <Label htmlFor="create-lounge-booking" className="text-sm font-medium text-foreground">
+                    Create Booking
+                  </Label>
+                </div>
+
+                {createLoungeBooking && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-foreground">Booking Reference</Label>
                     <Input
-                      placeholder="Enter PNR"
-                      value={flightPNR}
-                      onChange={(e) => setFlightPNR(e.target.value)}
+                      placeholder="Enter booking reference"
+                      value={loungeBookingRef}
+                      onChange={(e) => setLoungeBookingRef(e.target.value)}
                       className="h-8 text-xs bg-background"
                     />
                   </div>
-                  <div className="space-y-1 w-full">
-                    <Label className="text-xs text-foreground">
-                      Ticketing Deadline
-                    </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal h-8 text-xs bg-background",
-                            !ticketingDeadline && "text-muted-foreground"
-                          )}
-                        >
-                          {ticketingDeadline ? (
-                            format(ticketingDeadline, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={ticketingDeadline}
-                          onSelect={setTicketingDeadline}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Lounge Pass */}
-      {selectedEvent && (
-        <div className="p-3 border rounded-md space-y-2 bg-card">
-          <h2 className="text-xs font-semibold text-foreground">Lounge Pass</h2>
-          {loadingLoungePasses ? (
-            <div className="text-xs text-muted-foreground">
-              Loading lounge passes...
-            </div>
-          ) : (
-            <Select onValueChange={handleLoungePassSelect}>
-              <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
-                <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                  <Coffee className="h-4 w-4" />
-                </div>
-                <SelectValue placeholder="Select lounge pass" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {loungePasses.map((lp) => (
-                  <SelectItem key={lp.lounge_pass_id} value={lp.lounge_pass_id}>
-                    {lp.variant}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {selectedLoungePass && (
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="w-4/12 border rounded-md border-primary p-6 bg-background h-full sticky top-4">
+        {/* Empty State */}
+        {!selectedRoom && !selectedTicket && (
+          <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
+            <Package className="h-12 w-12 text-primary" />
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-foreground">Quantity:</span>
-                <QuantitySelector
-                  value={loungePassQuantity}
-                  onChange={setLoungePassQuantity}
-                  min={1}
-                  max={10}
-                />
-              </div>
+              <h3 className="font-semibold text-lg">No Items Selected</h3>
+              <p className="text-sm text-muted-foreground">
+                Select a room or ticket to see pricing details and create a booking
+              </p>
+            </div>
+          </div>
+        )}
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="create-lounge-booking"
-                  checked={createLoungeBooking}
-                  onCheckedChange={(checked) => setCreateLoungeBooking(checked)}
-                />
-                <Label
-                  htmlFor="create-lounge-booking"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Create Booking
-                </Label>
+        {/* Total Price */}
+        {(selectedRoom || selectedTicket) && (
+          <div className="space-y-4">
+            {/* Total Price Section */}
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Price</p>
+                <h2 className="text-xl font-bold text-foreground">
+                  {currencySymbols[selectedCurrency]}
+                  {Number(totalPrice).toFixed(0)}
+                </h2>
               </div>
+              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+                <SelectTrigger className="w-20 h-8 text-xs bg-background">
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCurrencies.map((curr) => (
+                    <SelectItem key={curr} value={curr}>
+                      {curr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              {createLoungeBooking && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-foreground">
-                    Booking Reference
-                  </Label>
-                  <Input
-                    placeholder="Enter booking reference"
-                    value={loungeBookingRef}
-                    onChange={(e) => setLoungeBookingRef(e.target.value)}
-                    className="h-8 text-xs bg-background"
-                  />
+            {/* Selected Items */}
+            <div className="space-y-2">
+              {selectedRoom && (
+                <div className="flex items-center justify-between text-muted-foreground bg-card p-2 rounded-md">
+                  <div className="flex items-center gap-3">
+                    <Bed className="h-4 w-4 text-primary" />
+                    <span className="text-sm">{selectedHotel.hotel_name} - {selectedRoom.room_category} - {selectedRoom.room_type}</span>
+                  </div>
+                  <span className="text-sm font-medium">x{roomQuantity}</span>
+                </div>
+              )}
+              {selectedTicket && (
+                <div className="flex items-center justify-between text-muted-foreground bg-card p-2 rounded-md">
+                  <div className="flex items-center gap-3">
+                    <Ticket className="h-4 w-4 text-primary" />
+                    <span className="text-sm">{selectedTicket.ticket_name}</span>
+                  </div>
+                  <span className="text-sm font-medium">x{ticketQuantity}</span>
+                </div>
+              )}
+              {selectedFlight && (
+                <div className="flex items-center justify-between text-muted-foreground bg-card p-2 rounded-md">
+                  <div className="flex items-center gap-3">
+                    <Plane className="h-4 w-4 text-primary" />
+                    <span className="text-sm">{selectedFlight.airline} • {selectedFlight.class}</span>
+                  </div>
+                  <span className="text-sm font-medium">x{flightQuantity}</span>
+                </div>
+              )}
+              {selectedLoungePass && (
+                <div className="flex items-center justify-between text-muted-foreground bg-card p-2 rounded-md">
+                  <div className="flex items-center gap-3">
+                    <Coffee className="h-4 w-4 text-primary" />
+                    <span className="text-sm">{selectedLoungePass.variant}</span>
+                  </div>
+                  <span className="text-sm font-medium">x{loungePassQuantity}</span>
+                </div>
+              )}
+              {selectedCircuitTransfer && (
+                <div className="flex items-center justify-between text-muted-foreground bg-card p-2 rounded-md">
+                  <div className="flex items-center gap-3">
+                    <Bus className="h-4 w-4 text-primary" />
+                    <span className="text-sm">Circuit Transfer - {selectedCircuitTransfer.transport_type}</span>
+                  </div>
+                  <span className="text-sm font-medium">x{circuitTransferQuantity}</span>
+                </div>
+              )}
+              {selectedAirportTransfer && (
+                <div className="flex items-center justify-between text-muted-foreground bg-card p-2 rounded-md">
+                  <div className="flex items-center gap-3">
+                    <Bus className="h-4 w-4 text-primary" />
+                    <span className="text-sm">Airport Transfer - {selectedAirportTransfer.transport_type}</span>
+                  </div>
+                  <span className="text-sm font-medium">x{airportTransferQuantity}</span>
                 </div>
               )}
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Total Price */}
-      <div className="pt-4 space-y-2">
-        <div className="flex gap-6 items-center">
-          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-            <SelectTrigger className="text-xs bg-background">
-              <SelectValue placeholder="Select currency" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCurrencies.map((curr) => (
-                <SelectItem key={curr} value={curr}>
-                  {curr}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <h2 className="text-lg font-bold text-foreground">
-            Total: {currencySymbols[selectedCurrency]}
-            {Number(totalPrice).toFixed(0)}
-          </h2>
-        </div>
-
-        <div className="flex gap-4">
-          <Button 
-            className="mt-4"
-            onClick={() => setShowBookingForm(true)}
-          >
-            Create Booking
-          </Button>
-          <Button 
-            className="mt-4"
-            variant="outline"
-            onClick={() => setShowQuote(true)}
-          >
-            <FileText className="mr-2 h-4 w-4" />
-            Generate Quote
-          </Button>
-        </div>
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-2 pt-2">
+              <Button 
+                className="w-full"
+                onClick={() => setShowBookingForm(true)}
+              >
+                Create Booking
+              </Button>
+              <Button 
+                className="w-full"
+                variant="outline"
+                onClick={() => setShowQuote(true)}
+              >
+                <FileText className="mr-2 h-4 w-4 text-primary" />
+                Generate Quote
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <BookingForm

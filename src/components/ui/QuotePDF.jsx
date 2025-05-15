@@ -1,33 +1,51 @@
-import { Document, Page, Text, View, StyleSheet, PDFViewer, Font, Image, pdf } from '@react-pdf/renderer';
-import { format } from 'date-fns';
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+  PDFViewer,
+  Font,
+  Image,
+  pdf,
+} from "@react-pdf/renderer";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Copy, Mail } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 
 // Register the GrandPrix font
 Font.register({
-  family: 'GrandPrix',
-  src: '/src/assets/fonts/Formula1-Regular.otf'
+  family: "GrandPrix",
+  src: "/src/assets/fonts/Formula1-Regular.otf",
 });
 
 // Primary color from theme
-const PRIMARY_COLOR = '#BE222A';
+const PRIMARY_COLOR = "#BE222A";
 
 // Import the PNG logo
-const GPGT_LOGO = '/src/assets/imgs/Grand_Prix_Logo_Vector_new.png';
+const GPGT_LOGO = "/src/assets/imgs/Grand_Prix_Logo_Vector_new.png";
 
 const styles = StyleSheet.create({
   page: {
     padding: 20,
     fontSize: 9,
-    backgroundColor: '#ffffff',
-    position: 'relative',
+    backgroundColor: "#ffffff",
+    position: "relative",
   },
   header: {
     marginBottom: 4,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    borderBottom: '0.5pt solid #e2e8f0',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    borderBottom: "0.5pt solid #e2e8f0",
     paddingBottom: 8,
   },
   logo: {
@@ -36,163 +54,163 @@ const styles = StyleSheet.create({
     marginLeft: 0,
   },
   headerRight: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   quoteNumber: {
     fontSize: 14,
     color: PRIMARY_COLOR,
-    fontFamily: 'GrandPrix',
+    fontFamily: "GrandPrix",
     marginBottom: 2,
   },
   generatedDate: {
     fontSize: 8,
-    color: '#718096',
+    color: "#718096",
   },
   content: {
     marginTop: 8,
   },
   section: {
     marginBottom: 6,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 3,
     padding: 0,
-    backgroundColor: '#f8fafc',
-    border: '0.5pt solid #e2e8f0',
+    backgroundColor: "#f8fafc",
+    border: "0.5pt solid #e2e8f0",
   },
   sectionTitle: {
     fontSize: 10,
     marginBottom: 3,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    fontFamily: 'GrandPrix',
+    fontWeight: "bold",
+    color: "#ffffff",
+    fontFamily: "GrandPrix",
     backgroundColor: PRIMARY_COLOR,
     padding: 4,
     borderRadius: 2,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 3,
     marginBottom: 3,
-    marginLeft:8,
+    marginLeft: 8,
     paddingBottom: 3,
-    borderBottom: '0.25pt solid #f0f0f0',
+    borderBottom: "0.25pt solid #f0f0f0",
   },
   label: {
-    width: '35%',
-    fontWeight: 'bold',
-    color: '#4a5568',
+    width: "35%",
+    fontWeight: "bold",
+    color: "#4a5568",
     fontSize: 9,
   },
   value: {
-    width: '65%',
-    color: '#2d3748',
+    width: "65%",
+    color: "#2d3748",
     fontSize: 9,
   },
   total: {
     marginTop: 8,
     padding: 8,
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
     borderRadius: 3,
-    border: '0.5pt solid #BE222A',
+    border: "0.5pt solid #BE222A",
   },
   totalTitle: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: PRIMARY_COLOR,
-    fontFamily: 'GrandPrix',
+    fontFamily: "GrandPrix",
     marginBottom: 3,
   },
   totalAmount: {
     fontSize: 10,
-    fontWeight: 'bold',
-    fontFamily: 'GrandPrix',
+    fontWeight: "bold",
+    fontFamily: "GrandPrix",
     color: PRIMARY_COLOR,
   },
   paymentSchedule: {
     marginTop: 8,
     padding: 0,
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
     borderRadius: 3,
-    border: '0.5pt solid #e2e8f0',
+    border: "0.5pt solid #e2e8f0",
   },
   paymentRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingTop: 2,
     paddingBottom: 2,
     marginTop: 3,
     marginBottom: 3,
-    marginLeft:8,
+    marginLeft: 8,
     paddingBottom: 3,
-    borderBottom: '0.25pt solid #e2e8f0',
+    borderBottom: "0.25pt solid #e2e8f0",
   },
   paymentLabel: {
-    width: '35%',
-    fontWeight: 'bold',
-    color: '#4a5568',
+    width: "35%",
+    fontWeight: "bold",
+    color: "#4a5568",
     fontSize: 9,
   },
   paymentValue: {
-    width: '65%',
-    color: '#2d3748',
+    width: "65%",
+    color: "#2d3748",
     fontSize: 9,
   },
   totalRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingTop: 12,
     marginTop: 8,
     marginBottom: 3,
-    marginLeft:8,
+    marginLeft: 8,
     paddingBottom: 3,
-    borderTop: '0.5pt solid #BE222A',
+    borderTop: "0.5pt solid #BE222A",
   },
   totalLabel: {
-    width: '35%',
-    fontWeight: 'bold',
+    width: "35%",
+    fontWeight: "bold",
     color: PRIMARY_COLOR,
     fontSize: 10,
-    fontFamily: 'GrandPrix',
+    fontFamily: "GrandPrix",
   },
   totalValue: {
-    width: '65%',
+    width: "65%",
     fontSize: 10,
-    fontWeight: 'bold',
-    color: '#2d3748',
+    fontWeight: "bold",
+    color: "#2d3748",
   },
   date: {
-    color: '#718096',
+    color: "#718096",
     fontSize: 7,
   },
   footer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 20,
     left: 20,
     right: 20,
-    textAlign: 'center',
-    color: '#718096',
+    textAlign: "center",
+    color: "#718096",
     fontSize: 7,
-    borderTop: '0.5pt solid #e2e8f0',
+    borderTop: "0.5pt solid #e2e8f0",
     paddingTop: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   footerText: {
     marginBottom: 2,
     fontSize: 8,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   footerLeft: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+    flexDirection: "column",
+    alignItems: "flex-start",
   },
   footerRight: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 100,
-  }
+  },
 });
 
 const QuotePDF = ({
@@ -218,8 +236,10 @@ const QuotePDF = ({
   selectedCurrency,
   userEmail,
   userAvatar,
-  userPhone
+  userPhone,
 }) => {
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+
   const currencySymbols = {
     GBP: "£",
     USD: "$",
@@ -232,27 +252,27 @@ const QuotePDF = ({
     columns: [
       {
         text: [
-          { text: 'Generated by: ', style: 'footerText' },
-          { text: userEmail || 'contact@gpgt.com', style: 'footerText' }
+          { text: "Generated by: ", style: "footerText" },
+          { text: userEmail || "contact@gpgt.com", style: "footerText" },
         ],
-        width: '50%'
+        width: "50%",
       },
       {
-        image: userAvatar || 'src/assets/imgs/gpgt-small-dark.png',
+        image: userAvatar || "src/assets/imgs/gpgt-small-dark.png",
         width: 30,
         height: 30,
-        alignment: 'right'
-      }
+        alignment: "right",
+      },
     ],
-    margin: [40, 20, 40, 0]
+    margin: [40, 20, 40, 0],
   };
 
   const generateFileName = () => {
-    const sportName = selectedEvent?.sport || 'Grand Prix';
-    const eventName = selectedEvent?.event || 'Quote';
-    const packageName = selectedPackage?.package_name || '';
-    const tierType = selectedTier?.tier_type || '';
-    const date = format(new Date(), 'yyyy-MM-dd');
+    const sportName = selectedEvent?.sport || "Grand Prix";
+    const eventName = selectedEvent?.event || "Quote";
+    const packageName = selectedPackage?.package_name || "";
+    const tierType = selectedTier?.tier_type || "";
+    const date = format(new Date(), "yyyy-MM-dd");
     return `${packageName}_${tierType}_${date}_Quote`;
   };
 
@@ -264,7 +284,9 @@ const QuotePDF = ({
             <Image style={styles.logo} src={GPGT_LOGO} />
             <View style={styles.headerRight}>
               <Text style={styles.quoteNumber}>Quote</Text>
-              <Text style={styles.generatedDate}>{format(new Date(), 'PPP')}</Text>
+              <Text style={styles.generatedDate}>
+                {format(new Date(), "PPP")}
+              </Text>
             </View>
           </View>
 
@@ -274,11 +296,17 @@ const QuotePDF = ({
               <Text style={styles.sectionTitle}>Event & Package</Text>
               <View style={styles.row}>
                 <Text style={styles.label}>Event:</Text>
-                <Text style={styles.value}>{selectedEvent?.sport || "Not selected"} {selectedEvent?.event || "Not selected"}</Text>
+                <Text style={styles.value}>
+                  {selectedEvent?.sport || "Not selected"}{" "}
+                  {selectedEvent?.event || "Not selected"}
+                </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Package:</Text>
-                <Text style={styles.value}>{selectedPackage?.package_name || "Not selected"}</Text>
+                <Text style={styles.value}>
+                  {selectedTier?.tier_type || "Not selected"}{" "}
+                  {selectedPackage?.package_name || "Not selected"}
+                </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Number of Adults:</Text>
@@ -291,12 +319,16 @@ const QuotePDF = ({
               <Text style={styles.sectionTitle}>Hotel & Room</Text>
               <View style={styles.row}>
                 <Text style={styles.label}>Hotel:</Text>
-                <Text style={styles.value}>{selectedHotel?.hotel_name || "Not selected"}</Text>
+                <Text style={styles.value}>
+                  {selectedHotel?.hotel_name || "Not selected"}
+                </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Room:</Text>
                 <Text style={styles.value}>
-                  {selectedRoom ? `${selectedRoom.room_category} - ${selectedRoom.room_type}` : "Not selected"}
+                  {selectedRoom
+                    ? `${selectedRoom.room_category} - ${selectedRoom.room_type}`
+                    : "Not selected"}
                 </Text>
               </View>
               <View style={styles.row}>
@@ -305,11 +337,17 @@ const QuotePDF = ({
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Check-in:</Text>
-                <Text style={styles.value}>{dateRange?.from ? format(dateRange.from, "PPP") : "Not selected"}</Text>
+                <Text style={styles.value}>
+                  {dateRange?.from
+                    ? format(dateRange.from, "PPP")
+                    : "Not selected"}
+                </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Check-out:</Text>
-                <Text style={styles.value}>{dateRange?.to ? format(dateRange.to, "PPP") : "Not selected"}</Text>
+                <Text style={styles.value}>
+                  {dateRange?.to ? format(dateRange.to, "PPP") : "Not selected"}
+                </Text>
               </View>
             </View>
 
@@ -318,7 +356,9 @@ const QuotePDF = ({
               <Text style={styles.sectionTitle}>Ticket</Text>
               <View style={styles.row}>
                 <Text style={styles.label}>Ticket Type:</Text>
-                <Text style={styles.value}>{selectedTicket?.ticket_name || "Not selected"}</Text>
+                <Text style={styles.value}>
+                  {selectedTicket?.ticket_name || "Not selected"}
+                </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Quantity:</Text>
@@ -331,11 +371,15 @@ const QuotePDF = ({
               <Text style={styles.sectionTitle}>Transfers</Text>
               <View style={styles.row}>
                 <Text style={styles.label}>Circuit Transfer:</Text>
-                <Text style={styles.value}>{selectedCircuitTransfer?.transport_type || "Not selected"}</Text>
+                <Text style={styles.value}>
+                  {selectedCircuitTransfer?.transport_type || "Not selected"}
+                </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Airport Transfer:</Text>
-                <Text style={styles.value}>{selectedAirportTransfer?.transport_type || "Not selected"}</Text>
+                <Text style={styles.value}>
+                  {selectedAirportTransfer?.transport_type || "Not selected"}
+                </Text>
               </View>
             </View>
 
@@ -353,17 +397,26 @@ const QuotePDF = ({
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Outbound:</Text>
-                  <Text style={styles.value}>{selectedFlight.outbound_flight}</Text>
+                  <Text style={styles.value}>
+                    {selectedFlight.outbound_flight}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Inbound:</Text>
-                  <Text style={styles.value}>{selectedFlight.inbound_flight}</Text>
+                  <Text style={styles.value}>
+                    {selectedFlight.inbound_flight}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Price:</Text>
                   <Text style={styles.value}>
-                    {currencySymbols[selectedCurrency]}{selectedFlight.price * flightQuantity}
-                    <Text style={styles.date}> ({currencySymbols[selectedCurrency]}{selectedFlight.price} per person)</Text>
+                    {currencySymbols[selectedCurrency]}
+                    {selectedFlight.price * flightQuantity}
+                    <Text style={styles.date}>
+                      {" "}
+                      ({currencySymbols[selectedCurrency]}
+                      {selectedFlight.price} per person)
+                    </Text>
                   </Text>
                 </View>
               </View>
@@ -388,30 +441,40 @@ const QuotePDF = ({
             <View style={styles.paymentSchedule}>
               <Text style={styles.sectionTitle}>Payment Schedule</Text>
               <View style={styles.paymentRow}>
-                <Text style={styles.paymentLabel}>Initial Payment:</Text>
+                <Text style={styles.paymentLabel}>Deposit:</Text>
                 <Text style={styles.paymentValue}>
-                  {currencySymbols[selectedCurrency]}{Math.round(totalPrice * 0.34)} 
+                  {currencySymbols[selectedCurrency]}
+                  {Math.round(totalPrice * 0.34)}
                   <Text style={styles.date}> (Due upon booking)</Text>
                 </Text>
               </View>
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>Second Payment:</Text>
                 <Text style={styles.paymentValue}>
-                  {currencySymbols[selectedCurrency]}{Math.round(totalPrice * 0.33)}
-                  <Text style={styles.date}> (Due: {selectedPackage?.payment_date_2 || "Date not set"})</Text>
+                  {currencySymbols[selectedCurrency]}
+                  {Math.round(totalPrice * 0.33)}
+                  <Text style={styles.date}>
+                    {" "}
+                    (Due: {selectedPackage?.payment_date_2 || "Date not set"})
+                  </Text>
                 </Text>
               </View>
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>Final Payment:</Text>
                 <Text style={styles.paymentValue}>
-                  {currencySymbols[selectedCurrency]}{Math.round(totalPrice * 0.33)}
-                  <Text style={styles.date}> (Due: {selectedPackage?.payment_date_3 || "Date not set"})</Text>
+                  {currencySymbols[selectedCurrency]}
+                  {Math.round(totalPrice * 0.33)}
+                  <Text style={styles.date}>
+                    {" "}
+                    (Due: {selectedPackage?.payment_date_3 || "Date not set"})
+                  </Text>
                 </Text>
               </View>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total Price:</Text>
                 <Text style={styles.totalValue}>
-                  {currencySymbols[selectedCurrency]}{Number(totalPrice).toFixed(2)}
+                  {currencySymbols[selectedCurrency]}
+                  {Number(totalPrice).toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -419,44 +482,284 @@ const QuotePDF = ({
 
           <View style={styles.footer}>
             <View style={styles.footerLeft}>
-              <Text style={styles.footerText}>GPGT - Your Premium Grand Prix Travel Experience</Text>
-              <Text>www.grandprixgrandtours.com | {userEmail || 'contact@gpgt.com'} | {userPhone || '+44 123 456 7890'}</Text>
+              <Text style={styles.footerText}>
+                GPGT - Your Premium Grand Prix Travel Experience
+              </Text>
+              <Text>
+                www.grandprixgrandtours.com | {userEmail || "contact@gpgt.com"}{" "}
+                | {userPhone || "+44 123 456 7890"}
+              </Text>
             </View>
             <View style={styles.footerRight}>
-              <Image 
-                style={styles.avatar} 
-                src={userAvatar || '/src/assets/imgs/gpgt-small-dark.png'} 
+              <Image
+                style={styles.avatar}
+                src={userAvatar || "/src/assets/imgs/gpgt-small-dark.png"}
               />
             </View>
           </View>
         </Page>
       </Document>
     ).toBlob();
-    
+
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = generateFileName();
     link.click();
     URL.revokeObjectURL(url);
   };
 
+  const generateEmailContent = () => {
+    const content = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.2; color: #333; max-width: 800px; margin: 0 auto; padding: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    th { background-color: #131313; color: white; padding: 6px 10px; text-align: left; font-size: 14px; }
+    td { padding: 8px 10px; background-color: #f8fafc; border: 1px solid #e2e8f0; vertical-align: top; }
+    .header { text-align: center; margin-bottom: 15px; }
+    .header h1 { color: #131313; font-size: 20px; margin-bottom: 3px; }
+    .header p { color: #666; font-size: 12px; }
+    .label { color: #666; font-size: 11px; margin-bottom: 2px; }
+    .value { font-size: 13px; margin-bottom: 6px; }
+    .value:last-child { margin-bottom: 0; }
+    .price { font-weight: bold; }
+    .total { border-top: 2px solid #131313; margin-top: 6px; padding-top: 6px; font-weight: bold; }
+    .footer { text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #e2e8f0; color: #666; }
+    .footer p { margin: 2px 0; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+  <table>
+    <tr>
+      <th colspan="2">Package Details</th>
+    </tr>
+    <tr>
+      <td width="50%">
+        <div class="label">Event</div>
+        <div class="value">${selectedEvent?.sport || "Not selected"} ${
+      selectedEvent?.event || "Not selected"
+    }</div>
+        <div class="label">Package</div>
+        <div class="value">${selectedTier?.tier_type || "Not selected"} ${
+      selectedPackage?.package_name || "Not selected"
+    }</div>
+        <div class="label">Number of Adults</div>
+        <div class="value">${numberOfAdults}</div>
+      </td>
+      <td width="50%">
+        <div class="label">Hotel</div>
+        <div class="value">${selectedHotel?.hotel_name || "Not selected"}</div>
+        <div class="label">Room</div>
+        <div class="value">${
+          selectedRoom
+            ? `${selectedRoom.room_category} - ${selectedRoom.room_type}`
+            : "Not selected"
+        }</div>
+        <div class="label">Room Quantity</div>
+        <div class="value">${roomQuantity}</div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="1">
+        <div class="label">Check-in</div>
+        <div class="value">${
+          dateRange?.from ? format(dateRange.from, "PPP") : "Not selected"
+        }</div>
+      </td>
+      <td colspan="1">
+        <div class="label">Check-out</div>
+        <div class="value">${
+          dateRange?.to ? format(dateRange.to, "PPP") : "Not selected"
+        }</div>
+      
+    </tr>
+  </table>
+
+  <table>
+    <tr>
+      <th colspan="2">Tickets & Transfers</th>
+    </tr>
+    <tr>
+      <td width="50%">
+        <div class="label">Ticket Type</div>
+        <div class="value">${
+          selectedTicket?.ticket_name || "Not selected"
+        }</div>
+        <div class="label">Quantity</div>
+        <div class="value">${ticketQuantity}</div>
+      </td>
+      <td width="50%">
+        <div class="label">Circuit Transfer</div>
+        <div class="value">${
+          selectedCircuitTransfer?.transport_type || "Not selected"
+        }</div>
+        <div class="label">Airport Transfer</div>
+        <div class="value">${
+          selectedAirportTransfer?.transport_type || "Not selected"
+        }</div>
+      </td>
+    </tr>
+  </table>
+
+  ${
+    selectedFlight || selectedLoungePass
+      ? `
+  <table>
+    <tr>
+      <th colspan="2">Additional Services</th>
+    </tr>
+    ${
+      selectedFlight
+        ? `
+    <tr>
+      <td width="50%">
+        <div class="label">Airline</div>
+        <div class="value">${selectedFlight.airline}</div>
+        <div class="label">Class</div>
+        <div class="value">${selectedFlight.class}</div>
+      </td>
+      <td width="50%">
+        <div class="label">Outbound</div>
+        <div class="value">${selectedFlight.outbound_flight}</div>
+        <div class="label">Inbound</div>
+        <div class="value">${selectedFlight.inbound_flight}</div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div class="label">Price</div>
+        <div class="value"><span class="price">${
+          currencySymbols[selectedCurrency]
+        }${selectedFlight.price * flightQuantity}</span> (${
+            currencySymbols[selectedCurrency]
+          }${selectedFlight.price} per person)</div>
+      </td>
+    </tr>
+    `
+        : ""
+    }
+    ${
+      selectedLoungePass
+        ? `
+    <tr>
+      <td colspan="2">
+        <div class="label">Lounge Pass</div>
+        <div class="value">${selectedLoungePass.variant} (Quantity: ${loungePassQuantity})</div>
+      </td>
+    </tr>
+    `
+        : ""
+    }
+  </table>
+  `
+      : ""
+  }
+
+  <table>
+    <tr>
+      <th colspan="2">Payment Schedule</th>
+    </tr>
+    <tr>
+      <td width="50%">
+        <div class="label">Deposit</div>
+        <div class="value"><span class="price">${
+          currencySymbols[selectedCurrency]
+        }${Math.round(totalPrice * 0.34)}</span></div>
+        <div class="label">Due</div>
+        <div class="value">Upon booking</div>
+        <div class="label">Second Payment</div>
+        <div class="value"><span class="price">${
+          currencySymbols[selectedCurrency]
+        }${Math.round(totalPrice * 0.33)}</span></div>
+        <div class="label">Due</div>
+        <div class="value">${
+          selectedPackage?.payment_date_2 || "Date not set"
+        }</div>
+      </td>
+      <td width="50%">
+        <div class="label">Final Payment</div>
+        <div class="value"><span class="price">${
+          currencySymbols[selectedCurrency]
+        }${Math.round(totalPrice * 0.33)}</span></div>
+        <div class="label">Due</div>
+        <div class="value">${
+          selectedPackage?.payment_date_3 || "Date not set"
+        }</div>
+        <div class="total">Total Price: <span class="price">${
+          currencySymbols[selectedCurrency]
+        }${Number(totalPrice).toFixed(2)}</span></div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="footer">
+    <p>GPGT - Your Premium Grand Prix Travel Experience</p>
+    <p>www.grandprixgrandtours.com | ${userEmail || "contact@gpgt.com"} | ${
+      userPhone || "+44 123 456 7890"
+    }</p>
+  </div>
+</body>
+</html>`;
+    return content;
+  };
+
+  const handleCopyEmail = () => {
+    const content = generateEmailContent();
+    navigator.clipboard
+      .writeText(content)
+      .then(() => {
+        toast.success("Email content copied to clipboard!");
+      })
+      .catch(() => {
+        toast.error("Failed to copy email content");
+      });
+  };
+
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-2 mb-4">
+        <Button onClick={() => setShowEmailPreview(true)} variant="outline">
+          <Mail className="mr-2 h-4 w-4" />
+          Preview Email
+        </Button>
         <Button onClick={handleDownload}>
           <Download className="mr-2 h-4 w-4" />
           Download Quote
         </Button>
       </div>
-      <PDFViewer style={{ width: '100%', height: '100%' }}>
+
+      <Dialog open={showEmailPreview} onOpenChange={setShowEmailPreview}>
+        <DialogContent className="max-w-4xl">
+          <div className="flex justify-end mb-4">
+            <Button onClick={handleCopyEmail} variant="outline" size="sm">
+              <Copy className="mr-2 h-4 w-4" />
+              Copy
+            </Button>
+          </div>
+          <div className="">
+            <div
+              className="prose max-w-none"
+              dangerouslySetInnerHTML={{ __html: generateEmailContent() }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <PDFViewer style={{ width: "100%", height: "100%" }}>
         <Document>
           <Page size="A4" style={styles.page}>
             <View style={styles.header}>
               <Image style={styles.logo} src={GPGT_LOGO} />
               <View style={styles.headerRight}>
                 <Text style={styles.quoteNumber}>Quote</Text>
-                <Text style={styles.generatedDate}>{format(new Date(), 'PPP')}</Text>
+                <Text style={styles.generatedDate}>
+                  {format(new Date(), "PPP")}
+                </Text>
               </View>
             </View>
 
@@ -466,11 +769,17 @@ const QuotePDF = ({
                 <Text style={styles.sectionTitle}>Event & Package</Text>
                 <View style={styles.row}>
                   <Text style={styles.label}>Event:</Text>
-                  <Text style={styles.value}>{selectedEvent?.sport || "Not selected"} {selectedEvent?.event || "Not selected"}</Text>
+                  <Text style={styles.value}>
+                    {selectedEvent?.sport || "Not selected"}{" "}
+                    {selectedEvent?.event || "Not selected"}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Package:</Text>
-                  <Text style={styles.value}>{selectedTier?.tier_type || "Not selected"} {selectedPackage?.package_name || "Not selected"}</Text>
+                  <Text style={styles.value}>
+                    {selectedTier?.tier_type || "Not selected"}{" "}
+                    {selectedPackage?.package_name || "Not selected"}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Number of Adults:</Text>
@@ -483,12 +792,16 @@ const QuotePDF = ({
                 <Text style={styles.sectionTitle}>Hotel & Room</Text>
                 <View style={styles.row}>
                   <Text style={styles.label}>Hotel:</Text>
-                  <Text style={styles.value}>{selectedHotel?.hotel_name || "Not selected"}</Text>
+                  <Text style={styles.value}>
+                    {selectedHotel?.hotel_name || "Not selected"}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Room:</Text>
                   <Text style={styles.value}>
-                    {selectedRoom ? `${selectedRoom.room_category} - ${selectedRoom.room_type}` : "Not selected"}
+                    {selectedRoom
+                      ? `${selectedRoom.room_category} - ${selectedRoom.room_type}`
+                      : "Not selected"}
                   </Text>
                 </View>
                 <View style={styles.row}>
@@ -497,11 +810,19 @@ const QuotePDF = ({
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Check-in:</Text>
-                  <Text style={styles.value}>{dateRange?.from ? format(dateRange.from, "PPP") : "Not selected"}</Text>
+                  <Text style={styles.value}>
+                    {dateRange?.from
+                      ? format(dateRange.from, "PPP")
+                      : "Not selected"}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Check-out:</Text>
-                  <Text style={styles.value}>{dateRange?.to ? format(dateRange.to, "PPP") : "Not selected"}</Text>
+                  <Text style={styles.value}>
+                    {dateRange?.to
+                      ? format(dateRange.to, "PPP")
+                      : "Not selected"}
+                  </Text>
                 </View>
               </View>
 
@@ -510,7 +831,9 @@ const QuotePDF = ({
                 <Text style={styles.sectionTitle}>Ticket</Text>
                 <View style={styles.row}>
                   <Text style={styles.label}>Ticket Type:</Text>
-                  <Text style={styles.value}>{selectedTicket?.ticket_name || "Not selected"}</Text>
+                  <Text style={styles.value}>
+                    {selectedTicket?.ticket_name || "Not selected"}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Quantity:</Text>
@@ -523,11 +846,15 @@ const QuotePDF = ({
                 <Text style={styles.sectionTitle}>Transfers</Text>
                 <View style={styles.row}>
                   <Text style={styles.label}>Circuit Transfer:</Text>
-                  <Text style={styles.value}>{selectedCircuitTransfer?.transport_type || "Not selected"}</Text>
+                  <Text style={styles.value}>
+                    {selectedCircuitTransfer?.transport_type || "Not selected"}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Airport Transfer:</Text>
-                  <Text style={styles.value}>{selectedAirportTransfer?.transport_type || "Not selected"}</Text>
+                  <Text style={styles.value}>
+                    {selectedAirportTransfer?.transport_type || "Not selected"}
+                  </Text>
                 </View>
               </View>
 
@@ -545,17 +872,26 @@ const QuotePDF = ({
                   </View>
                   <View style={styles.row}>
                     <Text style={styles.label}>Outbound:</Text>
-                    <Text style={styles.value}>{selectedFlight.outbound_flight}</Text>
+                    <Text style={styles.value}>
+                      {selectedFlight.outbound_flight}
+                    </Text>
                   </View>
                   <View style={styles.row}>
                     <Text style={styles.label}>Inbound:</Text>
-                    <Text style={styles.value}>{selectedFlight.inbound_flight}</Text>
+                    <Text style={styles.value}>
+                      {selectedFlight.inbound_flight}
+                    </Text>
                   </View>
                   <View style={styles.row}>
                     <Text style={styles.label}>Price:</Text>
                     <Text style={styles.value}>
-                      {currencySymbols[selectedCurrency]}{selectedFlight.price * flightQuantity}
-                      <Text style={styles.date}> ({currencySymbols[selectedCurrency]}{selectedFlight.price} per person)</Text>
+                      {currencySymbols[selectedCurrency]}
+                      {selectedFlight.price * flightQuantity}
+                      <Text style={styles.date}>
+                        {" "}
+                        ({currencySymbols[selectedCurrency]}
+                        {selectedFlight.price} per person)
+                      </Text>
                     </Text>
                   </View>
                 </View>
@@ -567,7 +903,9 @@ const QuotePDF = ({
                   <Text style={styles.sectionTitle}>Lounge Pass</Text>
                   <View style={styles.row}>
                     <Text style={styles.label}>Type:</Text>
-                    <Text style={styles.value}>{selectedLoungePass.variant}</Text>
+                    <Text style={styles.value}>
+                      {selectedLoungePass.variant}
+                    </Text>
                   </View>
                   <View style={styles.row}>
                     <Text style={styles.label}>Quantity:</Text>
@@ -582,28 +920,38 @@ const QuotePDF = ({
                 <View style={styles.paymentRow}>
                   <Text style={styles.paymentLabel}>Deposit:</Text>
                   <Text style={styles.paymentValue}>
-                    {currencySymbols[selectedCurrency]}{Math.round(totalPrice * 0.34)} 
+                    {currencySymbols[selectedCurrency]}
+                    {Math.round(totalPrice * 0.34)}
                     <Text style={styles.date}> (Due upon booking)</Text>
                   </Text>
                 </View>
                 <View style={styles.paymentRow}>
                   <Text style={styles.paymentLabel}>Second Payment:</Text>
                   <Text style={styles.paymentValue}>
-                    {currencySymbols[selectedCurrency]}{Math.round(totalPrice * 0.33)}
-                    <Text style={styles.date}> (Due: {selectedPackage?.payment_date_2 || "Date not set"})</Text>
+                    {currencySymbols[selectedCurrency]}
+                    {Math.round(totalPrice * 0.33)}
+                    <Text style={styles.date}>
+                      {" "}
+                      (Due: {selectedPackage?.payment_date_2 || "Date not set"})
+                    </Text>
                   </Text>
                 </View>
                 <View style={styles.paymentRow}>
                   <Text style={styles.paymentLabel}>Final Payment:</Text>
                   <Text style={styles.paymentValue}>
-                    {currencySymbols[selectedCurrency]}{Math.round(totalPrice * 0.33)}
-                    <Text style={styles.date}> (Due: {selectedPackage?.payment_date_3 || "Date not set"})</Text>
+                    {currencySymbols[selectedCurrency]}
+                    {Math.round(totalPrice * 0.33)}
+                    <Text style={styles.date}>
+                      {" "}
+                      (Due: {selectedPackage?.payment_date_3 || "Date not set"})
+                    </Text>
                   </Text>
                 </View>
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>Total Price:</Text>
                   <Text style={styles.totalValue}>
-                    {currencySymbols[selectedCurrency]}{Number(totalPrice).toFixed(2)}
+                    {currencySymbols[selectedCurrency]}
+                    {Number(totalPrice).toFixed(2)}
                   </Text>
                 </View>
               </View>
@@ -611,13 +959,19 @@ const QuotePDF = ({
 
             <View style={styles.footer}>
               <View style={styles.footerLeft}>
-                <Text style={styles.footerText}>GPGT - Your Premium Grand Prix Travel Experience</Text>
-                <Text>www.grandprixgrandtours.com | {userEmail || 'contact@gpgt.com'} | {userPhone || '+44 123 456 7890'}</Text>
+                <Text style={styles.footerText}>
+                  GPGT - Your Premium Grand Prix Travel Experience
+                </Text>
+                <Text>
+                  www.grandprixgrandtours.com |{" "}
+                  {userEmail || "contact@gpgt.com"} |{" "}
+                  {userPhone || "+44 123 456 7890"}
+                </Text>
               </View>
               <View style={styles.footerRight}>
-                <Image 
-                  style={styles.avatar} 
-                  src={userAvatar || '/src/assets/imgs/gpgt-small-dark.png'} 
+                <Image
+                  style={styles.avatar}
+                  src={userAvatar || "/src/assets/imgs/gpgt-small-dark.png"}
                 />
               </View>
             </View>
@@ -628,4 +982,4 @@ const QuotePDF = ({
   );
 };
 
-export default QuotePDF; 
+export default QuotePDF;

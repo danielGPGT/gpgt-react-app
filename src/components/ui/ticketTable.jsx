@@ -2255,6 +2255,16 @@ function TicketTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* F1 Tickets Button */}
+      <div className="mt-8 w-full flex justify-center">
+        <Button 
+          onClick={() => window.open('https://tickets.formula1.com/en/f1-3190-spain', '_blank')}
+          size="lg"
+        >
+          View Formula 1 Spain Tickets
+        </Button>
+      </div>
     </div>
   );
 }
