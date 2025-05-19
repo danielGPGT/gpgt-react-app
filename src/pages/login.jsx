@@ -43,7 +43,7 @@ function Login() {
         {/* Background Image */}
         <div className="absolute inset-0">
           <img
-            src="/src/assets/imgs/baku.webp"
+            src="/imgs/baku.webp"
             alt="Track background"
             className="w-full h-full object-cover opacity-30"
           />
@@ -53,7 +53,7 @@ function Login() {
         {/* Top content */}
         <div className="relative flex flex-col space-y-6 z-10">
           <img
-            src="/src/assets/imgs/gpgt_logo_light.svg"
+            src="/imgs/gpgt_logo_light.svg"
             className="w-72"
             alt="Grand Prix Logo"
           />
@@ -69,8 +69,8 @@ function Login() {
         {/* Bottom quote */}
         <div className="relative text-sm text-gray-400 mt-8 z-10">
           <p className="italic">
-            “Travel faster. Dream bigger. Experience motorsport like never
-            before.”
+            "Travel faster. Dream bigger. Experience motorsport like never
+            before."
           </p>
           <p className="mt-4 font-semibold">Grand Prix Grand Tours</p>
         </div>

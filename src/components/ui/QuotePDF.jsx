@@ -24,14 +24,15 @@ import { useState } from "react";
 // Register the GrandPrix font
 Font.register({
   family: "GrandPrix",
-  src: "/src/assets/fonts/Formula1-Regular.otf",
+  src: "/fonts/Formula1-Regular.otf",
+  format: "opentype"
 });
 
 // Primary color from theme
 const PRIMARY_COLOR = "#BE222A";
 
 // Import the PNG logo
-const GPGT_LOGO = "/src/assets/imgs/Grand_Prix_Logo_Vector_new.png";
+const GPGT_LOGO = "/imgs/Grand_Prix_Logo_Vector_new.png";
 
 const styles = StyleSheet.create({
   page: {
@@ -258,7 +259,7 @@ const QuotePDF = ({
         width: "50%",
       },
       {
-        image: userAvatar || "src/assets/imgs/gpgt-small-dark.png",
+        image: userAvatar || "/imgs/gpgt-small-dark.png",
         width: 30,
         height: 30,
         alignment: "right",
@@ -441,10 +442,10 @@ const QuotePDF = ({
             <View style={styles.paymentSchedule}>
               <Text style={styles.sectionTitle}>Payment Schedule</Text>
               <View style={styles.paymentRow}>
-                <Text style={styles.paymentLabel}>Deposit:</Text>
+                <Text style={styles.paymentLabel}>First Payment:</Text>
                 <Text style={styles.paymentValue}>
                   {currencySymbols[selectedCurrency]}
-                  {Math.round(totalPrice * 0.34)}
+                  {Math.round(totalPrice / 3)}
                   <Text style={styles.date}> (Due upon booking)</Text>
                 </Text>
               </View>
@@ -452,7 +453,7 @@ const QuotePDF = ({
                 <Text style={styles.paymentLabel}>Second Payment:</Text>
                 <Text style={styles.paymentValue}>
                   {currencySymbols[selectedCurrency]}
-                  {Math.round(totalPrice * 0.33)}
+                  {Math.round(totalPrice / 3)}
                   <Text style={styles.date}>
                     {" "}
                     (Due: {selectedPackage?.payment_date_2 || "Date not set"})
@@ -463,7 +464,7 @@ const QuotePDF = ({
                 <Text style={styles.paymentLabel}>Final Payment:</Text>
                 <Text style={styles.paymentValue}>
                   {currencySymbols[selectedCurrency]}
-                  {Math.round(totalPrice * 0.33)}
+                  {Math.round(totalPrice / 3)}
                   <Text style={styles.date}>
                     {" "}
                     (Due: {selectedPackage?.payment_date_3 || "Date not set"})
@@ -666,16 +667,16 @@ const QuotePDF = ({
     </tr>
     <tr>
       <td width="50%">
-        <div class="label">Deposit</div>
+        <div class="label">First Payment</div>
         <div class="value"><span class="price">${
           currencySymbols[selectedCurrency]
-        }${Math.round(totalPrice * 0.34)}</span></div>
+        }${Math.round(totalPrice / 3)}</span></div>
         <div class="label">Due</div>
         <div class="value">Upon booking</div>
         <div class="label">Second Payment</div>
         <div class="value"><span class="price">${
           currencySymbols[selectedCurrency]
-        }${Math.round(totalPrice * 0.33)}</span></div>
+        }${Math.round(totalPrice / 3)}</span></div>
         <div class="label">Due</div>
         <div class="value">${
           selectedPackage?.payment_date_2 || "Date not set"
@@ -685,7 +686,7 @@ const QuotePDF = ({
         <div class="label">Final Payment</div>
         <div class="value"><span class="price">${
           currencySymbols[selectedCurrency]
-        }${Math.round(totalPrice * 0.33)}</span></div>
+        }${Math.round(totalPrice / 3)}</span></div>
         <div class="label">Due</div>
         <div class="value">${
           selectedPackage?.payment_date_3 || "Date not set"
@@ -918,10 +919,10 @@ const QuotePDF = ({
               <View style={styles.paymentSchedule}>
                 <Text style={styles.sectionTitle}>Payment Schedule</Text>
                 <View style={styles.paymentRow}>
-                  <Text style={styles.paymentLabel}>Deposit:</Text>
+                  <Text style={styles.paymentLabel}>First Payment:</Text>
                   <Text style={styles.paymentValue}>
                     {currencySymbols[selectedCurrency]}
-                    {Math.round(totalPrice * 0.34)}
+                    {Math.round(totalPrice / 3)}
                     <Text style={styles.date}> (Due upon booking)</Text>
                   </Text>
                 </View>
@@ -929,7 +930,7 @@ const QuotePDF = ({
                   <Text style={styles.paymentLabel}>Second Payment:</Text>
                   <Text style={styles.paymentValue}>
                     {currencySymbols[selectedCurrency]}
-                    {Math.round(totalPrice * 0.33)}
+                    {Math.round(totalPrice / 3)}
                     <Text style={styles.date}>
                       {" "}
                       (Due: {selectedPackage?.payment_date_2 || "Date not set"})
@@ -940,7 +941,7 @@ const QuotePDF = ({
                   <Text style={styles.paymentLabel}>Final Payment:</Text>
                   <Text style={styles.paymentValue}>
                     {currencySymbols[selectedCurrency]}
-                    {Math.round(totalPrice * 0.33)}
+                    {Math.round(totalPrice / 3)}
                     <Text style={styles.date}>
                       {" "}
                       (Due: {selectedPackage?.payment_date_3 || "Date not set"})

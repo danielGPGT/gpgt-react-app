@@ -243,7 +243,7 @@ export function AppSidebar() {
         {/* Icon/avatar */}
         <div className="bg-foreground rounded-md flex items-center justify-center w-10 h-10 aspect-square p-1.5 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
           <img
-            src={mode === "dark" ? "/src/assets/imgs/gpgt-small-light.png" : "/src/assets/imgs/gpgt-small-dark.png"}
+            src={mode === "dark" ? "/imgs/gpgt-small-light.png" : "/imgs/gpgt-small-dark.png"}
             alt="Company Icon"
             className="w-full h-full aspect-square object-contain"
           />

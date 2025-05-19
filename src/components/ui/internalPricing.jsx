@@ -242,30 +242,20 @@ function InternalPricing({
   }, [selectedCurrency]);
 
   const handleDateChange = (range) => {
-    if (!range?.from || !range?.to) return;
-
-    const nights = differenceInCalendarDays(range.to, range.from);
-
-    const originalCheckIn = parse(
-      selectedRoom.check_in_date,
-      "dd/MM/yyyy",
-      new Date()
-    );
-    const originalCheckOut = parse(
-      selectedRoom.check_out_date,
-      "dd/MM/yyyy",
-      new Date()
-    );
-
-    const isOriginalRange =
-      range.from.getTime() === originalCheckIn.getTime() &&
-      range.to.getTime() === originalCheckOut.getTime();
-
-    if (nights >= minNights || isOriginalRange) {
+    if (!range?.from || !range?.to) {
       setDateRange(range);
-    } else {
-      alert(`You must select at least ${minNights} nights.`);
+      return;
     }
+    
+    // Ensure the dates are valid Date objects
+    const from = new Date(range.from);
+    const to = new Date(range.to);
+    
+    // Set the new date range
+    setDateRange({
+      from,
+      to
+    });
   };
 
   useEffect(() => {
@@ -666,6 +656,11 @@ function InternalPricing({
     const foundRoom = rooms.find((room) => room.room_id === roomId);
     setSelectedRoom(foundRoom);
 
+    // Reset room quantity if current quantity is greater than available rooms
+    if (foundRoom && roomQuantity > parseInt(foundRoom.remaining)) {
+      setRoomQuantity(1);
+    }
+
     if (foundRoom?.check_in_date && foundRoom?.check_out_date) {
       const from = parse(foundRoom.check_in_date, "dd/MM/yyyy", new Date());
       const to = parse(foundRoom.check_out_date, "dd/MM/yyyy", new Date());
@@ -756,10 +751,6 @@ function InternalPricing({
       setTicketQuantity(numberOfAdults);
     }
 
-    if (selectedCircuitTransfer) {
-      setCircuitTransferQuantity(numberOfAdults);
-    }
-
     if (selectedAirportTransfer) {
       const needed = Math.ceil(
         numberOfAdults / (selectedAirportTransfer.max_capacity || 1)
@@ -773,10 +764,16 @@ function InternalPricing({
   }, [
     numberOfAdults,
     selectedTicket,
-    selectedCircuitTransfer,
     selectedAirportTransfer,
     selectedFlight,
   ]);
+
+  // Update circuit transfer quantity when ticket quantity changes
+  useEffect(() => {
+    if (selectedCircuitTransfer) {
+      setCircuitTransferQuantity(ticketQuantity);
+    }
+  }, [ticketQuantity, selectedCircuitTransfer]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -1083,12 +1080,15 @@ function InternalPricing({
 
             {selectedTicket && (
               <div className="text-xs space-y-1 pt-1">
-                <p className="text-foreground">Outbound: {selectedTicket.outbound_flight}</p>
-                <p className="text-foreground">Inbound: {selectedTicket.inbound_flight}</p>
-                <p className="text-foreground">
-                  Total Price: {currencySymbols[selectedCurrency]}
-                  {selectedTicket.price * numberOfAdults}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-foreground">Quantity:</p>
+                  <QuantitySelector
+                    value={ticketQuantity}
+                    onChange={setTicketQuantity}
+                    min={1}
+                    max={parseInt(selectedTicket.remaining) || 100}
+                  />
+                </div>
               </div>
             )}
           </div>

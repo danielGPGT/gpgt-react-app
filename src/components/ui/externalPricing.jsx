@@ -294,30 +294,20 @@ function ExternalPricing({
   }, [b2bCommission]);
 
   const handleDateChange = (range) => {
-    if (!range?.from || !range?.to) return;
-
-    const nights = differenceInCalendarDays(range.to, range.from);
-
-    const originalCheckIn = parse(
-      selectedRoom.check_in_date,
-      "dd/MM/yyyy",
-      new Date()
-    );
-    const originalCheckOut = parse(
-      selectedRoom.check_out_date,
-      "dd/MM/yyyy",
-      new Date()
-    );
-
-    const isOriginalRange =
-      range.from.getTime() === originalCheckIn.getTime() &&
-      range.to.getTime() === originalCheckOut.getTime();
-
-    if (nights >= minNights || isOriginalRange) {
+    if (!range?.from || !range?.to) {
       setDateRange(range);
-    } else {
-      alert(`You must select at least ${minNights} nights.`);
+      return;
     }
+    
+    // Ensure the dates are valid Date objects
+    const from = new Date(range.from);
+    const to = new Date(range.to);
+    
+    // Set the new date range
+    setDateRange({
+      from,
+      to
+    });
   };
 
   useEffect(() => {
@@ -732,6 +722,21 @@ function ExternalPricing({
     const needed = Math.ceil(numberOfAdults / (found.max_capacity || 1));
     setAirportTransferQuantity(needed);
   };
+
+  // Add effect to update circuit transfer quantity when ticket quantity changes
+  useEffect(() => {
+    if (selectedCircuitTransfer) {
+      setCircuitTransferQuantity(ticketQuantity);
+    }
+  }, [ticketQuantity, selectedCircuitTransfer]);
+
+  // Add effect to update airport transfer quantity when number of adults changes
+  useEffect(() => {
+    if (selectedAirportTransfer) {
+      const needed = Math.ceil(numberOfAdults / (selectedAirportTransfer.max_capacity || 1));
+      setAirportTransferQuantity(needed);
+    }
+  }, [numberOfAdults, selectedAirportTransfer]);
 
   if (loadingEvents) {
     return <div className="p-8">Loading events...</div>;
@@ -1526,72 +1531,8 @@ function ExternalPricing({
         </div>
       )}
 
-      {/* Total Price */}
-      <div className="pt-4 space-y-2">
-        <div className="flex gap-6 items-center">
-          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-            <SelectTrigger className="text-xs bg-background">
-              <SelectValue placeholder="Select currency" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCurrencies.map((curr) => (
-                <SelectItem key={curr} value={curr}>
-                  {curr}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+     
 
-          <h2 className="text-lg font-bold text-foreground">
-            Total: {currencySymbols[selectedCurrency]}
-            {Number(totalPrice).toFixed(0)}
-          </h2>
-          <p className="text-xs font-normal text-muted-foreground">
-            ({b2bCommission * 100}% Commission is payable on the total price.)
-          </p>
-        </div>
-        {salesTeams.length > 0 ? (
-          <div className="mt-4 p-4 space-y-2 rounded-md border shadow-sm bg-card">
-            <h3 className="text-sm text-foreground">
-              For more info contact our sales team:
-            </h3>
-            <p className="text-sm font-semibold text-foreground">
-              Name: {salesTeams[0].first_name} {salesTeams[0].last_name}
-            </p>
-            <p className="text-sm font-semibold text-foreground">
-              Email:{" "}
-              <a
-                href={`mailto:${salesTeams[0].email}`}
-                className="text-primary underline"
-              >
-                {salesTeams[0].email}
-              </a>
-            </p>
-            <p className="text-sm font-semibold text-foreground">
-              Phone:{" "}
-              <a
-                href={`tel:${salesTeams[0].phone}`}
-                className="text-primary underline"
-              >
-                {salesTeams[0].phone}
-              </a>
-            </p>
-            {/* Show package URL if present, below total price/commission */}
-            {selectedPackage?.url && (
-              <a
-                href={selectedPackage.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline font-bold inline-block"
-              >
-                View More Package Details Here
-              </a>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground italic"></p>
-        )}
-      </div>
     </div>
   );
 }
