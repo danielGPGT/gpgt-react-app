@@ -983,6 +983,83 @@ function TicketTable() {
             </div>
           </div>
 
+          {/* Stock and Cost Information */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold">Stock & Cost Information</h4>
+            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="space-y-2">
+                <Label htmlFor="actual_stock">Stock</Label>
+                <Input
+                  id="actual_stock"
+                  type="number"
+                  min="0"
+                  value={formData.actual_stock}
+                  onChange={(e) =>
+                    handleFieldChange("actual_stock", Number(e.target.value))
+                  }
+                  disabled={isSubmitting}
+                />
+                {errors.actual_stock && (
+                  <p className="text-sm text-primary">{errors.actual_stock}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="total_cost_local">Total Cost (Local)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="total_cost_local"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.total_cost_local}
+                    onChange={(e) =>
+                      handleFieldChange(
+                        "total_cost_local",
+                        Number(e.target.value)
+                      )
+                    }
+                    className="flex-1"
+                    disabled={isSubmitting}
+                  />
+                  <Select
+                    value={formData.currency_bought_in}
+                    onValueChange={(value) =>
+                      handleFieldChange("currency_bought_in", value)
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        "GBP",
+                        "EUR",
+                        "USD",
+                        "AUD",
+                        "CAD",
+                        "CHF",
+                        "CNY",
+                        "JPY",
+                        "NZD",
+                        "SGD",
+                      ].map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {errors.total_cost_local && (
+                  <p className="text-sm text-primary">
+                    {errors.total_cost_local}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Seat Features */}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Seat Features</h4>
@@ -1128,7 +1205,7 @@ function TicketTable() {
           }
           break;
         case "actual_stock":
-          if (value === "" || isNaN(value) || value < 0) {
+          if (!formData.is_provsional && (value === "" || isNaN(value) || value < 0)) {
             newErrors[field] = "Stock must be a positive number";
           } else {
             delete newErrors[field];
@@ -1174,6 +1251,8 @@ function TicketTable() {
         const formattedData = {
           ...formData,
           markup: formData.markup ? `${formData.markup}%` : "0%",
+          // Set stock to 0 for provisional tickets
+          actual_stock: formData.is_provsional ? 0 : formData.actual_stock,
         };
 
         await handleSubmit(formattedData);
@@ -1188,6 +1267,9 @@ function TicketTable() {
         setIsSubmitting(false);
       }
     };
+
+    // Check if stock should be disabled (for provisional tickets)
+    const isStockDisabled = formData.is_provsional;
 
     return (
       <div className="grid gap-8 py-4">
@@ -1427,8 +1509,14 @@ function TicketTable() {
                   onBlur={(e) =>
                     handleBlur("actual_stock", Number(e.target.value))
                   }
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isStockDisabled}
+                  className={isStockDisabled ? "opacity-50" : ""}
                 />
+                {isStockDisabled && (
+                  <p className="text-sm text-muted-foreground">
+                    Stock cannot be set for provisional tickets
+                  </p>
+                )}
                 {errors.actual_stock && (
                   <p className="text-sm text-primary">{errors.actual_stock}</p>
                 )}
@@ -1484,6 +1572,11 @@ function TicketTable() {
                     </SelectContent>
                   </Select>
                 </div>
+                {formData.is_provsional && (
+                  <p className="text-sm text-muted-foreground">
+                    Price entered is based upon the price of 1 ticket
+                  </p>
+                )}
                 {errors.total_cost_local && (
                   <p className="text-sm text-primary">
                     {errors.total_cost_local}
@@ -1574,9 +1667,13 @@ function TicketTable() {
                 <Switch
                   id="provisional"
                   checked={formData?.is_provsional || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("is_provsional", checked)
-                  }
+                  onCheckedChange={(checked) => {
+                    handleFieldChange("is_provsional", checked);
+                    // Reset stock to 0 when making provisional
+                    if (checked) {
+                      handleFieldChange("actual_stock", 0);
+                    }
+                  }}
                   disabled={isSubmitting}
                 />
                 <Label htmlFor="provisional">Provisional</Label>

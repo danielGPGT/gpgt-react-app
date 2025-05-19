@@ -102,18 +102,6 @@ function InternalPricing({
   setCircuitTransferQuantity,
   airportTransferQuantity,
   setAirportTransferQuantity,
-  createFlightBooking,
-  setCreateFlightBooking,
-  flightPNR,
-  setFlightPNR,
-  ticketingDeadline,
-  setTicketingDeadline,
-  paymentStatus,
-  setPaymentStatus,
-  createLoungeBooking,
-  setCreateLoungeBooking,
-  loungeBookingRef,
-  setLoungeBookingRef,
   dateRange,
   setDateRange,
   originalNights,
@@ -740,10 +728,6 @@ function InternalPricing({
     if (flightId === "none") {
       setSelectedFlight(null);
       setFlightQuantity(0);
-      setCreateFlightBooking(false);
-      setFlightPNR("");
-      setTicketingDeadline(null);
-      setPaymentStatus("");
       return;
     }
 
@@ -756,8 +740,6 @@ function InternalPricing({
     if (passId === "none") {
       setSelectedLoungePass(null);
       setLoungePassQuantity(0);
-      setCreateLoungeBooking(false);
-      setLoungeBookingRef("");
       return;
     }
 
@@ -1100,70 +1082,13 @@ function InternalPricing({
             )}
 
             {selectedTicket && (
-              <div className="flex items-center justify-between gap-3 text-xs pt-2">
-                <div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="w-fit text-xs bg-primary text-primary-foreground">
-                        More Ticket info
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="mb-2 text-foreground">
-                          {selectedTicket.ticket_name}
-                        </DialogTitle>
-                        <DialogDescription>
-                          Ticket details for <strong className="text-foreground">{selectedTicket.ticket_name}</strong>
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="text-sm text-muted-foreground mt-2 space-y-2">
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            Ticket Type: {selectedTicket.ticket_type}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            Event Days: {selectedTicket.event_days}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 pt-2">
-                          {selectedTicket.video_wall && (
-                            <Badge>
-                              <div className="flex items-center gap-1 text-xs text-primary-foreground">
-                                <MonitorPlay className="w-4 h-4 text-primary-foreground" />
-                                <span>Video Wall</span>
-                              </div>
-                            </Badge>
-                          )}
-                          {selectedTicket.covered_seat && (
-                            <Badge>
-                              <div className="flex items-center gap-1 text-xs text-primary-foreground">
-                                <Umbrella className="w-4 h-4 text-primary-foreground" />
-                                <span>Covered Seat</span>
-                              </div>
-                            </Badge>
-                          )}
-                          {selectedTicket.numbered_seat && (
-                            <Badge>
-                              <div className="flex items-center gap-1 text-xs text-primary-foreground">
-                                <Hash className="w-4 h-4 text-primary-foreground" />
-                                <span>Numbered Seat</span>
-                              </div>
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                <QuantitySelector
-                  value={ticketQuantity}
-                  onChange={setTicketQuantity}
-                  min={1}
-                  max={parseInt(selectedTicket.remaining) || 100}
-                />
+              <div className="text-xs space-y-1 pt-1">
+                <p className="text-foreground">Outbound: {selectedTicket.outbound_flight}</p>
+                <p className="text-foreground">Inbound: {selectedTicket.inbound_flight}</p>
+                <p className="text-foreground">
+                  Total Price: {currencySymbols[selectedCurrency]}
+                  {selectedTicket.price * numberOfAdults}
+                </p>
               </div>
             )}
           </div>
@@ -1307,10 +1232,6 @@ function InternalPricing({
                           if (value === "none") {
                             setSelectedFlight(null);
                             setFlightQuantity(0);
-                            setCreateFlightBooking(false);
-                            setFlightPNR("");
-                            setTicketingDeadline(null);
-                            setPaymentStatus("");
                             setShowFlightDialog(false);
                           }
                         }}
@@ -1381,69 +1302,6 @@ function InternalPricing({
                   Total Price: {currencySymbols[selectedCurrency]}
                   {selectedFlight.price * numberOfAdults}
                 </p>
-
-                <div className="flex items-center space-x-2 pt-2">
-                  <Switch
-                    id="create-flight-booking"
-                    checked={createFlightBooking}
-                    onCheckedChange={(checked) => setCreateFlightBooking(checked)}
-                  />
-                  <Label htmlFor="create-flight-booking" className="text-sm font-medium text-foreground">
-                    Create Booking
-                  </Label>
-                </div>
-
-                {createFlightBooking && (
-                  <div className="space-y-2 pt-2 flex w-full gap-3">
-                    <div className="space-y-1 w-full">
-                      <Label className="text-xs text-foreground">Payment Status</Label>
-                      <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-                        <SelectTrigger className="h-8 w-full text-xs bg-background">
-                          <SelectValue placeholder="Select payment status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="booked_ticketed_paid">Booked - Ticketed - Paid</SelectItem>
-                          <SelectItem value="booked_ticketed_not_paid">Booked - Ticketed - Not Paid</SelectItem>
-                          <SelectItem value="booked_not_ticketed">Booked - Not Ticketed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1 w-full">
-                      <Label className="text-xs text-foreground">Flight PNR</Label>
-                      <Input
-                        placeholder="Enter PNR"
-                        value={flightPNR}
-                        onChange={(e) => setFlightPNR(e.target.value)}
-                        className="h-8 text-xs bg-background"
-                      />
-                    </div>
-                    <div className="space-y-1 w-full">
-                      <Label className="text-xs text-foreground">Ticketing Deadline</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal h-8 text-xs bg-background",
-                              !ticketingDeadline && "text-muted-foreground"
-                            )}
-                          >
-                            {ticketingDeadline ? format(ticketingDeadline, "PPP") : <span>Pick a date</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={ticketingDeadline}
-                            onSelect={setTicketingDeadline}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -1475,39 +1333,18 @@ function InternalPricing({
             )}
 
             {selectedLoungePass && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-foreground">Quantity:</span>
+              <div className="text-xs space-y-1 pt-1">
+
+                <div className="flex items-center gap-2">
+                  <p className="text-foreground">Quantity:</p>
                   <QuantitySelector
                     value={loungePassQuantity}
                     onChange={setLoungePassQuantity}
                     min={1}
-                    max={10}
+                    max={100}
                   />
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="create-lounge-booking"
-                    checked={createLoungeBooking}
-                    onCheckedChange={(checked) => setCreateLoungeBooking(checked)}
-                  />
-                  <Label htmlFor="create-lounge-booking" className="text-sm font-medium text-foreground">
-                    Create Booking
-                  </Label>
-                </div>
-
-                {createLoungeBooking && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-foreground">Booking Reference</Label>
-                    <Input
-                      placeholder="Enter booking reference"
-                      value={loungeBookingRef}
-                      onChange={(e) => setLoungeBookingRef(e.target.value)}
-                      className="h-8 text-xs bg-background"
-                    />
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -1650,11 +1487,6 @@ function InternalPricing({
         circuitTransferQuantity={circuitTransferQuantity}
         airportTransferQuantity={airportTransferQuantity}
         flightQuantity={flightQuantity}
-        flightPNR={flightPNR}
-        ticketingDeadline={ticketingDeadline}
-        paymentStatus={paymentStatus}
-        originalNights={originalNights}
-        salesTeam={salesTeam}
         dateRange={dateRange}
         numberOfAdults={numberOfAdults}
         totalPrice={totalPrice}
@@ -1732,25 +1564,13 @@ InternalPricing.propTypes = {
   setCircuitTransferQuantity: PropTypes.func,
   airportTransferQuantity: PropTypes.number,
   setAirportTransferQuantity: PropTypes.func,
-  createFlightBooking: PropTypes.bool,
-  setCreateFlightBooking: PropTypes.func,
-  flightPNR: PropTypes.string,
-  setFlightPNR: PropTypes.func,
-  ticketingDeadline: PropTypes.instanceOf(Date),
-  setTicketingDeadline: PropTypes.func,
-  paymentStatus: PropTypes.string,
-  setPaymentStatus: PropTypes.func,
-  createLoungeBooking: PropTypes.bool,
-  setCreateLoungeBooking: PropTypes.func,
-  loungeBookingRef: PropTypes.string,
-  setLoungeBookingRef: PropTypes.func,
   dateRange: PropTypes.object,
   setDateRange: PropTypes.func,
   originalNights: PropTypes.number,
   setOriginalNights: PropTypes.func,
   flightQuantity: PropTypes.number,
   setFlightQuantity: PropTypes.func,
-  salesTeam: PropTypes.string,
+  salesTeam: PropTypes.object,
 };
 
 export { InternalPricing };

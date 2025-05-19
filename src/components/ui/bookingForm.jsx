@@ -56,38 +56,6 @@ import {
 } from "@/components/ui/dialog";
 import { jwtDecode } from "jwt-decode";
 
-const formSchema = z.object({
-  booker_name: z.string().min(1),
-  booker_email: z.string().min(1),
-  booker_phone: z.string().min(1),
-  address_line_1: z.string().min(1),
-  address_line_2: z.string().min(1).optional(),
-  city: z.string().min(1),
-  postcode: z.string().min(1),
-  country: z.string().min(1),
-  booking_date: z.coerce.date(),
-  lead_traveller_name: z.string().min(1),
-  lead_traveller_phone: z.string().min(1),
-  lead_traveller_email: z.string().min(1),
-  guest_traveller_names: z.array(z.string().min(1)),
-  acquisition: z.string(),
-  booking_type: z.string(),
-  atol_abtot: z.string(),
-  payment1_status: z.boolean().default(false),
-  payment2_status: z.boolean().default(false),
-  payment3_status: z.boolean().default(false),
-  booking_reference: z.string().min(1),
-  booking_reference_prefix: z.string().min(1),
-});
-
-const currencySymbols = {
-  GBP: "£",
-  USD: "$",
-  EUR: "€",
-  AUD: "A$",
-  CAD: "C$",
-};
-
 function BookingForm({ 
   numberOfAdults, 
   totalPrice, 
@@ -125,17 +93,78 @@ function BookingForm({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
   const [customPayments, setCustomPayments] = useState(false);
-  const [paymentPercents, setPaymentPercents] = useState([34, 33, 33]);
+  const [paymentPercents, setPaymentPercents] = useState([33.33, 33.33, 33.34]);
   const [paymentAmounts, setPaymentAmounts] = useState([0, 0, 0]);
   const [currentUser, setCurrentUser] = useState(null);
+
+  const currencySymbols = {
+    GBP: "£",
+    USD: "$",
+    EUR: "€",
+    AUD: "A$",
+    CAD: "C$",
+  };
+
+  const formSchema = z.object({
+    booker_name: z.string().min(1),
+    booker_email: z.string().min(1),
+    booker_phone: z.string().min(1),
+    address_line_1: z.string().min(1),
+    address_line_2: z.string().min(1).optional(),
+    city: z.string().min(1),
+    postcode: z.string().min(1),
+    country: z.string().min(1),
+    booking_date: z.coerce.date(),
+    lead_traveller_name: z.string().min(1),
+    lead_traveller_phone: z.string().min(1),
+    lead_traveller_email: z.string().min(1),
+    guest_traveller_names: z.array(z.string().min(1)).length(numberOfAdults - 1),
+    acquisition: z.string(),
+    booking_type: z.string(),
+    atol_abtot: z.string(),
+    payment1_status: z.boolean().default(false),
+    payment2_status: z.boolean().default(false),
+    payment3_status: z.boolean().default(false),
+    booking_reference: z.string().min(1),
+    booking_reference_prefix: z.string().min(1),
+    create_flight_booking: z.boolean().default(false),
+    flight_booking_reference: z.string().optional(),
+    ticketing_deadline: z.date().nullable().optional(),
+    flight_status: z.string().optional(),
+    create_lounge_booking: z.boolean().default(false),
+    lounge_booking_reference: z.string().optional(),
+  });
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      booker_name: "",
+      booker_email: "",
+      booker_phone: "",
+      address_line_1: "",
+      address_line_2: "",
+      city: "",
+      postcode: "",
+      country: "",
       booking_date: new Date(),
-      guest_traveller_names: Array(Math.max(0, numberOfAdults - 1)).fill(""),
-      booking_reference: generateBookingReference(selectedEvent).sequence,
-      booking_reference_prefix: generateBookingReference(selectedEvent).prefix,
+      lead_traveller_name: "",
+      lead_traveller_phone: "",
+      lead_traveller_email: "",
+      guest_traveller_names: Array(numberOfAdults - 1).fill(""),
+      acquisition: "B2B Travel Agent",
+      booking_type: "Standard",
+      atol_abtot: "ATOL",
+      payment1_status: false,
+      payment2_status: false,
+      payment3_status: false,
+      booking_reference: "",
+      booking_reference_prefix: "GP",
+      create_flight_booking: false,
+      flight_booking_reference: "",
+      ticketing_deadline: null,
+      flight_status: "",
+      create_lounge_booking: false,
+      lounge_booking_reference: "",
     },
   });
 
@@ -352,26 +381,46 @@ function BookingForm({
     initializeReference();
   }, [selectedEvent?.event_id]);
 
-  // Update payment amounts whenever total price changes
+  // Update payment amounts whenever total price changes or custom payments is toggled
   useEffect(() => {
     if (!customPayments) {
-      // Equal payments
+      // Simple division by three
       const equalAmount = totalPrice / 3;
-      const lastAmount = totalPrice - (equalAmount * 2);
-      setPaymentAmounts([equalAmount, equalAmount, lastAmount]);
+      setPaymentAmounts([
+        equalAmount,
+        equalAmount,
+        equalAmount
+      ]);
     } else {
-      // Custom percentages
-      const amounts = paymentPercents.map(percent => 
-        (totalPrice * percent) / 100
+      // Use percentages only when custom payments are enabled
+      const newAmounts = paymentPercents.map(percent => 
+        Math.round((totalPrice * percent) / 100)
       );
-      const sum = amounts[0] + amounts[1];
-      amounts[2] = totalPrice - sum;
-      setPaymentAmounts(amounts);
+      const sum = newAmounts[0] + newAmounts[1];
+      newAmounts[2] = totalPrice - sum;
+      setPaymentAmounts(newAmounts);
     }
   }, [totalPrice, customPayments, paymentPercents]);
 
+  // Add handler for custom payments toggle
+  const handleCustomPaymentsToggle = (checked) => {
+    if (!checked) {
+      // Reset to simple division by three
+      const equalAmount = totalPrice / 3;
+      setPaymentAmounts([
+        equalAmount,
+        equalAmount,
+        equalAmount
+      ]);
+      setPaymentPercents([33.33, 33.33, 33.34]);
+    }
+    setCustomPayments(checked);
+  };
+
   // Function to handle payment percentage changes
   const handlePaymentChange = (index, newPercent) => {
+    if (!customPayments) return; // Only allow changes if custom payments are enabled
+    
     // Convert to number and handle empty input
     const value = newPercent === '' ? 0 : Number(newPercent);
     
@@ -395,25 +444,22 @@ function BookingForm({
     }
     
     setPaymentPercents(newPercents);
-    
-    // Calculate payment amounts without rounding
-    const newAmounts = newPercents.map(percent => 
-      (totalPrice * percent) / 100
-    );
-    
-    // Adjust the last payment to ensure total is exact
-    const sum = newAmounts[0] + newAmounts[1];
-    newAmounts[2] = totalPrice - sum;
-    
-    setPaymentAmounts(newAmounts);
   };
 
   const handleSubmit = async (values) => {
-    if (isSubmitting) return; // Prevent double submission
+    console.log('Button pressed - handleSubmit called');
+    console.log('Current isSubmitting state:', isSubmitting);
+    
+    if (isSubmitting) {
+      console.log('Submission blocked: Already submitting');
+      return;
+    }
 
     try {
+      console.log('Starting form submission process');
+      console.log('Form values:', values);
       setIsSubmitting(true);
-      console.log('Form values:', values); // Log form values
+      console.log('isSubmitting set to true');
 
       // Format dates for the API
       const formatDate = (date) => {
@@ -421,25 +467,18 @@ function BookingForm({
         return format(new Date(date), "dd-LLL-y");
       };
 
-      // Ensure payment percentages are whole numbers
-      const roundedPercents = paymentPercents.map(p => Math.round(p));
+      // Use the current payment amounts directly
+      console.log('Payment amounts:', paymentAmounts);
       
-      // Recalculate payment amounts with rounded percentages
-      const roundedAmounts = roundedPercents.map(percent => 
-        Math.round((totalPrice * percent) / 100)
-      );
-      
-      // Adjust the last payment to ensure total is exact
-      const sum = roundedAmounts[0] + roundedAmounts[1];
-      roundedAmounts[2] = totalPrice - sum;
-
       // Combine booking reference prefix and sequence
       const bookingReference = `${values.booking_reference_prefix}${values.booking_reference}`;
+      console.log('Generated booking reference:', bookingReference);
 
       // Get payment dates from package or use current date for upfront payment
       const payment1Date = formatDate(new Date()); // Current date for upfront payment
       const payment2Date = selectedPackage?.payment_date_2 || '';
       const payment3Date = selectedPackage?.payment_date_3 || '';
+      console.log('Payment dates:', { payment1Date, payment2Date, payment3Date });
 
       // Prepare the booking data according to API requirements
       const bookingData = {
@@ -505,9 +544,9 @@ function BookingForm({
         
         // Flight details
         flight_id: selectedFlight?.flight_id || '',
-        flight_booking_reference: flightPNR || '',
-        ticketing_deadline: formatDate(ticketingDeadline),
-        flight_status: paymentStatus || '',
+        flight_booking_reference: form.getValues("create_flight_booking") ? form.getValues("flight_booking_reference") : '',
+        ticketing_deadline: form.getValues("create_flight_booking") ? formatDate(form.getValues("ticketing_deadline")) : '',
+        flight_status: form.getValues("create_flight_booking") ? form.getValues("flight_status") : '',
         flight_quantity: selectedFlight ? flightQuantity : 0,
         flight_price: selectedFlight ? selectedFlight.price * flightQuantity : 0,
         
@@ -515,14 +554,15 @@ function BookingForm({
         lounge_pass_id: selectedLoungePass?.lounge_pass_id || '',
         lounge_pass_quantity: loungePassQuantity,
         lounge_pass_price: selectedLoungePass ? selectedLoungePass.price * loungePassQuantity : 0,
+        lounge_booking_reference: form.getValues("create_lounge_booking") ? form.getValues("lounge_booking_reference") : '',
         
         // Payment details with rounded values
         payment_currency: selectedCurrency,
-        payment_1: roundedAmounts[0],
+        payment_1: paymentAmounts[0],
         payment_1_date: payment1Date,
-        payment_2: roundedAmounts[1],
+        payment_2: paymentAmounts[1],
         payment_2_date: payment2Date,
-        payment_3: roundedAmounts[2],
+        payment_3: paymentAmounts[2],
         payment_3_date: payment3Date,
         payment_1_status: values.payment1_status ? "Paid" : "Due",
         payment_2_status: values.payment2_status ? "Paid" : "Due",
@@ -534,9 +574,7 @@ function BookingForm({
         'Total Sold GBP': totalPrice,
         'P&L': 0 // This will be calculated by the backend
       };
-
-      // Log the data being sent
-      console.log('Sending booking data:', bookingData);
+      console.log('Prepared booking data:', bookingData);
 
       // Make the API request to the correct endpoint
       console.log('Making API request to /bookingFile');
@@ -557,9 +595,9 @@ function BookingForm({
             package: selectedPackage?.package_name || 'N/A',
             totalPrice: `${currencySymbols[selectedCurrency]}${totalPrice.toFixed(2)}`,
             paymentSchedule: [
-              { amount: roundedAmounts[0], date: payment1Date },
-              { amount: roundedAmounts[1], date: payment2Date },
-              { amount: roundedAmounts[2], date: payment3Date }
+              { amount: paymentAmounts[0], date: payment1Date },
+              { amount: paymentAmounts[1], date: payment2Date },
+              { amount: paymentAmounts[2], date: payment3Date }
             ]
           });
           
@@ -571,17 +609,13 @@ function BookingForm({
         toast.success('Booking created successfully!');
         
       } catch (error) {
-        console.error('Failed to create booking:', error);
-        
-        // Log the error response data if available
-        if (error.response) {
-          console.error('Error response:', {
-            status: error.response.status,
-            statusText: error.response.statusText,
-            data: error.response.data,
-            headers: error.response.headers
-          });
-        }
+        console.error('API request failed:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response,
+          status: error.response?.status,
+          data: error.response?.data
+        });
         
         // Show more specific error message
         const errorMessage = error.response?.data?.message || 'Failed to create booking. Please try again.';
@@ -591,6 +625,8 @@ function BookingForm({
       }
     } catch (error) {
       console.error('Form validation error:', error);
+      console.error('Form state:', form.formState);
+      console.error('Form errors:', form.formState.errors);
       toast.error('Please check all required fields are filled correctly.');
       setIsSubmitting(false);
     }
@@ -608,76 +644,179 @@ function BookingForm({
 
         <div className="grid grid-cols-2 gap-8">
           {/* Left Column - Summary */}
-          <div className="space-y-6">
-            <div className="bg-muted/50 p-4 rounded-lg space-y-4">
+          <div className="space-y-4">
+            <div className="bg-muted/50 p-3 rounded-lg space-y-4">
               <h3 className="font-semibold text-lg">Booking Summary</h3>
               
-              {/* Event & Package */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Event & Package</h4>
-                <div className="text-sm space-y-1">
-                  <p><span className="font-medium">Event:</span> {selectedEvent?.event || "Not selected"}</p>
-                  <p><span className="font-medium">Package:</span> {selectedPackage?.package_name || "Not selected"}</p>
-                  <p><span className="font-medium">Number of Adults:</span> {numberOfAdults}</p>
-                </div>
-              </div>
-
-              {/* Hotel & Room */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Hotel & Room</h4>
-                <div className="text-sm space-y-1">
-                  <p><span className="font-medium">Hotel:</span> {selectedHotel?.hotel_name || "Not selected"}</p>
-                  <p><span className="font-medium">Room:</span> {selectedRoom?.room_category || "Not selected"} - {selectedRoom?.room_type || "Not selected"}</p>
-                  <p><span className="font-medium">Room Quantity:</span> {roomQuantity}</p>
-                  <p><span className="font-medium">Check-in:</span> {dateRange?.from ? format(dateRange.from, "PPP") : "Not selected"}</p>
-                  <p><span className="font-medium">Check-out:</span> {dateRange?.to ? format(dateRange.to, "PPP") : "Not selected"}</p>
-                </div>
-              </div>
-
-              {/* Ticket */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Ticket</h4>
-                <div className="text-sm space-y-1">
-                  <p><span className="font-medium">Ticket Type:</span> {selectedTicket?.ticket_name || "Not selected"}</p>
-                  <p><span className="font-medium">Quantity:</span> {ticketQuantity}</p>
-                </div>
-              </div>
-
-              {/* Transfers */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Transfers</h4>
-                <div className="text-sm space-y-1">
-                  <p><span className="font-medium">Circuit Transfer:</span> {selectedCircuitTransfer?.transport_type || "Not selected"}</p>
-                  <p><span className="font-medium">Airport Transfer:</span> {selectedAirportTransfer?.transport_type || "Not selected"}</p>
-                </div>
-              </div>
-
-              {/* Flight */}
-              {selectedFlight && (
-                <div className="space-y-2">
-                  <h4 className="font-medium">Flight</h4>
-                  <div className="text-sm space-y-1">
-                    <p><span className="font-medium">Airline:</span> {selectedFlight.airline}</p>
-                    <p><span className="font-medium">Class:</span> {selectedFlight.class}</p>
-                    <p><span className="font-medium">Outbound:</span> {selectedFlight.outbound_flight}</p>
-                    <p><span className="font-medium">Inbound:</span> {selectedFlight.inbound_flight}</p>
+              {/* Package Details Section */}
+              <div className="space-y-3 border-b pb-3">
+                <h4 className="font-medium text-base">Package Details</h4>
+                
+                {/* Event & Package */}
+                <div className="space-y-1.5 bg-card p-2 rounded-md">
+                  <h5 className="text-sm font-medium text-muted-foreground">Event & Package</h5>
+                  <div className="text-sm space-y-0.5">
+                    <p><span className="font-medium">Event:</span> {selectedEvent?.event || "Not selected"}</p>
+                    <p><span className="font-medium">Package:</span> {selectedPackage?.package_name || "Not selected"}</p>
+                    <p><span className="font-medium">Number of Adults:</span> {numberOfAdults}</p>
                   </div>
                 </div>
-              )}
 
-              {/* Lounge Pass */}
-              {selectedLoungePass && (
-                <div className="space-y-2">
-                  <h4 className="font-medium">Lounge Pass</h4>
-                  <div className="text-sm space-y-1">
-                    <p><span className="font-medium">Type:</span> {selectedLoungePass.variant}</p>
-                    <p><span className="font-medium">Quantity:</span> {loungePassQuantity}</p>
+                {/* Hotel & Room */}
+                {selectedHotel && (
+                  <div className="space-y-1.5 bg-card p-2 rounded-md">
+                    <h5 className="text-sm font-medium text-muted-foreground">Hotel & Room</h5>
+                    <div className="text-sm space-y-0.5">
+                      <p><span className="font-medium">Hotel:</span> {selectedHotel?.hotel_name || "Not selected"}</p>
+                      <p><span className="font-medium">Room:</span> {selectedRoom?.room_category || "Not selected"} - {selectedRoom?.room_type || "Not selected"} x{roomQuantity}</p>
+                      <p><span className="font-medium">Check-in:</span> {dateRange?.from ? format(dateRange.from, "PPP") : "Not selected"}</p>
+                      <p><span className="font-medium">Check-out:</span> {dateRange?.to ? format(dateRange.to, "PPP") : "Not selected"}</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Ticket */}
+                {selectedTicket && (
+                  <div className="space-y-1.5 bg-card p-2 rounded-md">
+                    <h5 className="text-sm font-medium text-muted-foreground">Ticket</h5>
+                    <div className="text-sm space-y-0.5">
+                      <p><span className="font-medium">Ticket Type:</span> {selectedTicket?.ticket_name || "Not selected"} x{ticketQuantity}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Transfers */}
+                {(selectedCircuitTransfer || selectedAirportTransfer) && (
+                  <div className="space-y-1.5 bg-card p-2 rounded-md">
+                    <h5 className="text-sm font-medium text-muted-foreground">Transfers</h5>
+                    <div className="text-sm space-y-0.5">
+                      {selectedCircuitTransfer && (
+                        <p><span className="font-medium">Circuit Transfer:</span> {selectedCircuitTransfer?.transport_type || "Not selected"} x{circuitTransferQuantity}</p>
+                      )}
+                      {selectedAirportTransfer && (
+                        <p><span className="font-medium">Airport Transfer:</span> {selectedAirportTransfer?.transport_type || "Not selected"} x{airportTransferQuantity}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Flight & Lounge Section */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-base">Additional Services</h4>
+
+                {/* Flight */}
+                {selectedFlight && (
+                  <div className="space-y-1.5 bg-card p-2 rounded-md">
+                    <h5 className="text-sm font-medium text-muted-foreground">Flight</h5>
+                    <div className="text-sm space-y-0.5">
+                      <p><span className="font-medium">Airline:</span> {selectedFlight.airline} • {selectedFlight.class} x{flightQuantity}</p>
+                      <p><span className="font-medium">Outbound:</span> {selectedFlight.outbound_flight}</p>
+                      <p><span className="font-medium">Inbound:</span> {selectedFlight.inbound_flight}</p>
+                      <div className="flex items-center space-x-2 pt-1">
+                        <Switch
+                          id="create-flight-booking"
+                          checked={form.watch("create_flight_booking")}
+                          onCheckedChange={(checked) => form.setValue("create_flight_booking", checked)}
+                        />
+                        <Label htmlFor="create-flight-booking" className="text-sm">
+                          Create Flight Booking
+                        </Label>
+                      </div>
+                      {form.watch("create_flight_booking") && (
+                        <div className="space-y-1.5 pt-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Booking Reference:</span>
+                            <Input 
+                              value={form.watch("flight_booking_reference")}
+                              onChange={(e) => form.setValue("flight_booking_reference", e.target.value)}
+                              className="h-7 text-xs"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Ticketing Deadline:</span>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "h-7 text-xs justify-start text-left font-normal",
+                                    !form.watch("ticketing_deadline") && "text-muted-foreground"
+                                  )}
+                                >
+                                  {form.watch("ticketing_deadline") ? (
+                                    format(form.watch("ticketing_deadline"), "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={form.watch("ticketing_deadline")}
+                                  onSelect={(date) => form.setValue("ticketing_deadline", date)}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Status:</span>
+                            <Select
+                              value={form.watch("flight_status")}
+                              onValueChange={(value) => form.setValue("flight_status", value)}
+                            >
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="booked_ticketed_paid">Booked, Ticketed & Paid</SelectItem>
+                                <SelectItem value="booked_ticketed_not_paid">Booked, Ticketed, Not Paid</SelectItem>
+                                <SelectItem value="booked_not_ticketed">Booked, Not Ticketed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lounge Pass */}
+                {selectedLoungePass && (
+                  <div className="space-y-1.5 bg-card p-2 rounded-md">
+                    <h5 className="text-sm font-medium text-muted-foreground">Lounge Pass</h5>
+                    <div className="text-sm space-y-0.5">
+                      <p><span className="font-medium">Type:</span> {selectedLoungePass.variant} x{loungePassQuantity}</p>
+                      <div className="flex items-center space-x-2 pt-1">
+                        <Switch
+                          id="create-lounge-booking"
+                          checked={form.watch("create_lounge_booking")}
+                          onCheckedChange={(checked) => form.setValue("create_lounge_booking", checked)}
+                        />
+                        <Label htmlFor="create-lounge-booking" className="text-sm">
+                          Create Lounge Pass Booking
+                        </Label>
+                      </div>
+                      {form.watch("create_lounge_booking") && (
+                        <div className="flex items-center gap-2 pt-1.5">
+                          <span className="font-medium">Booking Reference:</span>
+                          <Input 
+                            value={form.watch("lounge_booking_reference")}
+                            onChange={(e) => form.setValue("lounge_booking_reference", e.target.value)}
+                            className="h-7 text-xs"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Total Price */}
-              <div className="pt-4 border-t">
+              <div className="pt-3 border-t">
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Total Price:</span>
                   <span className="text-lg font-bold">
@@ -692,11 +831,16 @@ function BookingForm({
           <div>
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit(handleSubmit)}
+                onSubmit={(e) => {
+                  console.log('Form onSubmit triggered');
+                  console.log('Current form values:', form.getValues());
+                  console.log('Detailed form errors:', JSON.stringify(form.formState.errors, null, 2));
+                  form.handleSubmit(handleSubmit)(e);
+                }}
                 className="space-y-4"
               >
                 {/* Booking Reference */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <FormField
                     control={form.control}
                     name="booking_reference"
@@ -704,23 +848,15 @@ function BookingForm({
                       <FormItem>
                         <FormLabel className="text-foreground text-xs">Booking Reference</FormLabel>
                         <div className="flex items-center gap-2">
-                          <FormControl>
-                            <Input 
-                              value={form.getValues('booking_reference_prefix') || ''}
-                              className="bg-background font-mono w-[180px] text-xs h-7"
-                              readOnly 
-                            />
-                          </FormControl>
+                          <span className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                            {form.watch("booking_reference_prefix")}
+                          </span>
                           <FormControl>
                             <Input 
                               {...field}
-                              className="bg-background font-mono w-[80px] text-xs h-7"
+                              className="bg-background text-xs h-7 font-mono w-20"
                               maxLength={4}
-                              pattern="[0-9]*"
-                              onChange={(e) => {
-                                const value = e.target.value.replace(/[^0-9]/g, '');
-                                field.onChange(value);
-                              }}
+                              placeholder="0001"
                             />
                           </FormControl>
                         </div>
@@ -892,7 +1028,7 @@ function BookingForm({
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {Array.from({ length: Math.max(0, numberOfAdults - 1) }).map(
+                  {Array.from({ length: numberOfAdults - 1 }).map(
                     (_, index) => (
                       <FormField
                         key={index}
@@ -900,15 +1036,25 @@ function BookingForm({
                         name={`guest_traveller_names.${index}`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-foreground text-xs">Guest {index + 1} Name</FormLabel>
+                            <FormLabel className="text-foreground text-xs">
+                              Guest {index + 1} Name
+                              <span className="text-red-500 ml-1">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 placeholder={`Guest ${index + 1}`}
                                 {...field}
-                                className="bg-background text-xs h-7"
+                                className={cn(
+                                  "bg-background text-xs h-7",
+                                  form.formState.errors.guest_traveller_names?.[index] && "border-red-500"
+                                )}
                               />
                             </FormControl>
-                            <FormMessage className="text-xs" />
+                            {form.formState.errors.guest_traveller_names?.[index] && (
+                              <p className="text-xs text-red-500 mt-1">
+                                Please enter guest {index + 1}'s name
+                              </p>
+                            )}
                           </FormItem>
                         )}
                       />
@@ -955,7 +1101,6 @@ function BookingForm({
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="acquisition"
@@ -1045,7 +1190,7 @@ function BookingForm({
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={customPayments}
-                          onCheckedChange={setCustomPayments}
+                          onCheckedChange={handleCustomPaymentsToggle}
                           id="custom-payments"
                         />
                         <Label htmlFor="custom-payments" className="text-xs">
@@ -1140,6 +1285,13 @@ function BookingForm({
                     size="default" 
                     className="w-full"
                     disabled={isSubmitting}
+                    onClick={() => {
+                      console.log('Submit button clicked');
+                      console.log('isSubmitting state:', isSubmitting);
+                      console.log('Form state:', form.formState);
+                      console.log('Form errors:', form.formState.errors);
+                      console.log('Guest traveller names:', form.getValues('guest_traveller_names'));
+                    }}
                   >
                     {isSubmitting ? (
                       <>
@@ -1184,9 +1336,6 @@ BookingForm.propTypes = {
   circuitTransferQuantity: PropTypes.number,
   airportTransferQuantity: PropTypes.number,
   flightQuantity: PropTypes.number,
-  flightPNR: PropTypes.string,
-  ticketingDeadline: PropTypes.instanceOf(Date),
-  paymentStatus: PropTypes.string,
   originalNights: PropTypes.number,
   salesTeam: PropTypes.object,
   open: PropTypes.bool,

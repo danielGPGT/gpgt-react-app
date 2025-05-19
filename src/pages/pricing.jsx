@@ -14,6 +14,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format, differenceInCalendarDays } from "date-fns";
 import { BadgePoundSterling } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+// Add currency symbol mapping
+const currencySymbols = {
+  GBP: "£",
+  USD: "$",
+  EUR: "€",
+  AUD: "A$",
+  CAD: "C$",
+};
 
 function PricingSheet() {
   const [numberOfAdults, setNumberOfAdults] = useState(2);
@@ -48,6 +60,7 @@ function PricingSheet() {
   const [createLoungeBooking, setCreateLoungeBooking] = useState(false);
   const [loungeBookingRef, setLoungeBookingRef] = useState("");
   const [flightQuantity, setFlightQuantity] = useState(0);
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
 
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -71,14 +84,21 @@ function PricingSheet() {
 
   const handleBookingSubmit = async (formData) => {
     try {
-      // Calculate payment amounts (assuming 3 equal payments)
-      const paymentAmount = totalPrice / 3;
-
       // Format dates for the API
       const formatDate = (date) => {
         if (!date) return '';
         return format(new Date(date), "dd-LLL-y");
       };
+
+      // Get payment dates from package or use current date for upfront payment
+      const payment1Date = formatDate(new Date()); // Current date for upfront payment
+      const payment2Date = selectedPackage?.payment_date_2 || '';
+      const payment3Date = selectedPackage?.payment_date_3 || '';
+
+      // Use the payment amounts directly from the form data
+      const payment1Amount = formData.paymentAmounts[0];
+      const payment2Amount = formData.paymentAmounts[1];
+      const payment3Amount = formData.paymentAmounts[2];
 
       // Prepare the booking data according to API requirements
       const bookingData = {
@@ -126,12 +146,12 @@ function PricingSheet() {
         lounge_pass_quantity: loungePassQuantity,
         lounge_pass_price: selectedLoungePass ? selectedLoungePass.price * loungePassQuantity : 0,
         payment_currency: selectedCurrency,
-        payment_1: paymentAmount,
-        payment_1_date: formatDate(formData.payment1_date),
-        payment_2: paymentAmount,
-        payment_2_date: formatDate(formData.payment2_date),
-        payment_3: paymentAmount,
-        payment_3_date: formatDate(formData.payment3_date),
+        payment_1: payment1Amount,
+        payment_1_date: payment1Date,
+        payment_2: payment2Amount,
+        payment_2_date: payment2Date,
+        payment_3: payment3Amount,
+        payment_3_date: payment3Date,
         guest_traveller_names: formData.guest_traveller_names.join(', '),
         acquisition: formData.acquisition,
         booking_type: formData.booking_type,
@@ -175,7 +195,7 @@ function PricingSheet() {
       <AppSidebar />
       <main className="w-full">
         <div className="p-8">
-        <AppHeader className="mb-6" />
+          <AppHeader className="mb-6" />
 
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-8">
@@ -410,28 +430,129 @@ function PricingSheet() {
                         selectedCurrency={selectedCurrency}
                         setSelectedCurrency={setSelectedCurrency}
                       />
-                      <RequestBooking
-                        numberOfAdults={numberOfAdults}
-                        totalPrice={totalPrice}
-                        salesTeam={salesTeams[0]}
-                        selectedEvent={selectedEvent}
-                        selectedPackage={selectedPackage}
-                        selectedHotel={selectedHotel}
-                        selectedRoom={selectedRoom}
-                        selectedTicket={selectedTicket}
-                        selectedFlight={selectedFlight}
-                        selectedLoungePass={selectedLoungePass}
-                        selectedCircuitTransfer={selectedCircuitTransfer}
-                        selectedAirportTransfer={selectedAirportTransfer}
-                        circuitTransferQuantity={circuitTransferQuantity}
-                        airportTransferQuantity={airportTransferQuantity}
-                        roomQuantity={roomQuantity}
-                        ticketQuantity={ticketQuantity}
-                        loungePassQuantity={loungePassQuantity}
-                        dateRange={dateRange}
-                        selectedCurrency={selectedCurrency}
-                      />
+                      <div className="w-full max-w-2xl">
+                        <div className="p-4 space-y-4 bg-card rounded-md border shadow-sm">
+                          <h2 className="text-lg font-semibold text-foreground">Booking Summary</h2>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Event:</span>
+                              <span className="font-medium">{selectedEvent?.event || "Not selected"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Package:</span>
+                              <span className="font-medium">{selectedPackage?.package_name || "Not selected"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Hotel:</span>
+                              <span className="font-medium">{selectedHotel?.hotel_name || "Not selected"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Room:</span>
+                              <span className="font-medium">
+                                {selectedRoom ? `${selectedRoom.room_category} - ${selectedRoom.room_type}` : "Not selected"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Ticket:</span>
+                              <span className="font-medium">{selectedTicket?.ticket_name || "Not selected"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Flight:</span>
+                              <span className="font-medium">
+                                {selectedFlight ? `${selectedFlight.airline} - ${selectedFlight.class}` : "Not selected"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total Price:</span>
+                              <span className="font-medium">
+                                {currencySymbols[selectedCurrency]}{Math.round(totalPrice).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                          <Button 
+                            className="w-full" 
+                            onClick={() => setShowRequestDialog(true)}
+                          >
+                            Request Booking
+                          </Button>
+                        </div>
+                      </div>
                     </div>
+
+                    <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
+                      <DialogContent className="max-w-6xl">
+                        <DialogHeader>
+                          <DialogTitle>Request Booking</DialogTitle>
+                          <DialogDescription>
+                            Fill out the form below to request a booking. Our sales team will process your request.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 gap-6 pt-6">
+                          <div className="space-y-4">
+                            <h3 className="font-semibold">Booking Summary</h3>
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Event:</span>
+                                <span className="font-medium">{selectedEvent?.event || "Not selected"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Package:</span>
+                                <span className="font-medium">{selectedPackage?.package_name || "Not selected"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Hotel:</span>
+                                <span className="font-medium">{selectedHotel?.hotel_name || "Not selected"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Room:</span>
+                                <span className="font-medium">
+                                  {selectedRoom ? `${selectedRoom.room_category} - ${selectedRoom.room_type} x ${roomQuantity}` : "Not selected"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Ticket:</span>
+                                <span className="font-medium">{selectedTicket?.ticket_name || "Not selected"} x {ticketQuantity}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Flight:</span>
+                                <span className="font-medium">
+                                  {selectedFlight ? `${selectedFlight.airline} - ${selectedFlight.class}` : "Not selected"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Total Price:</span>
+                                <span className="font-medium">
+                                  {currencySymbols[selectedCurrency]}{Math.round(totalPrice).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <ScrollArea className="h-[600px] pr-4">
+                            <RequestBooking
+                              numberOfAdults={numberOfAdults}
+                              totalPrice={totalPrice}
+                              salesTeam={salesTeams[0]}
+                              selectedEvent={selectedEvent}
+                              selectedPackage={selectedPackage}
+                              selectedHotel={selectedHotel}
+                              selectedRoom={selectedRoom}
+                              selectedTicket={selectedTicket}
+                              selectedFlight={selectedFlight}
+                              selectedLoungePass={selectedLoungePass}
+                              selectedCircuitTransfer={selectedCircuitTransfer}
+                              selectedAirportTransfer={selectedAirportTransfer}
+                              circuitTransferQuantity={circuitTransferQuantity}
+                              airportTransferQuantity={airportTransferQuantity}
+                              roomQuantity={roomQuantity}
+                              ticketQuantity={ticketQuantity}
+                              loungePassQuantity={loungePassQuantity}
+                              dateRange={dateRange}
+                              selectedCurrency={selectedCurrency}
+                            />
+                          </ScrollArea>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </TabsContent>
                 </Tabs>
               </div>
@@ -478,27 +599,128 @@ function PricingSheet() {
                   selectedCurrency={selectedCurrency}
                   setSelectedCurrency={setSelectedCurrency}
                 />
-                <RequestBooking
-                  numberOfAdults={numberOfAdults}
-                  totalPrice={totalPrice}
-                  salesTeam={salesTeams[0]}
-                  selectedEvent={selectedEvent}
-                  selectedPackage={selectedPackage}
-                  selectedHotel={selectedHotel}
-                  selectedRoom={selectedRoom}
-                  selectedTicket={selectedTicket}
-                  selectedFlight={selectedFlight}
-                  selectedLoungePass={selectedLoungePass}
-                  selectedCircuitTransfer={selectedCircuitTransfer}
-                  selectedAirportTransfer={selectedAirportTransfer}
-                  circuitTransferQuantity={circuitTransferQuantity}
-                  airportTransferQuantity={airportTransferQuantity}
-                  roomQuantity={roomQuantity}
-                  ticketQuantity={ticketQuantity}
-                  loungePassQuantity={loungePassQuantity}
-                  dateRange={dateRange}
-                  selectedCurrency={selectedCurrency}
-                />
+                <div className="w-full max-w-2xl">
+                  <div className="p-4 space-y-4 bg-card rounded-md border shadow-sm">
+                    <h2 className="text-lg font-semibold text-foreground">Booking Summary</h2>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Event:</span>
+                        <span className="font-medium">{selectedEvent?.event || "Not selected"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Package:</span>
+                        <span className="font-medium">{selectedPackage?.package_name || "Not selected"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Hotel:</span>
+                        <span className="font-medium">{selectedHotel?.hotel_name || "Not selected"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Room:</span>
+                        <span className="font-medium">
+                          {selectedRoom ? `${selectedRoom.room_category} - ${selectedRoom.room_type}` : "Not selected"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Ticket:</span>
+                        <span className="font-medium">{selectedTicket?.ticket_name || "Not selected"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Flight:</span>
+                        <span className="font-medium">
+                          {selectedFlight ? `${selectedFlight.airline} - ${selectedFlight.class}` : "Not selected"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Price:</span>
+                        <span className="font-medium">
+                          {currencySymbols[selectedCurrency]}{Math.round(totalPrice).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => setShowRequestDialog(true)}
+                    >
+                      Request Booking
+                    </Button>
+                  </div>
+                </div>
+
+                <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
+                  <DialogContent className="max-w-6xl">
+                    <DialogHeader>
+                      <DialogTitle>Request Booking</DialogTitle>
+                      <DialogDescription>
+                        Fill out the form below to request a booking. Our sales team will process your request.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h3 className="font-semibold">Booking Summary</h3>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Event:</span>
+                            <span className="font-medium">{selectedEvent?.event || "Not selected"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Package:</span>
+                            <span className="font-medium">{selectedPackage?.package_name || "Not selected"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Hotel:</span>
+                            <span className="font-medium">{selectedHotel?.hotel_name || "Not selected"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Room:</span>
+                            <span className="font-medium">
+                              {selectedRoom ? `${selectedRoom.room_category} - ${selectedRoom.room_type}` : "Not selected"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Ticket:</span>
+                            <span className="font-medium">{selectedTicket?.ticket_name || "Not selected"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Flight:</span>
+                            <span className="font-medium">
+                              {selectedFlight ? `${selectedFlight.airline} - ${selectedFlight.class}` : "Not selected"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Total Price:</span>
+                            <span className="font-medium">
+                              {currencySymbols[selectedCurrency]}{Math.round(totalPrice).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <ScrollArea className="h-[600px] pr-4">
+                        <RequestBooking
+                          numberOfAdults={numberOfAdults}
+                          totalPrice={totalPrice}
+                          salesTeam={salesTeams[0]}
+                          selectedEvent={selectedEvent}
+                          selectedPackage={selectedPackage}
+                          selectedHotel={selectedHotel}
+                          selectedRoom={selectedRoom}
+                          selectedTicket={selectedTicket}
+                          selectedFlight={selectedFlight}
+                          selectedLoungePass={selectedLoungePass}
+                          selectedCircuitTransfer={selectedCircuitTransfer}
+                          selectedAirportTransfer={selectedAirportTransfer}
+                          circuitTransferQuantity={circuitTransferQuantity}
+                          airportTransferQuantity={airportTransferQuantity}
+                          roomQuantity={roomQuantity}
+                          ticketQuantity={ticketQuantity}
+                          loungePassQuantity={loungePassQuantity}
+                          dateRange={dateRange}
+                          selectedCurrency={selectedCurrency}
+                        />
+                      </ScrollArea>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             )}
           </div>
