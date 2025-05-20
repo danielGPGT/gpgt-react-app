@@ -60,6 +60,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/components/ui/date-picker";
+import { format, parse } from "date-fns";
 
 function PackagesTable() {
   const [packages, setPackages] = useState([]);
@@ -95,6 +98,11 @@ function PackagesTable() {
   ];
   const [sortColumn, setSortColumn] = useState("event");
   const [sortDirection, setSortDirection] = useState("asc");
+
+  // Add state for payment dates
+  const [paymentDate1, setPaymentDate1] = useState(null);
+  const [paymentDate2, setPaymentDate2] = useState(null);
+  const [paymentDate3, setPaymentDate3] = useState(null);
 
   useEffect(() => {
     async function fetchPackages() {
@@ -171,6 +179,10 @@ function PackagesTable() {
     package_name: "",
     package_type: "",
     url: "",
+    payment_date_1: "",
+    payment_date_2: "",
+    payment_date_3: "",
+    package_status: "sales open"
   };
   const [formData, setFormData] = useState(initialPackageState);
   const [formErrors, setFormErrors] = useState({});
@@ -189,7 +201,14 @@ function PackagesTable() {
       package_name: pkg.package_name,
       package_type: pkg.package_type,
       url: pkg.url || "",
+      package_status: pkg.package_status || "sales open"
     });
+    
+    // Parse payment dates
+    setPaymentDate1(parseDateFromAPI(pkg.payment_date_1));
+    setPaymentDate2(parseDateFromAPI(pkg.payment_date_2));
+    setPaymentDate3(parseDateFromAPI(pkg.payment_date_3));
+    
     setFormErrors({});
     setIsEditDialogOpen(true);
   };
@@ -220,6 +239,20 @@ function PackagesTable() {
     validateField(field, value);
   };
 
+  // Function to format date for API
+  const formatDateForAPI = (date) => {
+    if (!date) return "";
+    if (date === "upfront") return "upfront";
+    return format(date, "1-MMM-yyyy");
+  };
+
+  // Function to parse date from API
+  const parseDateFromAPI = (dateStr) => {
+    if (!dateStr) return null;
+    if (dateStr === "upfront") return "upfront";
+    return parse(dateStr, "1-MMM-yyyy", new Date());
+  };
+
   // Add package
   const handleAddPackage = async () => {
     console.log("Form data before validation:", formData); // Debug log
@@ -245,8 +278,12 @@ function PackagesTable() {
       const payload = {
         ...addData,
         event: formData.event,
+        package_status: formData.package_status || "sales open",
+        payment_date_1: formatDateForAPI(paymentDate1),
+        payment_date_2: formatDateForAPI(paymentDate2),
+        payment_date_3: formatDateForAPI(paymentDate3)
       };
-      console.log("Sending payload to API:", payload); // Debug log
+      console.log("Sending payload to API:", payload);
       await api.post("/packages", payload);
       setSuccessMessage("Package added successfully!");
       setShowSuccessDialog(true);
@@ -283,11 +320,29 @@ function PackagesTable() {
     if (!validateField("event", formData.event)) return;
     setIsEditing(true);
     try {
-      // Compare with original package to find changed fields
       const changedFields = {};
 
       if (formData.package_type !== editingPackage.package_type) {
-        changedFields["Package Type"] = formData.package_type;
+        changedFields["package_type"] = formData.package_type;
+      }
+
+      if (formData.package_status !== editingPackage.package_status) {
+        changedFields["package_status"] = formData.package_status;
+      }
+
+      // Add payment date changes
+      const newPaymentDate1 = formatDateForAPI(paymentDate1);
+      const newPaymentDate2 = formatDateForAPI(paymentDate2);
+      const newPaymentDate3 = formatDateForAPI(paymentDate3);
+
+      if (newPaymentDate1 !== editingPackage.payment_date_1) {
+        changedFields["payment_date_1"] = newPaymentDate1;
+      }
+      if (newPaymentDate2 !== editingPackage.payment_date_2) {
+        changedFields["payment_date_2"] = newPaymentDate2;
+      }
+      if (newPaymentDate3 !== editingPackage.payment_date_3) {
+        changedFields["payment_date_3"] = newPaymentDate3;
       }
 
       // Only update if there are changes
@@ -551,6 +606,8 @@ function PackagesTable() {
               <TableHead className="text-xs py-2">Event</TableHead>
               <TableHead className="text-xs py-2">Package Name</TableHead>
               <TableHead className="text-xs py-2">Type</TableHead>
+              <TableHead className="text-xs py-2">Payment Schedule</TableHead>
+              <TableHead className="text-xs py-2">Status</TableHead>
               <TableHead className="text-xs py-2">URL</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
@@ -574,6 +631,42 @@ function PackagesTable() {
                   <TableCell className="text-xs py-1.5">{pkg.event}</TableCell>
                   <TableCell className="text-xs py-1.5">{pkg.package_name}</TableCell>
                   <TableCell className="text-xs py-1.5">{pkg.package_type}</TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    <div className="space-y-1">
+                      {pkg.payment_date_1 && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">1st:</span>
+                          <span>{pkg.payment_date_1}</span>
+                        </div>
+                      )}
+                      {pkg.payment_date_2 && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">2nd:</span>
+                          <span>{pkg.payment_date_2}</span>
+                        </div>
+                      )}
+                      {pkg.payment_date_3 && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">3rd:</span>
+                          <span>{pkg.payment_date_3}</span>
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    <Badge
+                      variant="outline"
+                      className={`${
+                        pkg.package_status === "sales closed"
+                          ? "bg-destructive/10 text-destructive"
+                          : pkg.package_status === "sales open"
+                          ? "bg-success/10 text-success"
+                          : "bg-warning/10 text-warning"
+                      }`}
+                    >
+                      {pkg.package_status}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-xs py-1.5">
                     {pkg.url ? (
                       <a
@@ -619,7 +712,7 @@ function PackagesTable() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={isSelectionMode ? 6 : 5}
+                  colSpan={isSelectionMode ? 8 : 7}
                   className="text-center text-muted-foreground text-xs py-1.5"
                 >
                   No packages found.
@@ -804,8 +897,57 @@ function PackagesTable() {
                   placeholder="https://..."
                 />
               </div>
+              {/* Payment Schedule */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold">Payment Schedule</h4>
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_date_1">First Payment</Label>
+                    <DatePicker
+                      date={paymentDate1}
+                      setDate={setPaymentDate1}
+                      disabled={isAdding || isEditing}
+                      isFirstPayment={true}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_date_2">Second Payment</Label>
+                    <DatePicker
+                      date={paymentDate2}
+                      setDate={setPaymentDate2}
+                      disabled={isAdding || isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_date_3">Third Payment</Label>
+                    <DatePicker
+                      date={paymentDate3}
+                      setDate={setPaymentDate3}
+                      disabled={isAdding || isEditing}
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* Package Status */}
+              <div className="space-y-2">
+                <Label htmlFor="package_status">Package Status</Label>
+                <Select
+                  value={formData.package_status}
+                  onValueChange={(value) => handleFieldChange("package_status", value)}
+                  disabled={isAdding || isEditing}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sales open">Sales Open</SelectItem>
+                    <SelectItem value="sales closed">Sales Closed</SelectItem>
+                    <SelectItem value="coming soon">Coming Soon</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {formErrors.api && (
-                <div className="text-sm text-red-500 text-center">
+                <div className="text-sm text-destructive text-center">
                   {formErrors.api}
                 </div>
               )}
@@ -891,7 +1033,7 @@ function PackagesTable() {
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-green-600">
+            <AlertDialogTitle className="text-success">
               Success
             </AlertDialogTitle>
             <AlertDialogDescription>{successMessage}</AlertDialogDescription>

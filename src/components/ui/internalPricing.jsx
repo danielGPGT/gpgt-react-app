@@ -131,6 +131,8 @@ function InternalPricing({
 
   const [tickets, setTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   const [circuitTransfers, setCircuitTransfers] = useState([]);
   const [loadingCircuitTransfers, setLoadingCircuitTransfers] = useState(false);
@@ -317,6 +319,7 @@ function InternalPricing({
       setCircuitTransferQuantity(0);
       setAirportTransferQuantity(0);
       setLoungePassQuantity(0);
+      setCategories([]);
       return;
     }
 
@@ -338,14 +341,22 @@ function InternalPricing({
     setCircuitTransferQuantity(0);
     setAirportTransferQuantity(0);
     setLoungePassQuantity(0);
+    setCategories([]);
 
     if (foundEvent) {
       try {
         setLoadingPackages(true);
-        const res = await api.get("/packages", {
-          params: { eventId: foundEvent.event_id },
-        });
-        setPackages(res.data);
+        setLoadingCategories(true);
+        const [packagesRes, categoriesRes] = await Promise.all([
+          api.get("/packages", {
+            params: { eventId: foundEvent.event_id },
+          }),
+          api.get("/categories", {
+            params: { eventId: foundEvent.event_id },
+          })
+        ]);
+        setPackages(packagesRes.data);
+        setCategories(categoriesRes.data);
 
         // Fetch flights and lounge passes for this event
         setLoadingFlights(true);
@@ -365,6 +376,7 @@ function InternalPricing({
         setLoadingPackages(false);
         setLoadingFlights(false);
         setLoadingLoungePasses(false);
+        setLoadingCategories(false);
       }
     }
   };
@@ -384,6 +396,7 @@ function InternalPricing({
       setAirportTransferQuantity(0);
       setPackageTiers([]);
       setSelectedTier(null);
+      setCategories([]);
       return;
     }
 
@@ -402,30 +415,40 @@ function InternalPricing({
     setCircuitTransferQuantity(0);
     setAirportTransferQuantity(0);
     setSelectedTier(null);
+    setCategories([]);
 
     if (foundPackage) {
       try {
         setLoadingTiers(true);
         setLoadingHotels(true);
         setLoadingTickets(true);
+        setLoadingCategories(true);
         
-        // Fetch package tiers
-        const tiersRes = await api.get("/package-tiers", {
-          params: { packageId: foundPackage.package_id },
-        });
-        setPackageTiers(tiersRes.data);
-
-        // Fetch hotels and tickets
-        const [hotelsRes, ticketsRes] = await Promise.all([
+        // Fetch package tiers, hotels, tickets, and categories in parallel
+        const [tiersRes, hotelsRes, ticketsRes, categoriesRes] = await Promise.all([
+          api.get("/package-tiers", {
+            params: { packageId: foundPackage.package_id },
+          }),
           api.get("/hotels", {
             params: { packageId: foundPackage.package_id },
           }),
-          api.get("/tickets", {
+          api.get("/new tickets", {
             params: { packageId: foundPackage.package_id },
           }),
+          api.get("/categories", {
+            params: { eventId: selectedEvent.event_id },
+          })
         ]);
+
+        console.log('Fetched Categories:', categoriesRes.data);
+        console.log('Fetched Tickets:', ticketsRes.data);
+        console.log('Package ID:', foundPackage.package_id);
+        console.log('Event ID:', selectedEvent.event_id);
+
+        setPackageTiers(tiersRes.data);
         setHotels(hotelsRes.data);
         setTickets(ticketsRes.data);
+        setCategories(categoriesRes.data);
       } catch (error) {
         console.error("Failed to fetch package data:", error.message);
         toast.error("Failed to load package data. Please try again.");
@@ -433,6 +456,7 @@ function InternalPricing({
         setLoadingTiers(false);
         setLoadingHotels(false);
         setLoadingTickets(false);
+        setLoadingCategories(false);
       }
     }
   };
@@ -456,14 +480,26 @@ function InternalPricing({
               // Find next available ticket
               const nextAvailableTicket = tickets.find(t => parseInt(t.remaining) > 0);
               if (nextAvailableTicket) {
-                setSelectedTicket(nextAvailableTicket);
+                // Find the corresponding category for the next available ticket
+                const ticketCategory = categories.find(cat => cat.category_id === nextAvailableTicket.category_id);
+                const ticketWithCategory = {
+                  ...nextAvailableTicket,
+                  category: ticketCategory
+                };
+                setSelectedTicket(ticketWithCategory);
                 setTicketQuantity(numberOfAdults);
                 toast.success(`Selected ticket was sold out. Automatically selected next available ticket: ${nextAvailableTicket.ticket_name}`);
               } else {
                 toast.error("No available tickets found");
               }
             } else {
-              setSelectedTicket(ticket);
+              // Find the corresponding category for the selected ticket
+              const ticketCategory = categories.find(cat => cat.category_id === ticket.category_id);
+              const ticketWithCategory = {
+                ...ticket,
+                category: ticketCategory
+              };
+              setSelectedTicket(ticketWithCategory);
               setTicketQuantity(numberOfAdults);
             }
           }
@@ -490,11 +526,6 @@ function InternalPricing({
                   params: { hotelId: hotel.hotel_id },
                 }),
               ]);
-
-              console.log('Fetched circuit transfers:', circuitRes.data);
-              console.log('Fetched airport transfers:', airportRes.data);
-              console.log('Tier circuit transfer ID:', selectedTierData.circuit_transfer_id);
-              console.log('Tier airport transfer ID:', selectedTierData.airport_transfer_id);
 
               setRooms(roomsRes.data);
               setCircuitTransfers(circuitRes.data);
@@ -539,12 +570,8 @@ function InternalPricing({
                   (t) => t.circuit_transfer_id === selectedTierData.circuit_transfer_id
                 );
                 if (circuitTransfer) {
-                  console.log('Setting circuit transfer:', circuitTransfer);
                   setSelectedCircuitTransfer(circuitTransfer);
                   setCircuitTransferQuantity(ticketQuantity);
-                } else {
-                  console.error("Circuit transfer not found:", selectedTierData.circuit_transfer_id);
-                  console.log("Available circuit transfers:", circuitRes.data);
                 }
               }
 
@@ -553,15 +580,11 @@ function InternalPricing({
                   (t) => t.airport_transfer_id === selectedTierData.airport_transfer_id
                 );
                 if (airportTransfer) {
-                  console.log('Setting airport transfer:', airportTransfer);
                   setSelectedAirportTransfer(airportTransfer);
                   const needed = Math.ceil(
                     numberOfAdults / (airportTransfer.max_capacity || 1)
                   );
                   setAirportTransferQuantity(needed);
-                } else {
-                  console.error("Airport transfer not found:", selectedTierData.airport_transfer_id);
-                  console.log("Available airport transfers:", airportRes.data);
                 }
               }
             } catch (error) {
@@ -681,10 +704,31 @@ function InternalPricing({
     }
 
     const foundTicket = tickets.find((ticket) => ticket.ticket_id === ticketId);
-    setSelectedTicket(foundTicket);
-    setTicketQuantity(numberOfAdults);
-    if (selectedCircuitTransfer) {
-      setCircuitTransferQuantity(numberOfAdults);
+    if (foundTicket) {
+      console.log('Selected Ticket:', foundTicket);
+      console.log('Available Categories:', categories);
+      console.log('Ticket Category ID:', foundTicket.category_id);
+      
+      // Find the corresponding category
+      const ticketCategory = categories.find(cat => cat.category_id === foundTicket.category_id);
+      console.log('Found Category:', ticketCategory);
+      
+      if (!ticketCategory) {
+        console.warn('No matching category found for ticket:', foundTicket);
+      }
+      
+      // Merge category information with ticket
+      const ticketWithCategory = {
+        ...foundTicket,
+        category: ticketCategory
+      };
+      console.log('Ticket with Category:', ticketWithCategory);
+      
+      setSelectedTicket(ticketWithCategory);
+      setTicketQuantity(numberOfAdults);
+      if (selectedCircuitTransfer) {
+        setCircuitTransferQuantity(numberOfAdults);
+      }
     }
   };
 
@@ -1089,6 +1133,114 @@ function InternalPricing({
                     max={parseInt(selectedTicket.remaining) || 100}
                   />
                 </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-fit text-xs bg-primary text-primary-foreground">
+                      More Ticket Info
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="mb-4 text-foreground">
+                        {selectedTicket.ticket_name}
+                      </DialogTitle>
+
+                    </DialogHeader>
+                    <div className="text-sm text-muted-foreground mt-2 space-y-4">
+                      {/* Ticket Information */}
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-foreground">Ticket Information</h3>
+                        <div className="grid grid-cols-2 gap-2">
+                          <p className="font-medium text-foreground">Ticket Type:</p>
+                          <p>{selectedTicket.ticket_type}</p>
+                          <p className="font-medium text-foreground">Event Days:</p>
+                          <p>{selectedTicket.event_days}</p>
+                          <p className="font-medium text-foreground">Available:</p>
+                          <p>{selectedTicket.remaining === "purchased_to_order" ? "Purchased to Order" : `${selectedTicket.remaining} tickets left`}</p>
+                        </div>
+                      </div>
+
+                      {/* Category Information */}
+                      {selectedTicket.category && (
+                        <div className="space-y-2">
+                          <h3 className="font-semibold text-foreground">Category Information</h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            <p className="font-medium text-foreground">Delivery Days:</p>
+                            <p>{selectedTicket.category.ticket_delivery_days} days</p>
+                          </div>
+
+                          {/* Category Features */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-foreground">Features:</p>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge 
+                                variant={selectedTicket.category.video_wall ? "default" : "outline"} 
+                                className={`flex items-center gap-1 ${selectedTicket.category.video_wall ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                              >
+                                <MonitorPlay className="h-3 w-3" />
+                                Video Wall
+                                {selectedTicket.category.video_wall && (
+                                  <CheckCircle className="h-3 w-3" />
+                                )}
+                              </Badge>
+                              <Badge 
+                                variant={selectedTicket.category.covered_seat ? "default" : "outline"} 
+                                className={`flex items-center gap-1 ${selectedTicket.category.covered_seat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                              >
+                                <Umbrella className="h-3 w-3" />
+                                Covered Seat
+                                {selectedTicket.category.covered_seat && (
+                                  <CheckCircle className="h-3 w-3" />
+                                )}
+                              </Badge>
+                              <Badge 
+                                variant={selectedTicket.category.numbered_seat ? "default" : "outline"} 
+                                className={`flex items-center gap-1 ${selectedTicket.category.numbered_seat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                              >
+                                <Hash className="h-3 w-3" />
+                                Numbered Seat
+                                {selectedTicket.category.numbered_seat && (
+                                  <CheckCircle className="h-3 w-3" />
+                                )}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Additional Category Info */}
+                          {selectedTicket.category.category_info && (
+                            <div className="space-y-2">
+                              <p className="font-medium text-foreground">Additional Information:</p>
+                              <p className="text-sm">{selectedTicket.category.category_info}</p>
+                            </div>
+                          )}
+
+                          {/* Category Images */}
+                          {(selectedTicket.category.ticket_image_1 || selectedTicket.category.ticket_image_2) && (
+                            <div className="space-y-2">
+                              <p className="font-medium text-foreground">Ticket Images:</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {selectedTicket.category.ticket_image_1 && (
+                                  <img 
+                                    src={selectedTicket.category.ticket_image_1} 
+                                    alt="Ticket View 1" 
+                                    className="rounded-md w-full h-auto"
+                                  />
+                                )}
+                                {selectedTicket.category.ticket_image_2 && (
+                                  <img 
+                                    src={selectedTicket.category.ticket_image_2} 
+                                    alt="Ticket View 2" 
+                                    className="rounded-md w-full h-auto"
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             )}
           </div>

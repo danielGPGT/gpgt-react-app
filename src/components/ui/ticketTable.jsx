@@ -76,6 +76,7 @@ function TicketTable() {
   const [stock, setStock] = useState([]);
   const [events, setEvents] = useState([]);
   const [packages, setPackages] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -101,12 +102,19 @@ function TicketTable() {
   const initialTicketState = {
     event: "",
     package_type: "",
-    ticket_name: "",
+    category_id: "",
+    package_id: "",
+    ticket_id: "",
     supplier: "",
     ref: "",
     actual_stock: 0,
-    currency_bought_in: "EUR",
-    total_cost_local: 0,
+    used: "",
+    remaining: 0,
+    "currency_(bought_in)": "EUR",
+    "unit_cost_(local)": "",
+    "unit_cost_(gbp)": "",
+    "total_cost_(local)": "",
+    "total_cost_(gbp)": "",
     is_provsional: false,
     ordered: false,
     paid: false,
@@ -114,13 +122,6 @@ function TicketTable() {
     markup: "55",
     event_days: "",
     ticket_type: "",
-    video_wall: false,
-    covered_seat: false,
-    numbered_seat: false,
-    delivery_days: "",
-    ticket_description: "",
-    ticket_image_1: "",
-    ticket_image_2: "",
   };
   const [newTicket, setNewTicket] = useState(initialTicketState);
 
@@ -131,13 +132,20 @@ function TicketTable() {
   const fieldMappings = {
     event: "Event",
     package_type: "Package Type",
+    category_id: "Category ID",
+    package_id: "Package ID",
+    ticket_id: "Ticket ID",
     ticket_name: "Ticket Name",
     supplier: "Supplier",
     ref: "Ref",
     actual_stock: "Actual stock",
     used: "Used",
-    currency_bought_in: "Currency (Bought in)",
-    total_cost_local: "Total Cost  (Local)",
+    remaining: "Remaining",
+    "currency_(bought_in)": "Currency (Bought in)",
+    "unit_cost_(local)": "Unit Cost (Local)",
+    "unit_cost_(gbp)": "Unit Cost (GBP)",
+    "total_cost_(local)": "Total Cost (Local)",
+    "total_cost_(gbp)": "Total Cost (GBP)",
     is_provsional: "Is Provsional",
     ordered: "Ordered",
     paid: "Paid",
@@ -145,13 +153,6 @@ function TicketTable() {
     markup: "Markup",
     event_days: "Event Days",
     ticket_type: "Ticket Type",
-    video_wall: "Video Wall",
-    covered_seat: "Covered Seat",
-    numbered_seat: "Numbered Seat",
-    delivery_days: "Delivery days",
-    ticket_description: "Ticket Description",
-    ticket_image_1: "Ticket image 1",
-    ticket_image_2: "Ticket Image 2",
   };
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -189,7 +190,7 @@ function TicketTable() {
   const fetchInitialData = async () => {
     try {
       const [stockRes, eventsRes, packagesRes] = await Promise.all([
-        api.get("Stock%20-%20tickets"),
+        api.get("new%20stock%20-%20tickets"),
         api.get("event"),
         api.get("packages"),
       ]);
@@ -215,6 +216,35 @@ function TicketTable() {
       setLoading(false);
     }
   };
+
+  // Add function to fetch categories for an event
+  const fetchCategoriesForEvent = async (eventId) => {
+    try {
+      console.log("Fetching categories for event ID:", eventId);
+      const response = await api.get(`categories/Event ID/${eventId}`);
+      console.log("Categories response:", response.data);
+      setCategories(response.data);
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+      console.error("Error details:", error.response?.data || error.message);
+      toast.error("Failed to load categories");
+      setCategories([]);
+    }
+  };
+
+  // Add function to get event ID from event name
+  const getEventIdFromName = (eventName) => {
+    console.log("Getting event ID for:", eventName);
+    console.log("Available events:", events);
+    const event = events.find(e => e.event === eventName);
+    console.log("Found event:", event);
+    return event?.event_id;
+  };
+
+  // Add useEffect to log when events change
+  useEffect(() => {
+    console.log("Events updated:", events);
+  }, [events]);
 
   // Helper function to safely get event value and display
   const getEventValue = (event) => {
@@ -324,43 +354,43 @@ function TicketTable() {
     try {
       setIsAdding(true);
       toast.loading("Adding ticket...");
-      const remaining = formData.actual_stock - formData.used;
 
+      console.log("Form data received:", formData); // Debug log
+
+      // Create a new object with the exact field names that match the backend
       const ticketData = {
-        ...formData,
-        remaining,
         event: formData.event,
+        category_id: formData.category_id,
         package_type: formData.package_type,
-        ticket_name: formData.ticket_name,
+        ticket_id: formData.ticket_id,
         supplier: formData.supplier,
         ref: formData.ref,
         actual_stock: formData.actual_stock,
         used: formData.used,
-        currency_bought_in: formData.currency_bought_in,
-        total_cost_local: formData.total_cost_local,
+        remaining: "",  // Set remaining as empty string
+        currency_bought_in: formData["currency_(bought_in)"],
+        unit_cost_local: formData["unit_cost_(local)"],
+        unit_cost_gbp: formData["unit_cost_(gbp)"],
+        total_cost_local: formData["total_cost_(local)"],
+        total_cost_gbp: formData["total_cost_(gbp)"],
         is_provsional: formData.is_provsional,
         ordered: formData.ordered,
         paid: formData.paid,
         tickets_received: formData.tickets_received,
         markup: formData.markup,
         event_days: formData.event_days,
-        ticket_type: formData.ticket_type,
-        video_wall: formData.video_wall,
-        covered_seat: formData.covered_seat,
-        numbered_seat: formData.numbered_seat,
-        delivery_days: formData.delivery_days,
-        ticket_description: formData.ticket_description,
-        ticket_image_1: formData.ticket_image_1,
-        ticket_image_2: formData.ticket_image_2,
+        ticket_type: formData.ticket_type
       };
 
-      await api.post("Stock%20-%20tickets", ticketData);
+      console.log("Ticket data being sent:", ticketData); // Debug log
+
+      await api.post("new%20stock%20-%20tickets", ticketData);
       toast.dismiss();
       toast.success("Ticket added successfully!");
       setIsAddDialogOpen(false);
       
       // Refresh the tickets list
-      const res = await api.get("Stock%20-%20tickets");
+      const res = await api.get("new%20stock%20-%20tickets");
       setStock(res.data);
     } catch (error) {
       console.error("Failed to add ticket:", error);
@@ -400,7 +430,7 @@ function TicketTable() {
       setIsDeleting(true);
       toast.loading("Deleting ticket...");
 
-      await api.delete(`Stock - tickets/ticket_id/${ticketToDelete}`);
+      await api.delete(`New Stock - tickets/ticket_id/${ticketToDelete}`);
       setStock((prevStock) =>
         prevStock.filter((ticket) => ticket.ticket_id !== ticketToDelete)
       );
@@ -441,7 +471,8 @@ function TicketTable() {
         "used",
         "remaining",
         "total_cost_local",
-        "unit_cost_(gbp)",
+        "unit_cost_gbp",
+        "total_cost_gbp",
         "currency_bought_in",
       ];
 
@@ -470,7 +501,7 @@ function TicketTable() {
             value: value,
           };
 
-          await api.put(`/Stock - tickets/ticket_id/${ticketId}`, updateData);
+          await api.put(`/New Stock - tickets/ticket_id/${ticketId}`, updateData);
         }
       }
 
@@ -524,7 +555,7 @@ function TicketTable() {
       }
 
       console.log("Updating field:", field, "with value:", cellValue);
-      await api.put(`Stock%20-%20tickets/${rowId}`, updateData);
+      await api.put(`New%20Stock%20-%20tickets/${rowId}`, updateData);
       toast.success("Field updated successfully");
       fetchInitialData();
     } catch (error) {
@@ -626,7 +657,7 @@ function TicketTable() {
       };
 
       // Properly encode the URL
-      const encodedEndpoint = encodeURIComponent("Stock - tickets");
+      const encodedEndpoint = encodeURIComponent("New Stock - tickets");
       console.log("Making API PUT request for single cell update...");
       console.log("Endpoint:", `/${encodedEndpoint}/ticket_id/${ticketId}`);
       console.log("Request body:", updateData);
@@ -718,9 +749,109 @@ function TicketTable() {
   }) => {
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [categories, setCategories] = useState([]);
+    const isStockDisabled = formData.is_provsional;
+
+    // Fetch categories when event changes
+    useEffect(() => {
+      const fetchCategories = async () => {
+        if (!formData.event) {
+          setCategories([]);
+          return;
+        }
+
+        try {
+          // Get the event ID from the selected event name
+          const event = events.find(e => e.event === formData.event);
+          if (!event?.event_id) {
+            setCategories([]);
+            return;
+          }
+
+          // Fetch categories for this event using query parameter
+          const response = await api.get(`categories?eventId=${event.event_id}`);
+          setCategories(response.data || []);
+
+          // If we have a category_id in formData, set the selected category
+          if (formData.category_id) {
+            const category = response.data.find(c => c.category_id === formData.category_id);
+            if (category) {
+              setSelectedCategory(category);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch categories:", error);
+          toast.error("Failed to load categories");
+          setCategories([]);
+        }
+      };
+
+      fetchCategories();
+    }, [formData.event, events, formData.category_id]);
+
+    const handleCategorySelect = (category) => {
+      setSelectedCategory(category);
+      setFormData(prev => ({
+        ...prev,
+        category_id: category.category_id,
+        package_type: category.package_type,
+        package_id: category.package_id,
+        ticket_image_1: category.ticket_image_1,
+        ticket_image_2: category.ticket_image_2,
+      }));
+    };
 
     const handleFieldChange = (field, value) => {
+      // Only allow digits
+      if (["actual_stock", "unit_cost_local", "markup"].includes(field)) {
+        value = value.replace(/[^0-9]/g, '');
+      }
       setFormData((prev) => ({ ...prev, [field]: value }));
+      validateField(field, value);
+    };
+
+    const validateField = (field, value) => {
+      const newErrors = { ...errors };
+
+      switch (field) {
+        case "actual_stock":
+          if (!formData.is_provsional) {
+            const num = parseInt(value);
+            if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
+              newErrors[field] = "Stock must be a positive integer";
+            } else {
+              delete newErrors[field];
+            }
+          }
+          break;
+        case "unit_cost_local":
+          const num = parseInt(value);
+          if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
+            newErrors[field] = "Unit cost must be a positive integer";
+          } else {
+            delete newErrors[field];
+          }
+          break;
+        case "markup":
+          const markupNum = parseInt(value);
+          if (value === "" || isNaN(markupNum) || markupNum < 0 || !Number.isInteger(markupNum)) {
+            newErrors[field] = "Markup must be a positive integer";
+          } else {
+            delete newErrors[field];
+          }
+          break;
+        default:
+          delete newErrors[field];
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    const handleBlur = (field, value) => {
+      // Only validate on blur, don't restrict input
+      validateField(field, value);
     };
 
     const handleFormSubmit = async () => {
@@ -767,7 +898,6 @@ function TicketTable() {
                   }))}
                   value={formData?.event || ""}
                   onChange={(value) => handleFieldChange("event", value)}
-                  onBlur={() => handleFieldChange("event", formData?.event)}
                   placeholder="Search for an event..."
                   disabled={isSubmitting}
                 />
@@ -776,30 +906,33 @@ function TicketTable() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="package">Package Type</Label>
+                <Label htmlFor="category">Category (Ticket Name)</Label>
                 <Select
-                  value={formData?.package_type || ""}
-                  onValueChange={(value) =>
-                    handleFieldChange("package_type", value)
-                  }
-                  disabled={isSubmitting}
+                  value={selectedCategory?.category_id || ""}
+                  onValueChange={(value) => {
+                    const category = categories.find(c => c.category_id === value);
+                    if (category) {
+                      handleCategorySelect(category);
+                    }
+                  }}
+                  disabled={isSubmitting || !formData.event}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a package" />
+                    <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredPackages.map((pkg) => (
+                    {categories.map((category) => (
                       <SelectItem
-                        key={pkg?.package_id || crypto.randomUUID()}
-                        value={pkg?.package_type || ""}
+                        key={category.category_id}
+                        value={category.category_id}
                       >
-                        {pkg?.package_type || "Unnamed Package"}
+                        {category.category_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.package_type && (
-                  <p className="text-sm text-primary">{errors.package_type}</p>
+                {errors.category_id && (
+                  <p className="text-sm text-primary">{errors.category_id}</p>
                 )}
               </div>
             </div>
@@ -809,543 +942,6 @@ function TicketTable() {
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Ticket Details</h4>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ticket_name">Ticket Name</Label>
-                <Input
-                  id="ticket_name"
-                  value={formData.ticket_name}
-                  onChange={(e) =>
-                    handleFieldChange("ticket_name", e.target.value)
-                  }
-                  onBlur={() =>
-                    handleFieldChange("ticket_name", formData.ticket_name)
-                  }
-                  placeholder="Enter ticket name"
-                  disabled={isSubmitting}
-                  className={errors.ticket_name ? "border-primary" : ""}
-                />
-                {errors.ticket_name && (
-                  <p className="text-sm text-primary">{errors.ticket_name}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplier">Supplier</Label>
-                <Input
-                  id="supplier"
-                  value={formData.supplier}
-                  onChange={(e) =>
-                    handleFieldChange("supplier", e.target.value)
-                  }
-                  onBlur={() =>
-                    handleFieldChange("supplier", formData.supplier)
-                  }
-                  placeholder="Enter supplier name"
-                  disabled={isSubmitting}
-                />
-                {errors.supplier && (
-                  <p className="text-sm text-primary">{errors.supplier}</p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ref">Reference</Label>
-                <Input
-                  id="ref"
-                  value={formData.ref}
-                  onChange={(e) => handleFieldChange("ref", e.target.value)}
-                  onBlur={() => handleFieldChange("ref", formData.ref)}
-                  placeholder="Enter reference"
-                  disabled={isSubmitting}
-                />
-                {errors.ref && (
-                  <p className="text-sm text-primary">{errors.ref}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="markup">Markup (%)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="markup"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={formData.markup?.replace("%", "") || 0}
-                    onChange={(e) =>
-                      handleFieldChange("markup", e.target.value)
-                    }
-                    onBlur={() =>
-                      handleFieldChange("markup", formData.markup)
-                    }
-                    className={`w-full ${
-                      errors.markup ? "border-primary" : ""
-                    }`}
-                    disabled={isSubmitting}
-                  />
-                  <span className="text-muted-foreground">%</span>
-                </div>
-                {errors.markup && (
-                  <p className="text-sm text-primary">{errors.markup}</p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="event_days">Event Days</Label>
-                <Select
-                  value={formData.event_days}
-                  onValueChange={(value) =>
-                    handleFieldChange("event_days", value)
-                  }
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select event days" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      "Fri - Sun",
-                      "Sat - Sun",
-                      "Thu - Sun",
-                      "Friday",
-                      "Saturday",
-                      "Sunday",
-                      "Thursday",
-                    ].map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ticket_type">Ticket Type</Label>
-                <Select
-                  value={formData.ticket_type}
-                  onValueChange={(value) =>
-                    handleFieldChange("ticket_type", value)
-                  }
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select ticket type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      "E-ticket",
-                      "Collection Ticket",
-                      "Paper Ticket",
-                      "App Ticket",
-                    ].map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="delivery_days">Delivery Days</Label>
-                <Input
-                  id="delivery_days"
-                  value={formData.delivery_days}
-                  onChange={(e) =>
-                    handleFieldChange("delivery_days", e.target.value)
-                  }
-                  onBlur={() =>
-                    handleFieldChange("delivery_days", formData.delivery_days)
-                  }
-                  placeholder="Enter delivery days"
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ticket_description">Ticket Description</Label>
-                <Input
-                  id="ticket_description"
-                  value={formData.ticket_description}
-                  onChange={(e) =>
-                    handleFieldChange("ticket_description", e.target.value)
-                  }
-                  onBlur={() =>
-                    handleFieldChange(
-                      "ticket_description",
-                      formData.ticket_description
-                    )
-                  }
-                  placeholder="Enter ticket description"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Stock and Cost Information */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Stock & Cost Information</h4>
-            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-              <div className="space-y-2">
-                <Label htmlFor="actual_stock">Stock</Label>
-                <Input
-                  id="actual_stock"
-                  type="number"
-                  min="0"
-                  value={formData.actual_stock}
-                  onChange={(e) =>
-                    handleFieldChange("actual_stock", Number(e.target.value))
-                  }
-                  disabled={isSubmitting}
-                />
-                {errors.actual_stock && (
-                  <p className="text-sm text-primary">{errors.actual_stock}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="total_cost_local">Total Cost (Local)</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="total_cost_local"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.total_cost_local}
-                    onChange={(e) =>
-                      handleFieldChange(
-                        "total_cost_local",
-                        Number(e.target.value)
-                      )
-                    }
-                    className="flex-1"
-                    disabled={isSubmitting}
-                  />
-                  <Select
-                    value={formData.currency_bought_in}
-                    onValueChange={(value) =>
-                      handleFieldChange("currency_bought_in", value)
-                    }
-                    disabled={isSubmitting}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue placeholder="Currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[
-                        "GBP",
-                        "EUR",
-                        "USD",
-                        "AUD",
-                        "CAD",
-                        "CHF",
-                        "CNY",
-                        "JPY",
-                        "NZD",
-                        "SGD",
-                      ].map((currency) => (
-                        <SelectItem key={currency} value={currency}>
-                          {currency}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {errors.total_cost_local && (
-                  <p className="text-sm text-primary">
-                    {errors.total_cost_local}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Seat Features */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Seat Features</h4>
-            <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="video_wall"
-                  checked={formData?.video_wall || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("video_wall", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="video_wall">Video Wall</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="covered_seat"
-                  checked={formData?.covered_seat || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("covered_seat", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="covered_seat">Covered Seat</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="numbered_seat"
-                  checked={formData?.numbered_seat || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("numbered_seat", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="numbered_seat">Numbered Seat</Label>
-              </div>
-            </div>
-          </div>
-
-          {/* Status Information */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Status</h4>
-            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="ordered"
-                  checked={formData?.ordered || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("ordered", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="ordered">Ordered</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="paid"
-                  checked={formData?.paid || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("paid", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="paid">Paid</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="received"
-                  checked={formData?.tickets_received || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("tickets_received", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="received">Received</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="provisional"
-                  checked={formData?.is_provsional || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("is_provsional", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="provisional">Provisional</Label>
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end gap-4 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              disabled={isSubmitting || isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleFormSubmit}
-              disabled={isSubmitting || isLoading}
-              className="min-w-[100px]"
-            >
-              {isSubmitting || isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                "Update Ticket"
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const AddTicketForm = ({
-    formData,
-    setFormData,
-    events,
-    packages,
-    filteredPackages,
-    handleSubmit,
-    onCancel,
-    isLoading = false,
-  }) => {
-    const [errors, setErrors] = useState({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const validateField = (field, value) => {
-      const newErrors = { ...errors };
-
-      switch (field) {
-        case "ticket_name":
-          if (!value || value.trim() === "") {
-            newErrors[field] = "Ticket name is required";
-          } else {
-            delete newErrors[field];
-          }
-          break;
-        case "actual_stock":
-          if (!formData.is_provsional && (value === "" || isNaN(value) || value < 0)) {
-            newErrors[field] = "Stock must be a positive number";
-          } else {
-            delete newErrors[field];
-          }
-          break;
-        case "total_cost_local":
-          if (value === "" || isNaN(value) || value < 0) {
-            newErrors[field] = "Total cost must be a positive number";
-          } else {
-            delete newErrors[field];
-          }
-          break;
-        case "markup":
-          const numericValue = parseFloat(value);
-          if (isNaN(numericValue) || numericValue < 0) {
-            newErrors[field] = "Markup must be a positive number";
-          } else {
-            delete newErrors[field];
-          }
-          break;
-        default:
-          delete newErrors[field];
-      }
-
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
-    };
-
-    const handleFieldChange = (field, value) => {
-      if (validateField(field, value)) {
-        setFormData((prev) => ({ ...prev, [field]: value }));
-      }
-    };
-
-    const handleBlur = (field, value) => {
-      validateField(field, value);
-    };
-
-    const handleFormSubmit = async () => {
-      try {
-        setIsSubmitting(true);
-
-        const formattedData = {
-          ...formData,
-          markup: formData.markup ? `${formData.markup}%` : "0%",
-          // Set stock to 0 for provisional tickets
-          actual_stock: formData.is_provsional ? 0 : formData.actual_stock,
-        };
-
-        await handleSubmit(formattedData);
-        toast.dismiss();
-        setFormData({ ...initialTicketState });
-        onCancel();
-      } catch (error) {
-        console.error("Error submitting form:", error);
-        toast.dismiss();
-        toast.error("Failed to add ticket");
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
-
-    // Check if stock should be disabled (for provisional tickets)
-    const isStockDisabled = formData.is_provsional;
-
-    return (
-      <div className="grid gap-8 py-4">
-        <div className="space-y-6">
-          {/* Event and Package Selection */}
-          <div className="space-y-2">
-            <h4 className="text-lg font-semibold">Event Information</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="event">Event</Label>
-                <Combobox
-                  options={events.map((event) => ({
-                    value: event?.event || "",
-                    label: event?.event || "Unnamed Event",
-                  }))}
-                  value={formData?.event || ""}
-                  onChange={(value) => handleFieldChange("event", value)}
-                  onBlur={() => handleBlur("event", formData?.event)}
-                  placeholder="Search for an event..."
-                  disabled={isSubmitting}
-                />
-                {errors.event && (
-                  <p className="text-sm text-primary">{errors.event}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="package">Package Type</Label>
-                <Select
-                  value={formData?.package_type || ""}
-                  onValueChange={(value) =>
-                    handleFieldChange("package_type", value)
-                  }
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a package" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredPackages.map((pkg) => (
-                      <SelectItem
-                        key={pkg?.package_id || crypto.randomUUID()}
-                        value={pkg?.package_type || ""}
-                      >
-                        {pkg?.package_type || "Unnamed Package"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.package_type && (
-                  <p className="text-sm text-primary">{errors.package_type}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Ticket Details */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Ticket Details</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ticket_name">Ticket Name</Label>
-                <Input
-                  id="ticket_name"
-                  value={formData.ticket_name}
-                  onChange={(e) =>
-                    handleFieldChange("ticket_name", e.target.value)
-                  }
-                  onBlur={(e) => handleBlur("ticket_name", e.target.value)}
-                  placeholder="Enter ticket name"
-                  disabled={isSubmitting}
-                  className={errors.ticket_name ? "border-primary" : ""}
-                />
-                {errors.ticket_name && (
-                  <p className="text-sm text-primary">{errors.ticket_name}</p>
-                )}
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="supplier">Supplier</Label>
                 <Input
@@ -1362,8 +958,6 @@ function TicketTable() {
                   <p className="text-sm text-primary">{errors.supplier}</p>
                 )}
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ref">Reference</Label>
                 <Input
@@ -1378,6 +972,8 @@ function TicketTable() {
                   <p className="text-sm text-primary">{errors.ref}</p>
                 )}
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="markup">Markup (%)</Label>
                 <div className="flex items-center gap-2">
@@ -1402,6 +998,32 @@ function TicketTable() {
                   <p className="text-sm text-primary">{errors.markup}</p>
                 )}
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="ticket_type">Ticket Type</Label>
+                <Select
+                  value={formData.ticket_type}
+                  onValueChange={(value) =>
+                    handleFieldChange("ticket_type", value)
+                  }
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select ticket type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "E-ticket",
+                      "Collection Ticket",
+                      "Paper Ticket",
+                      "App Ticket",
+                    ].map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1433,62 +1055,6 @@ function TicketTable() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="ticket_type">Ticket Type</Label>
-                <Select
-                  value={formData.ticket_type}
-                  onValueChange={(value) =>
-                    handleFieldChange("ticket_type", value)
-                  }
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select ticket type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      "E-ticket",
-                      "Collection Ticket",
-                      "Paper Ticket",
-                      "App Ticket",
-                    ].map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="delivery_days">Delivery Days</Label>
-                <Input
-                  id="delivery_days"
-                  value={formData.delivery_days}
-                  onChange={(e) =>
-                    handleFieldChange("delivery_days", e.target.value)
-                  }
-                  onBlur={(e) => handleBlur("delivery_days", e.target.value)}
-                  placeholder="Enter delivery days"
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ticket_description">Ticket Description</Label>
-                <Input
-                  id="ticket_description"
-                  value={formData.ticket_description}
-                  onChange={(e) =>
-                    handleFieldChange("ticket_description", e.target.value)
-                  }
-                  onBlur={(e) =>
-                    handleBlur("ticket_description", e.target.value)
-                  }
-                  placeholder="Enter ticket description"
-                  disabled={isSubmitting}
-                />
-              </div>
             </div>
           </div>
 
@@ -1500,14 +1066,13 @@ function TicketTable() {
                 <Label htmlFor="actual_stock">Stock</Label>
                 <Input
                   id="actual_stock"
-                  type="number"
-                  min="0"
+                  type="text"
                   value={formData.actual_stock}
                   onChange={(e) =>
-                    handleFieldChange("actual_stock", Number(e.target.value))
+                    handleFieldChange("actual_stock", e.target.value)
                   }
                   onBlur={(e) =>
-                    handleBlur("actual_stock", Number(e.target.value))
+                    handleBlur("actual_stock", e.target.value)
                   }
                   disabled={isSubmitting || isStockDisabled}
                   className={isStockDisabled ? "opacity-50" : ""}
@@ -1522,30 +1087,25 @@ function TicketTable() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="total_cost_local">Total Cost (Local)</Label>
+                <Label htmlFor="unit_cost_local">Unit Cost (Local)</Label>
                 <div className="flex gap-2">
                   <Input
-                    id="total_cost_local"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.total_cost_local}
+                    id="unit_cost_local"
+                    type="text"
+                    value={formData["unit_cost_(local)"]}
                     onChange={(e) =>
-                      handleFieldChange(
-                        "total_cost_local",
-                        Number(e.target.value)
-                      )
+                      handleFieldChange("unit_cost_(local)", e.target.value)
                     }
                     onBlur={(e) =>
-                      handleBlur("total_cost_local", Number(e.target.value))
+                      handleBlur("unit_cost_(local)", e.target.value)
                     }
                     className="flex-1"
                     disabled={isSubmitting}
                   />
                   <Select
-                    value={formData.currency_bought_in}
+                    value={formData["currency_(bought_in)"] || "EUR"}
                     onValueChange={(value) =>
-                      handleFieldChange("currency_bought_in", value)
+                      handleFieldChange("currency_(bought_in)", value)
                     }
                     disabled={isSubmitting}
                   >
@@ -1577,51 +1137,27 @@ function TicketTable() {
                     Price entered is based upon the price of 1 ticket
                   </p>
                 )}
-                {errors.total_cost_local && (
+                {errors["unit_cost_(local)"] && (
                   <p className="text-sm text-primary">
-                    {errors.total_cost_local}
+                    {errors["unit_cost_(local)"]}
                   </p>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Seat Features */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Seat Features</h4>
-            <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="video_wall"
-                  checked={formData?.video_wall || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("video_wall", checked)
-                  }
-                  disabled={isSubmitting}
+              <div className="space-y-2">
+                <Label htmlFor="unit_cost_gbp">Unit Cost (GBP)</Label>
+                <Input
+                  id="unit_cost_gbp"
+                  type="text"
+                  value={formData["unit_cost_(gbp)"] ? Number(formData["unit_cost_(gbp)"]).toFixed(2) : ""}
+                  readOnly
+                  className="flex-1 bg-muted"
+                  disabled={true}
                 />
-                <Label htmlFor="video_wall">Video Wall</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="covered_seat"
-                  checked={formData?.covered_seat || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("covered_seat", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="covered_seat">Covered Seat</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="numbered_seat"
-                  checked={formData?.numbered_seat || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("numbered_seat", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="numbered_seat">Numbered Seat</Label>
+                {errors["unit_cost_(gbp)"] && (
+                  <p className="text-sm text-primary">
+                    {errors["unit_cost_(gbp)"]}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1698,10 +1234,519 @@ function TicketTable() {
               {isSubmitting || isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
+                  Updating...
                 </>
               ) : (
-                "Add Ticket"
+                "Update Ticket"
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const AddTicketForm = ({
+    formData,
+    setFormData,
+    events,
+    packages,
+    filteredPackages,
+    handleSubmit,
+    onCancel,
+    isLoading = false,
+  }) => {
+    const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [categories, setCategories] = useState([]);
+
+    // Fetch categories when event changes
+    useEffect(() => {
+      const fetchCategories = async () => {
+        if (!formData.event) {
+          setCategories([]);
+          return;
+        }
+
+        try {
+          // Get the event ID from the selected event name
+          const event = events.find(e => e.event === formData.event);
+          if (!event?.event_id) {
+            setCategories([]);
+            return;
+          }
+
+          // Fetch categories for this event using query parameter
+          const response = await api.get(`categories?eventId=${event.event_id}`);
+          setCategories(response.data || []);
+        } catch (error) {
+          console.error("Failed to fetch categories:", error);
+          toast.error("Failed to load categories");
+          setCategories([]);
+        }
+      };
+
+      fetchCategories();
+    }, [formData.event, events]);
+
+    const handleFieldChange = (field, value) => {
+      // Only allow digits
+      if (["actual_stock", "unit_cost_local", "markup"].includes(field)) {
+        value = value.replace(/[^0-9]/g, '');
+      }
+      setFormData((prev) => ({ ...prev, [field]: value }));
+      validateField(field, value);
+    };
+
+    const handleCategorySelect = (category) => {
+      setSelectedCategory(category);
+      setFormData(prev => ({
+        ...prev,
+        category_id: category.category_id,
+        package_type: category.package_type,
+        package_id: category.package_id,
+        ticket_image_1: category.ticket_image_1,
+        ticket_image_2: category.ticket_image_2,
+      }));
+    };
+
+    const validateField = (field, value) => {
+      const newErrors = { ...errors };
+
+      switch (field) {
+        case "actual_stock":
+          if (!formData.is_provsional) {
+            const num = parseInt(value);
+            if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
+              newErrors[field] = "Stock must be a positive integer";
+            } else {
+              delete newErrors[field];
+            }
+          }
+          break;
+        case "unit_cost_local":
+          const num = parseInt(value);
+          if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
+            newErrors[field] = "Unit cost must be a positive integer";
+          } else {
+            delete newErrors[field];
+          }
+          break;
+        case "markup":
+          const markupNum = parseInt(value);
+          if (value === "" || isNaN(markupNum) || markupNum < 0 || !Number.isInteger(markupNum)) {
+            newErrors[field] = "Markup must be a positive integer";
+          } else {
+            delete newErrors[field];
+          }
+          break;
+        default:
+          delete newErrors[field];
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    const handleBlur = (field, value) => {
+      // Only validate on blur, don't restrict input
+      validateField(field, value);
+    };
+
+    const handleFormSubmit = async () => {
+      try {
+        setIsSubmitting(true);
+
+        const formattedData = {
+          ...formData,
+          markup: formData.markup ? `${formData.markup}%` : "0%",
+          // Set stock to 0 for provisional tickets
+          actual_stock: formData.is_provsional ? 0 : formData.actual_stock,
+          // Ensure cost fields are empty strings
+          "unit_cost_(gbp)": "",
+          "total_cost_(local)": "",
+          "total_cost_(gbp)": "",
+          // Ensure used is empty string
+          used: "",
+          // Keep the unit cost local value
+          "unit_cost_(local)": formData["unit_cost_(local)"],
+        };
+
+        console.log("Formatted data being sent:", formattedData); // Debug log
+
+        await handleSubmit(formattedData);
+        toast.dismiss();
+        setFormData({ ...initialTicketState });
+        onCancel();
+      } catch (error) {
+        console.error("Error submitting form:", error);
+        toast.dismiss();
+        toast.error("Failed to add ticket");
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    // Check if stock should be disabled (for provisional tickets)
+    const isStockDisabled = formData.is_provsional;
+
+    return (
+      <div className="grid gap-8 py-4">
+        <div className="space-y-6">
+          {/* Event and Category Selection */}
+          <div className="space-y-2">
+            <h4 className="text-lg font-semibold">Event Information</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="event">Event</Label>
+                <Combobox
+                  options={events.map((event) => ({
+                    value: event?.event || "",
+                    label: event?.event || "Unnamed Event",
+                  }))}
+                  value={formData?.event || ""}
+                  onChange={(value) => handleFieldChange("event", value)}
+                  placeholder="Search for an event..."
+                  disabled={isSubmitting}
+                />
+                {errors.event && (
+                  <p className="text-sm text-primary">{errors.event}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Category (Ticket Name)</Label>
+                <Select
+                  value={selectedCategory?.category_id || ""}
+                  onValueChange={(value) => {
+                    const category = categories.find(c => c.category_id === value);
+                    if (category) {
+                      handleCategorySelect(category);
+                    }
+                  }}
+                  disabled={isSubmitting || !formData.event}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem
+                        key={category.category_id}
+                        value={category.category_id}
+                      >
+                        {category.category_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.category_id && (
+                  <p className="text-sm text-primary">{errors.category_id}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Ticket Details */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold">Ticket Details</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="supplier">Supplier</Label>
+                <Input
+                  id="supplier"
+                  value={formData.supplier}
+                  onChange={(e) =>
+                    handleFieldChange("supplier", e.target.value)
+                  }
+                  onBlur={(e) => handleBlur("supplier", e.target.value)}
+                  placeholder="Enter supplier name"
+                  disabled={isSubmitting}
+                />
+                {errors.supplier && (
+                  <p className="text-sm text-primary">{errors.supplier}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ref">Reference</Label>
+                <Input
+                  id="ref"
+                  value={formData.ref}
+                  onChange={(e) => handleFieldChange("ref", e.target.value)}
+                  onBlur={(e) => handleBlur("ref", e.target.value)}
+                  placeholder="Enter reference"
+                  disabled={isSubmitting}
+                />
+                {errors.ref && (
+                  <p className="text-sm text-primary">{errors.ref}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="markup">Markup (%)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="markup"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={formData.markup?.replace("%", "") || 0}
+                    onChange={(e) =>
+                      handleFieldChange("markup", e.target.value)
+                    }
+                    onBlur={(e) => handleBlur("markup", e.target.value)}
+                    className={`w-full ${
+                      errors.markup ? "border-primary" : ""
+                    }`}
+                    disabled={isSubmitting}
+                  />
+                  <span className="text-muted-foreground">%</span>
+                </div>
+                {errors.markup && (
+                  <p className="text-sm text-primary">{errors.markup}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ticket_type">Ticket Type</Label>
+                <Select
+                  value={formData.ticket_type}
+                  onValueChange={(value) =>
+                    handleFieldChange("ticket_type", value)
+                  }
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select ticket type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "E-ticket",
+                      "Collection Ticket",
+                      "Paper Ticket",
+                      "App Ticket",
+                    ].map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="event_days">Event Days</Label>
+                <Select
+                  value={formData.event_days}
+                  onValueChange={(value) =>
+                    handleFieldChange("event_days", value)
+                  }
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select event days" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "Fri - Sun",
+                      "Sat - Sun",
+                      "Thu - Sun",
+                      "Friday",
+                      "Saturday",
+                      "Sunday",
+                      "Thursday",
+                    ].map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Stock and Cost Information */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold">Stock & Cost Information</h4>
+            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="space-y-2">
+                <Label htmlFor="actual_stock">Stock</Label>
+                <Input
+                  id="actual_stock"
+                  type="text"
+                  value={formData.actual_stock}
+                  onChange={(e) =>
+                    handleFieldChange("actual_stock", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlur("actual_stock", e.target.value)
+                  }
+                  disabled={isSubmitting || isStockDisabled}
+                  className={isStockDisabled ? "opacity-50" : ""}
+                />
+                {isStockDisabled && (
+                  <p className="text-sm text-muted-foreground">
+                    Stock cannot be set for provisional tickets
+                  </p>
+                )}
+                {errors.actual_stock && (
+                  <p className="text-sm text-primary">{errors.actual_stock}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unit_cost_local">Unit Cost (Local)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="unit_cost_local"
+                    type="text"
+                    value={formData["unit_cost_(local)"]}
+                    onChange={(e) =>
+                      handleFieldChange("unit_cost_(local)", e.target.value)
+                    }
+                    onBlur={(e) =>
+                      handleBlur("unit_cost_(local)", e.target.value)
+                    }
+                    className="flex-1"
+                    disabled={isSubmitting}
+                  />
+                  <Select
+                    value={formData["currency_(bought_in)"] || "EUR"}
+                    onValueChange={(value) =>
+                      handleFieldChange("currency_(bought_in)", value)
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        "GBP",
+                        "EUR",
+                        "USD",
+                        "AUD",
+                        "CAD",
+                        "CHF",
+                        "CNY",
+                        "JPY",
+                        "NZD",
+                        "SGD",
+                      ].map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.is_provsional && (
+                  <p className="text-sm text-muted-foreground">
+                    Price entered is based upon the price of 1 ticket
+                  </p>
+                )}
+                {errors["unit_cost_(local)"] && (
+                  <p className="text-sm text-primary">
+                    {errors["unit_cost_(local)"]}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unit_cost_gbp">Unit Cost (GBP)</Label>
+                <Input
+                  id="unit_cost_gbp"
+                  type="text"
+                  value={formData["unit_cost_(gbp)"] ? Number(formData["unit_cost_(gbp)"]).toFixed(2) : ""}
+                  readOnly
+                  className="flex-1 bg-muted"
+                  disabled={true}
+                />
+                {errors["unit_cost_(gbp)"] && (
+                  <p className="text-sm text-primary">
+                    {errors["unit_cost_(gbp)"]}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Status Information */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold">Status</h4>
+            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="ordered"
+                  checked={formData?.ordered || false}
+                  onCheckedChange={(checked) =>
+                    handleFieldChange("ordered", checked)
+                  }
+                  disabled={isSubmitting}
+                />
+                <Label htmlFor="ordered">Ordered</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="paid"
+                  checked={formData?.paid || false}
+                  onCheckedChange={(checked) =>
+                    handleFieldChange("paid", checked)
+                  }
+                  disabled={isSubmitting}
+                />
+                <Label htmlFor="paid">Paid</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="received"
+                  checked={formData?.tickets_received || false}
+                  onCheckedChange={(checked) =>
+                    handleFieldChange("tickets_received", checked)
+                  }
+                  disabled={isSubmitting}
+                />
+                <Label htmlFor="received">Received</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="provisional"
+                  checked={formData?.is_provsional || false}
+                  onCheckedChange={(checked) => {
+                    handleFieldChange("is_provsional", checked);
+                    // Reset stock to 0 when making provisional
+                    if (checked) {
+                      handleFieldChange("actual_stock", 0);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                />
+                <Label htmlFor="provisional">Provisional</Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-end gap-4 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting || isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleFormSubmit}
+              disabled={isSubmitting || isLoading}
+              className="min-w-[100px]"
+            >
+              {isSubmitting || isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Ticket"
               )}
             </Button>
           </div>
@@ -1833,14 +1878,14 @@ function TicketTable() {
       toast.loading(`Deleting ${selectedTickets.length} tickets...`);
 
       for (const ticketId of selectedTickets) {
-        await api.delete(`Stock%20-%20tickets/ticket_id/${ticketId}`);
+        await api.delete(`New%20Stock%20-%20tickets/ticket_id/${ticketId}`);
       }
 
       toast.dismiss();
       toast.success(`${selectedTickets.length} ticket(s) deleted successfully!`);
       setSelectedTickets([]);
 
-      const res = await api.get("Stock%20-%20tickets");
+      const res = await api.get("New%20Stock%20-%20tickets");
       setStock(res.data);
     } catch (error) {
       console.error("Failed to delete tickets:", error);
@@ -2046,6 +2091,7 @@ function TicketTable() {
               <TableHead className="text-xs py-2">Stock</TableHead>
               <TableHead className="text-xs py-2">Used</TableHead>
               <TableHead className="text-xs py-2">Remaining</TableHead>
+              <TableHead className="text-xs py-2">Unit Cost (Local)</TableHead>
               <TableHead className="text-xs py-2">Unit Cost (GBP)</TableHead>
               <TableHead className="text-xs py-2">Status</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
@@ -2089,9 +2135,10 @@ function TicketTable() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-xs py-1.5">
-                  £{typeof item["unit_cost_(gbp)"] === "number"
-                    ? item["unit_cost_(gbp)"].toFixed(2)
-                    : "0.00"}
+                  {item["unit_cost_(local)"] ? `${item["currency_(bought_in)"]} ${Number(item["unit_cost_(local)"]).toFixed(2)}` : "-"}
+                </TableCell>
+                <TableCell className="text-xs py-1.5">
+                  {item["unit_cost_(gbp)"] ? `£${Number(item["unit_cost_(gbp)"]).toFixed(2)}` : "-"}
                 </TableCell>
                 <TableCell className="text-xs py-1.5">
                   <div className="flex items-center gap-1">
