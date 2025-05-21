@@ -66,6 +66,7 @@ import PropTypes from "prop-types";
 import QuotePDF from "./QuotePDF";
 import { FileText } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
+import { CategoriesTable } from "@/components/ui/categoriesTable";
 
 function InternalPricing({
   numberOfAdults,
@@ -171,6 +172,8 @@ function InternalPricing({
 
   // Inside your Events component
   const [exchangeRate, setExchangeRate] = useState(1);
+
+  const [transferDirection, setTransferDirection] = useState("both");
 
   async function fetchExchangeRate(base = "GBP", target = "USD") {
     const res = await fetch(
@@ -943,6 +946,17 @@ function InternalPricing({
           </div>
         )}
 
+        {/* Categories Table */}
+        {selectedPackage && (
+          <div className="mt-4">
+            <h2 className="text-xs font-semibold mb-2 text-foreground">Categories</h2>
+            <CategoriesTable 
+              eventId={selectedEvent?.event_id} 
+              packageId={selectedPackage?.package_id} 
+            />
+          </div>
+        )}
+
         {/* Hotel and Adults */}
         {selectedPackage && (
           <div className="flex justify-between items-end gap-4">
@@ -1123,16 +1137,8 @@ function InternalPricing({
             )}
 
             {selectedTicket && (
-              <div className="text-xs space-y-1 pt-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-foreground">Quantity:</p>
-                  <QuantitySelector
-                    value={ticketQuantity}
-                    onChange={setTicketQuantity}
-                    min={1}
-                    max={parseInt(selectedTicket.remaining) || 100}
-                  />
-                </div>
+              <div className="text-xs space-y-1 mt-4 flex justify-between">
+                
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="w-fit text-xs bg-primary text-primary-foreground">
@@ -1241,6 +1247,15 @@ function InternalPricing({
                     </div>
                   </DialogContent>
                 </Dialog>
+                <div className="flex items-center gap-2">
+                  <p className="text-foreground">Quantity:</p>
+                  <QuantitySelector
+                    value={ticketQuantity}
+                    onChange={setTicketQuantity}
+                    min={1}
+                    max={parseInt(selectedTicket.remaining) || 100}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -1280,34 +1295,49 @@ function InternalPricing({
               {loadingAirportTransfers ? (
                 <div className="text-xs text-muted-foreground">Loading...</div>
               ) : (
-                <Select onValueChange={handleAirportTransferSelect} value={selectedAirportTransfer?.airport_transfer_id}>
-                  <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
-                    <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                      <Bus className="h-4 w-4 text-primary" />
+                <div className="space-y-2">
+                  <Select onValueChange={handleAirportTransferSelect} value={selectedAirportTransfer?.airport_transfer_id}>
+                    <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
+                      <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                        <Bus className="h-4 w-4 text-primary" />
+                      </div>
+                      <SelectValue placeholder="Select airport transfer">
+                        {selectedAirportTransfer ? selectedAirportTransfer.transport_type : "Select airport transfer"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {airportTransfers && airportTransfers.map((transfer) => (
+                        <SelectItem key={transfer.airport_transfer_id} value={transfer.airport_transfer_id} className="text-xs">
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">{transfer.transport_type}</span>
+                            <span className="text-xs text-muted-foreground">
+                              (Max {transfer.max_capacity} people)
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {selectedAirportTransfer && (
+                    <div className="space-y-2">
+                      <Select value={transferDirection} onValueChange={setTransferDirection}>
+                        <SelectTrigger className="w-full h-8 text-xs bg-background relative group hover:border-primary transition-colors">
+                          <SelectValue placeholder="Select transfer direction" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="both">Inbound & Outbound</SelectItem>
+                          <SelectItem value="inbound_only">Inbound Only</SelectItem>
+                          <SelectItem value="outbound_only">Outbound Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs pt-1">
+                        Transfers Needed: {Math.ceil(numberOfAdults / (selectedAirportTransfer.max_capacity || 1))}
+                      </p>
                     </div>
-                    <SelectValue placeholder="Select airport transfer">
-                      {selectedAirportTransfer ? selectedAirportTransfer.transport_type : "Select airport transfer"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {airportTransfers && airportTransfers.map((transfer) => (
-                      <SelectItem key={transfer.airport_transfer_id} value={transfer.airport_transfer_id} className="text-xs">
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">{transfer.transport_type}</span>
-                          <span className="text-xs text-muted-foreground">
-                            (Max {transfer.max_capacity} people)
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {selectedAirportTransfer && (
-                <p className="text-xs pt-1">
-                  Transfers Needed: {Math.ceil(numberOfAdults / (selectedAirportTransfer.max_capacity || 1))}
-                </p>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -1643,6 +1673,7 @@ function InternalPricing({
         numberOfAdults={numberOfAdults}
         totalPrice={totalPrice}
         selectedCurrency={selectedCurrency}
+        transferDirection={transferDirection}
       />
 
       <Dialog open={showQuote} onOpenChange={setShowQuote}>

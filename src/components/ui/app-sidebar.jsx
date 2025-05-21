@@ -25,7 +25,8 @@ import {
   Hotel,
   CalendarDays,
   Layers,
-  CalendarCog
+  CalendarCog,
+  Map
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -116,6 +117,18 @@ const menuItems = [
     ],
   },
   {
+    title: "Venues",
+    url: "/venues",
+    icon: Map,
+    allowedRoles: ["Admin", "Operations", "Internal Sales"],
+  },
+  {
+    title: "Ticket Categories",
+    url: "/categories",
+    icon: Ticket,
+    allowedRoles: ["Admin", "Operations", "Internal Sales"],
+  },
+  {
     title: "Flights & Transport",
     url: "/flights",
     icon: Plane,
@@ -143,6 +156,7 @@ const menuItems = [
       },
     ],
   },
+
   {
     title: "Payments",
     icon: BadgePoundSterling,

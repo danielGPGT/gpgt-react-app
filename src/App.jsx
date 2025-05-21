@@ -5,11 +5,13 @@ import { InventoryPage } from "@/pages/inventory";
 import { BookingsPage } from "@/pages/bookings";
 import { FlightsPage } from "@/pages/flights";
 import { PackagesPage } from "@/pages/packages";
+import { CategoriesPage } from "@/pages/categories";
 import { MyAccount } from "@/pages/my-account";
 import { SettingsPage } from "@/pages/settings";
 import Documentation from "@/pages/Documentation";
 import Instructions from "@/pages/Instructions";
 import { Routes, Route } from "react-router-dom";
+import { VenuesPage } from "@/pages/venues";
 import RoleBasedRoute from "./components/roleBasedRoute";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
@@ -61,11 +63,27 @@ function App() {
             </RoleBasedRoute>
           }
         />
+          <Route
+            path="/packages"
+            element={
+              <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations"]}>
+                <PackagesPage />
+              </RoleBasedRoute>
+            }
+          />
         <Route
-          path="/packages"
+          path="/categories"
           element={
-            <RoleBasedRoute allowedRoles={["Admin"]}>
-              <PackagesPage />
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations"]}>
+              <CategoriesPage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/venues"
+          element={
+            <RoleBasedRoute allowedRoles={["Admin", "Operations", "Internal Sales"]}>
+              <VenuesPage />
             </RoleBasedRoute>
           }
         />

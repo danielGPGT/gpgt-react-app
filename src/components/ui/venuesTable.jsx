@@ -1,0 +1,627 @@
+import { useEffect, useState, useMemo } from "react";
+import { MapPin, Plus, Trash2, Search, Filter, Pencil, Loader2, ChevronDown } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import api from "@/lib/api";
+
+export function VenuesTable() {
+  const [venues, setVenues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingVenue, setEditingVenue] = useState(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [venueToDelete, setVenueToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Sorting options
+  const sortColumns = [
+    { value: "venue_name", label: "Venue Name" },
+    { value: "city", label: "City" },
+    { value: "country", label: "Country" },
+  ];
+  const [sortColumn, setSortColumn] = useState("venue_name");
+  const [sortDirection, setSortDirection] = useState("asc");
+
+  // Form state
+  const initialVenueState = {
+    venue_name: "",
+    city: "",
+    country: "",
+    latitude: "",
+    longitude: "",
+    venue_info: "",
+  };
+  const [newVenue, setNewVenue] = useState(initialVenueState);
+
+  useEffect(() => {
+    fetchVenues();
+  }, []);
+
+  const fetchVenues = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/venues");
+      setVenues(response.data);
+      setError(null);
+    } catch (err) {
+      setError("Failed to fetch venues");
+      toast.error("Failed to fetch venues");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddVenue = async () => {
+    try {
+      setIsAdding(true);
+      await api.post("/venues", newVenue);
+      toast.success("Venue added successfully");
+      setIsAddDialogOpen(false);
+      setNewVenue(initialVenueState);
+      fetchVenues();
+    } catch (error) {
+      toast.error("Failed to add venue");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleEditVenue = async () => {
+    try {
+      setIsEditing(true);
+      await api.put(`/venues/${editingVenue.venue_id}`, editingVenue);
+      toast.success("Venue updated successfully");
+      setIsEditDialogOpen(false);
+      setEditingVenue(null);
+      fetchVenues();
+    } catch (error) {
+      toast.error("Failed to update venue");
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleDeleteVenue = async () => {
+    try {
+      setIsDeleting(true);
+      await api.delete(`/venues/${venueToDelete.venue_id}`);
+      toast.success("Venue deleted successfully");
+      setShowDeleteDialog(false);
+      setVenueToDelete(null);
+      fetchVenues();
+    } catch (error) {
+      toast.error("Failed to delete venue");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openEditDialog = (venue) => {
+    setEditingVenue({ ...venue });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (venue) => {
+    setVenueToDelete(venue);
+    setShowDeleteDialog(true);
+  };
+
+  // Filter and sort venues
+  const filteredAndSortedVenues = useMemo(() => {
+    let result = [...venues];
+
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (venue) =>
+          venue.venue_name.toLowerCase().includes(query) ||
+          venue.city.toLowerCase().includes(query) ||
+          venue.country.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      const aValue = a[sortColumn]?.toLowerCase() || "";
+      const bValue = b[sortColumn]?.toLowerCase() || "";
+      return sortDirection === "asc"
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    });
+
+    return result;
+  }, [venues, searchQuery, sortColumn, sortDirection]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedVenues.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredAndSortedVenues.slice(startIndex, endIndex);
+
+  return (
+    <div className="w-full space-y-4">
+      {/* Header with actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search venues..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 w-[300px]"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="default" size="sm" className="flex items-center gap-2">
+                Sort <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              {sortColumns.map((col) => (
+                <DropdownMenuItem
+                  key={col.value}
+                  onClick={() => setSortColumn(col.value)}
+                  className={
+                    sortColumn === col.value
+                      ? "font-semibold text-primary"
+                      : ""
+                  }
+                >
+                  {col.label} {sortColumn === col.value && "✓"}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Direction</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => setSortDirection("asc")}
+                className={
+                  sortDirection === "asc"
+                    ? "font-semibold text-primary"
+                    : ""
+                }
+              >
+                Ascending {sortDirection === "asc" && "▲"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortDirection("desc")}
+                className={
+                  sortDirection === "desc"
+                    ? "font-semibold text-primary"
+                    : ""
+                }
+              >
+                Descending {sortDirection === "desc" && "▼"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            onClick={() => setIsAddDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Venue
+          </Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader className="bg-muted">
+            <TableRow className="hover:bg-muted">
+              <TableHead className="text-xs py-2">Venue Name</TableHead>
+              <TableHead className="text-xs py-2">City</TableHead>
+              <TableHead className="text-xs py-2">Country</TableHead>
+              <TableHead className="text-xs py-2">Coordinates</TableHead>
+              <TableHead className="text-xs py-2">Info</TableHead>
+              <TableHead className="text-xs py-2">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                </TableCell>
+              </TableRow>
+            ) : currentItems.length > 0 ? (
+              currentItems.map((venue) => (
+                <TableRow key={venue.venue_id}>
+                  <TableCell className="text-xs py-1.5">{venue.venue_name}</TableCell>
+                  <TableCell className="text-xs py-1.5">{venue.city}</TableCell>
+                  <TableCell className="text-xs py-1.5">{venue.country}</TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {venue.latitude}, {venue.longitude}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {venue.venue_info || "N/A"}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditDialog(venue)}
+                        className="h-7 w-7"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteClick(venue)}
+                        disabled={isDeleting}
+                        className="h-7 w-7"
+                      >
+                        {isDeleting &&
+                        venueToDelete?.venue_id === venue.venue_id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        )}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="text-center text-muted-foreground text-xs py-1.5"
+                >
+                  No venues found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-4">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                />
+              </PaginationItem>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <PaginationItem key={page}>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(page)}
+                    isActive={currentPage === page}
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
+
+      {/* Add Venue Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Venue</DialogTitle>
+            <DialogDescription>
+              Fill in the details for the new venue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="venue_name">Venue Name</Label>
+              <Input
+                id="venue_name"
+                value={newVenue.venue_name}
+                onChange={(e) =>
+                  setNewVenue({ ...newVenue, venue_name: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={newVenue.city}
+                onChange={(e) =>
+                  setNewVenue({ ...newVenue, city: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="country">Country</Label>
+              <Input
+                id="country"
+                value={newVenue.country}
+                onChange={(e) =>
+                  setNewVenue({ ...newVenue, country: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="latitude">Latitude</Label>
+                <Input
+                  id="latitude"
+                  type="number"
+                  step="any"
+                  value={newVenue.latitude}
+                  onChange={(e) =>
+                    setNewVenue({ ...newVenue, latitude: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="longitude">Longitude</Label>
+                <Input
+                  id="longitude"
+                  type="number"
+                  step="any"
+                  value={newVenue.longitude}
+                  onChange={(e) =>
+                    setNewVenue({ ...newVenue, longitude: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="venue_info">Venue Info</Label>
+              <Textarea
+                id="venue_info"
+                value={newVenue.venue_info}
+                onChange={(e) =>
+                  setNewVenue({ ...newVenue, venue_info: e.target.value })
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsAddDialogOpen(false)}
+              disabled={isAdding}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddVenue} disabled={isAdding}>
+              {isAdding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Venue"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Venue Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Venue</DialogTitle>
+            <DialogDescription>
+              Update the venue details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit_venue_name">Venue Name</Label>
+              <Input
+                id="edit_venue_name"
+                value={editingVenue?.venue_name || ""}
+                onChange={(e) =>
+                  setEditingVenue({
+                    ...editingVenue,
+                    venue_name: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit_city">City</Label>
+              <Input
+                id="edit_city"
+                value={editingVenue?.city || ""}
+                onChange={(e) =>
+                  setEditingVenue({
+                    ...editingVenue,
+                    city: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit_country">Country</Label>
+              <Input
+                id="edit_country"
+                value={editingVenue?.country || ""}
+                onChange={(e) =>
+                  setEditingVenue({
+                    ...editingVenue,
+                    country: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit_latitude">Latitude</Label>
+                <Input
+                  id="edit_latitude"
+                  type="number"
+                  step="any"
+                  value={editingVenue?.latitude || ""}
+                  onChange={(e) =>
+                    setEditingVenue({
+                      ...editingVenue,
+                      latitude: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit_longitude">Longitude</Label>
+                <Input
+                  id="edit_longitude"
+                  type="number"
+                  step="any"
+                  value={editingVenue?.longitude || ""}
+                  onChange={(e) =>
+                    setEditingVenue({
+                      ...editingVenue,
+                      longitude: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit_venue_info">Venue Info</Label>
+              <Textarea
+                id="edit_venue_info"
+                value={editingVenue?.venue_info || ""}
+                onChange={(e) =>
+                  setEditingVenue({
+                    ...editingVenue,
+                    venue_info: e.target.value,
+                  })
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              disabled={isEditing}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEditVenue} disabled={isEditing}>
+              {isEditing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the venue
+              and remove it from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteVenue}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

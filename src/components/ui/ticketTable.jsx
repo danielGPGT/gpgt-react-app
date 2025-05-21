@@ -221,7 +221,16 @@ function TicketTable() {
   const fetchCategoriesForEvent = async (eventId) => {
     try {
       console.log("Fetching categories for event ID:", eventId);
-      const response = await api.get(`categories/Event ID/${eventId}`);
+      // First get the event to get its venue_id
+      const event = events.find(e => e.event_id === eventId);
+      if (!event?.venue_id) {
+        console.error("No venue_id found for event:", event);
+        setCategories([]);
+        return;
+      }
+
+      // Then fetch categories using the venue_id
+      const response = await api.get(`n-categories?venue_id=${event.venue_id}`);
       console.log("Categories response:", response.data);
       setCategories(response.data);
     } catch (error) {
@@ -254,7 +263,7 @@ function TicketTable() {
 
   const getEventDisplay = (event) => {
     if (!event) return "Unknown Event";
-    return `${event.event}`;
+    return `${event.event} (${event.sport})`;
   };
 
   // Helper function to safely get package value and display
@@ -268,22 +277,48 @@ function TicketTable() {
     return `${pkg.package_type} (${pkg.package_type})`;
   };
 
-  // Get unique events from stock data
-  const getUniqueEvents = () => {
-    const uniqueEvents = [...new Set(stock.map((item) => item.event))];
-    return uniqueEvents.filter((event) => event); // Filter out any undefined/null values
+  // Get unique sports for filter
+  const getUniqueSports = () => {
+    const uniqueSports = [...new Set(events.map((event) => event.sport))].filter(Boolean);
+    return [
+      { value: "all", label: "All Sports" },
+      ...uniqueSports.map(sport => ({
+        value: sport,
+        label: sport || "Unknown Sport"
+      }))
+    ];
+  };
+
+  // Get unique events for filter based on selected sport
+  const getFilteredEvents = () => {
+    const filteredEvents = events.filter(event => 
+      filters.sport === "all" || event.sport === filters.sport
+    );
+    const uniqueEvents = filteredEvents.reduce((acc, event) => {
+      if (!acc.some(e => e.value === event.event)) {
+        acc.push({
+          value: event.event,
+          label: `${event.event}`
+        });
+      }
+      return acc;
+    }, []);
+    return [
+      { value: "all", label: "All Events" },
+      ...uniqueEvents
+    ];
   };
 
   // Get unique suppliers for filter
   const getUniqueSuppliers = () => {
-    const uniqueSuppliers = [...new Set(stock.map((item) => item.supplier))];
-    return uniqueSuppliers.filter((supplier) => supplier); // Filter out any undefined/null values
-  };
-
-  // Get unique sports from events data
-  const getUniqueSports = () => {
-    const uniqueSports = [...new Set(events.map((event) => event.sport))];
-    return uniqueSports.filter((sport) => sport); // Filter out any undefined/null values
+    const uniqueSuppliers = [...new Set(stock.map((item) => item.supplier))].filter(Boolean);
+    return [
+      { value: "all", label: "All Suppliers" },
+      ...uniqueSuppliers.map(supplier => ({
+        value: supplier,
+        label: supplier || "Unknown Supplier"
+      }))
+    ];
   };
 
   // Filter functions
@@ -302,10 +337,8 @@ function TicketTable() {
 
       // Sport filter
       const sportMatch =
-        filters.sport === "all" ||
-        events.some(
-          (event) => event.event === item.event && event.sport === filters.sport
-        );
+        filters.sport === "all" || 
+        events.find(e => e.event === item.event)?.sport === filters.sport;
 
       // Supplier filter
       const supplierMatch =
@@ -355,14 +388,18 @@ function TicketTable() {
       setIsAdding(true);
       toast.loading("Adding ticket...");
 
-      console.log("Form data received:", formData); // Debug log
+      console.log("Form data received:", formData);
+
+      // Get the event ID from the selected event name
+      const event = events.find(e => e.event === formData.event);
+      if (!event) {
+        throw new Error("Selected event not found");
+      }
 
       // Create a new object with the exact field names that match the backend
       const ticketData = {
-        event: formData.event,
+        event_id: event.event_id,
         category_id: formData.category_id,
-        package_type: formData.package_type,
-        ticket_id: formData.ticket_id,
         supplier: formData.supplier,
         ref: formData.ref,
         actual_stock: formData.actual_stock,
@@ -379,10 +416,12 @@ function TicketTable() {
         tickets_received: formData.tickets_received,
         markup: formData.markup,
         event_days: formData.event_days,
-        ticket_type: formData.ticket_type
+        ticket_type: formData.ticket_type,
+        event: formData.event,
+        package_type: formData.package_type
       };
 
-      console.log("Ticket data being sent:", ticketData); // Debug log
+      console.log("Ticket data being sent:", ticketData);
 
       await api.post("new%20stock%20-%20tickets", ticketData);
       toast.dismiss();
@@ -466,6 +505,14 @@ function TicketTable() {
 
       const ticketId = editingTicket.ticket_id;
 
+      // If event is being changed, get the new event ID
+      if (changedFields.event) {
+        const event = events.find(e => e.event === changedFields.event);
+        if (event) {
+          changedFields.event_id = event.event_id;
+        }
+      }
+
       const excludedFields = [
         "actual_stock",
         "used",
@@ -509,13 +556,13 @@ function TicketTable() {
       toast.dismiss(loadingToast);
       setIsEditDialogOpen(false);
       setEditingTicket(null);
-      return true; // Indicate success to the form component
+      return true;
     } catch (error) {
       console.error("Failed to update ticket:", error);
       console.error("Error details:", error.response?.data || error.message);
       toast.dismiss();
       toast.error("Failed to update ticket. Please try again.");
-      return false; // Indicate failure to the form component
+      return false;
     } finally {
       setIsEditing(false);
     }
@@ -751,12 +798,27 @@ function TicketTable() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categories, setCategories] = useState([]);
-    const isStockDisabled = formData.is_provsional;
+
+    // Event options for the Combobox
+    const eventOptions = useMemo(() => {
+      console.log("Building event options from events:", events);
+      const options = events.map(event => ({
+        value: event.event,
+        label: `${event.event}`,
+        group: event.sport || 'Other'
+      }));
+      console.log("Generated event options:", options);
+      return options;
+    }, [events]);
 
     // Fetch categories when event changes
     useEffect(() => {
+      console.log("Event changed in form:", formData.event);
+      console.log("Current events array:", events);
+
       const fetchCategories = async () => {
         if (!formData.event) {
+          console.log("No event selected, clearing categories");
           setCategories([]);
           return;
         }
@@ -764,24 +826,42 @@ function TicketTable() {
         try {
           // Get the event ID from the selected event name
           const event = events.find(e => e.event === formData.event);
-          if (!event?.event_id) {
+          console.log("Found event object:", event);
+          console.log("Event venue_id:", event?.venue_id);
+          
+          if (!event?.venue_id) {
+            console.error("No venue_id found for event:", event);
             setCategories([]);
             return;
           }
 
-          // Fetch categories for this event using query parameter
-          const response = await api.get(`categories?eventId=${event.event_id}`);
-          setCategories(response.data || []);
+          console.log("Making API call to fetch categories for venue_id:", event.venue_id);
+          // Fetch categories using the venue_id
+          const response = await api.get(`n-categories?venue_id=${event.venue_id}`);
+          console.log("API Response:", response);
+          
+          // Filter categories by venue_id
+          const filteredCategories = response.data.filter(category => {
+            console.log("Checking category:", category);
+            console.log("Category venue_id:", category.venue_id);
+            console.log("Expected venue_id:", event.venue_id);
+            return category.venue_id === event.venue_id;
+          });
+          
+          console.log("Filtered categories for venue:", filteredCategories);
+          setCategories(filteredCategories || []);
 
           // If we have a category_id in formData, set the selected category
           if (formData.category_id) {
-            const category = response.data.find(c => c.category_id === formData.category_id);
+            const category = filteredCategories.find(c => c.category_id === formData.category_id);
             if (category) {
+              console.log("Setting selected category:", category);
               setSelectedCategory(category);
             }
           }
         } catch (error) {
           console.error("Failed to fetch categories:", error);
+          console.error("Error details:", error.response?.data || error.message);
           toast.error("Failed to load categories");
           setCategories([]);
         }
@@ -791,12 +871,12 @@ function TicketTable() {
     }, [formData.event, events, formData.category_id]);
 
     const handleCategorySelect = (category) => {
+      console.log("Category selected:", category);
       setSelectedCategory(category);
       setFormData(prev => ({
         ...prev,
         category_id: category.category_id,
         package_type: category.package_type,
-        package_id: category.package_id,
         ticket_image_1: category.ticket_image_1,
         ticket_image_2: category.ticket_image_2,
       }));
@@ -885,21 +965,29 @@ function TicketTable() {
     return (
       <div className="grid gap-8 py-4">
         <div className="space-y-6">
-          {/* Event and Package Selection */}
+          {/* Event and Category Selection */}
           <div className="space-y-2">
             <h4 className="text-lg font-semibold">Event Information</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="event">Event</Label>
                 <Combobox
-                  options={events.map((event) => ({
-                    value: event?.event || "",
-                    label: event?.event || "Unnamed Event",
-                  }))}
-                  value={formData?.event || ""}
-                  onChange={(value) => handleFieldChange("event", value)}
+                  options={eventOptions}
+                  value={formData.event}
+                  onChange={(value) => {
+                    console.log("Combobox onChange triggered with value:", value);
+                    const selectedEvent = events.find(e => e.event === value);
+                    console.log("Found selected event object:", selectedEvent);
+                    if (selectedEvent) {
+                      console.log("Updating form with event:", value);
+                      console.log("And event_id:", selectedEvent.event_id);
+                      handleFieldChange("event", value);
+                      handleFieldChange("event_id", selectedEvent.event_id);
+                    }
+                  }}
                   placeholder="Search for an event..."
                   disabled={isSubmitting}
+                  groupBy="group"
                 />
                 {errors.event && (
                   <p className="text-sm text-primary">{errors.event}</p>
@@ -910,7 +998,9 @@ function TicketTable() {
                 <Select
                   value={selectedCategory?.category_id || ""}
                   onValueChange={(value) => {
+                    console.log("Category Select onChange triggered with value:", value);
                     const category = categories.find(c => c.category_id === value);
+                    console.log("Found category object:", category);
                     if (category) {
                       handleCategorySelect(category);
                     }
@@ -1074,10 +1164,10 @@ function TicketTable() {
                   onBlur={(e) =>
                     handleBlur("actual_stock", e.target.value)
                   }
-                  disabled={isSubmitting || isStockDisabled}
-                  className={isStockDisabled ? "opacity-50" : ""}
+                  disabled={isSubmitting || formData.is_provsional}
+                  className={formData.is_provsional ? "opacity-50" : ""}
                 />
-                {isStockDisabled && (
+                {formData.is_provsional && (
                   <p className="text-sm text-muted-foreground">
                     Stock cannot be set for provisional tickets
                   </p>
@@ -1261,10 +1351,26 @@ function TicketTable() {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categories, setCategories] = useState([]);
 
+    // Event options for the Combobox
+    const eventOptions = useMemo(() => {
+      console.log("Building event options from events:", events);
+      const options = events.map(event => ({
+        value: event.event,
+        label: `${event.event}`,
+        group: event.sport || 'Other'
+      }));
+      console.log("Generated event options:", options);
+      return options;
+    }, [events]);
+
     // Fetch categories when event changes
     useEffect(() => {
+      console.log("Event changed in form:", formData.event);
+      console.log("Current events array:", events);
+
       const fetchCategories = async () => {
         if (!formData.event) {
+          console.log("No event selected, clearing categories");
           setCategories([]);
           return;
         }
@@ -1272,23 +1378,49 @@ function TicketTable() {
         try {
           // Get the event ID from the selected event name
           const event = events.find(e => e.event === formData.event);
-          if (!event?.event_id) {
+          console.log("Found event object:", event);
+          console.log("Event venue_id:", event?.venue_id);
+          
+          if (!event?.venue_id) {
+            console.error("No venue_id found for event:", event);
             setCategories([]);
             return;
           }
 
-          // Fetch categories for this event using query parameter
-          const response = await api.get(`categories?eventId=${event.event_id}`);
-          setCategories(response.data || []);
+          console.log("Making API call to fetch categories for venue_id:", event.venue_id);
+          // Fetch categories using the venue_id
+          const response = await api.get(`n-categories?venue_id=${event.venue_id}`);
+          console.log("API Response:", response);
+          
+          // Filter categories by venue_id
+          const filteredCategories = response.data.filter(category => {
+            console.log("Checking category:", category);
+            console.log("Category venue_id:", category.venue_id);
+            console.log("Expected venue_id:", event.venue_id);
+            return category.venue_id === event.venue_id;
+          });
+          
+          console.log("Filtered categories for venue:", filteredCategories);
+          setCategories(filteredCategories || []);
+
+          // If we have a category_id in formData, set the selected category
+          if (formData.category_id) {
+            const category = filteredCategories.find(c => c.category_id === formData.category_id);
+            if (category) {
+              console.log("Setting selected category:", category);
+              setSelectedCategory(category);
+            }
+          }
         } catch (error) {
           console.error("Failed to fetch categories:", error);
+          console.error("Error details:", error.response?.data || error.message);
           toast.error("Failed to load categories");
           setCategories([]);
         }
       };
 
       fetchCategories();
-    }, [formData.event, events]);
+    }, [formData.event, events, formData.category_id]);
 
     const handleFieldChange = (field, value) => {
       // Only allow digits
@@ -1300,12 +1432,12 @@ function TicketTable() {
     };
 
     const handleCategorySelect = (category) => {
+      console.log("Category selected:", category);
       setSelectedCategory(category);
       setFormData(prev => ({
         ...prev,
         category_id: category.category_id,
         package_type: category.package_type,
-        package_id: category.package_id,
         ticket_image_1: category.ticket_image_1,
         ticket_image_2: category.ticket_image_2,
       }));
@@ -1401,14 +1533,22 @@ function TicketTable() {
               <div className="space-y-2">
                 <Label htmlFor="event">Event</Label>
                 <Combobox
-                  options={events.map((event) => ({
-                    value: event?.event || "",
-                    label: event?.event || "Unnamed Event",
-                  }))}
-                  value={formData?.event || ""}
-                  onChange={(value) => handleFieldChange("event", value)}
+                  options={eventOptions}
+                  value={formData.event}
+                  onChange={(value) => {
+                    console.log("Combobox onChange triggered with value:", value);
+                    const selectedEvent = events.find(e => e.event === value);
+                    console.log("Found selected event object:", selectedEvent);
+                    if (selectedEvent) {
+                      console.log("Updating form with event:", value);
+                      console.log("And event_id:", selectedEvent.event_id);
+                      handleFieldChange("event", value);
+                      handleFieldChange("event_id", selectedEvent.event_id);
+                    }
+                  }}
                   placeholder="Search for an event..."
                   disabled={isSubmitting}
+                  groupBy="group"
                 />
                 {errors.event && (
                   <p className="text-sm text-primary">{errors.event}</p>
@@ -1419,7 +1559,9 @@ function TicketTable() {
                 <Select
                   value={selectedCategory?.category_id || ""}
                   onValueChange={(value) => {
+                    console.log("Category Select onChange triggered with value:", value);
                     const category = categories.find(c => c.category_id === value);
+                    console.log("Found category object:", category);
                     if (category) {
                       handleCategorySelect(category);
                     }
@@ -1743,10 +1885,10 @@ function TicketTable() {
               {isSubmitting || isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  Adding...
                 </>
               ) : (
-                "Update Ticket"
+                "Add Ticket"
               )}
             </Button>
           </div>
@@ -1908,95 +2050,89 @@ function TicketTable() {
     <div className="space-y-4">
 
       {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tickets..."
-              value={filters.search}
-              onChange={(e) =>
-                setFilters({ ...filters, search: e.target.value })
-              }
-              className="pl-8"
-            />
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tickets..."
+                value={filters.search}
+                onChange={(e) =>
+                  setFilters({ ...filters, search: e.target.value })
+                }
+                className="pl-8"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <Select
+              value={filters.sport}
+              onValueChange={(value) => {
+                setFilters({ ...filters, sport: value, event: "all" });
+              }}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by Sport" />
+              </SelectTrigger>
+              <SelectContent>
+                {getUniqueSports().map((sport) => (
+                  <SelectItem key={sport.value} value={sport.value}>
+                    {sport.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="w-[300px]">
+              <Combobox
+                options={getFilteredEvents()}
+                value={filters.event}
+                onChange={(value) => setFilters({ ...filters, event: value })}
+                placeholder="Search for an event..."
+                disabled={filters.sport === "all"}
+              />
+            </div>
+            <Select
+              value={filters.supplier}
+              onValueChange={(value) => setFilters({ ...filters, supplier: value })}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by Supplier" />
+              </SelectTrigger>
+              <SelectContent>
+                {getUniqueSuppliers().map((supplier) => (
+                  <SelectItem key={supplier.value} value={supplier.value}>
+                    {supplier.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex gap-2">
+                  <Filter className="h-4 w-4" />
+                  Status
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {Object.entries(filters.status).map(([key, value]) => (
+                  <DropdownMenuCheckboxItem
+                    key={key}
+                    checked={value}
+                    onCheckedChange={(checked) =>
+                      setFilters({
+                        ...filters,
+                        status: { ...filters.status, [key]: checked },
+                      })
+                    }
+                  >
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-        <Select
-          value={filters.sport}
-          onValueChange={(value) => setFilters({ ...filters, sport: value })}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Sport" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Sports</SelectItem>
-            {getUniqueSports().map((sport) => (
-              <SelectItem key={sport || crypto.randomUUID()} value={sport}>
-                {sport || "Unknown Sport"}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.event}
-          onValueChange={(value) => setFilters({ ...filters, event: value })}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Event" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Events</SelectItem>
-            {getUniqueEvents().map((event) => (
-              <SelectItem key={event || crypto.randomUUID()} value={event}>
-                {event || "Unnamed Event"}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.supplier}
-          onValueChange={(value) => setFilters({ ...filters, supplier: value })}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Supplier" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Suppliers</SelectItem>
-            {getUniqueSuppliers().map((supplier) => (
-              <SelectItem
-                key={supplier || crypto.randomUUID()}
-                value={supplier || "unknown"}
-              >
-                {supplier || "Unknown Supplier"}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="flex gap-2">
-              <Filter className="h-4 w-4" />
-              Status
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {Object.entries(filters.status).map(([key, value]) => (
-              <DropdownMenuCheckboxItem
-                key={key}
-                checked={value}
-                onCheckedChange={(checked) =>
-                  setFilters({
-                    ...filters,
-                    status: { ...filters.status, [key]: checked },
-                  })
-                }
-              >
-                {key.charAt(0).toUpperCase() + key.slice(1)}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       <div className="rounded-md border">
@@ -2400,15 +2536,6 @@ function TicketTable() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* F1 Tickets Button */}
-      <div className="mt-8 w-full flex justify-center">
-        <Button 
-          onClick={() => window.open('https://tickets.formula1.com/en/f1-3190-spain', '_blank')}
-          size="lg"
-        >
-          View Formula 1 Spain Tickets
-        </Button>
-      </div>
     </div>
   );
 }

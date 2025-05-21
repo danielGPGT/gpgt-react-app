@@ -5,6 +5,7 @@ import { HotelsTable } from "@/components/ui/hotelsTable";
 import { PackagesTable } from "@/components/ui/packagesTable";
 import { TiersTable } from "@/components/ui/tiersTable";
 import { EventsTable } from "@/components/ui/eventsTable";
+import { CategoriesTable } from "@/components/ui/categoriesTable";
 import {
   Card,
   CardContent,
@@ -12,7 +13,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Package, Layers, CalendarDays } from "lucide-react";
+import { Package, Layers, CalendarDays, CalendarCog, Ticket } from "lucide-react";
 
 function PackagesTiers({ defaultTab = "events", onTabChange }) {
   return (

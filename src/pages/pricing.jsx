@@ -54,6 +54,7 @@ function PricingSheet() {
   const [selectedAirportTransfer, setSelectedAirportTransfer] = useState(null);
   const [circuitTransferQuantity, setCircuitTransferQuantity] = useState(1);
   const [airportTransferQuantity, setAirportTransferQuantity] = useState(1);
+  const [transferDirection, setTransferDirection] = useState("both");
   const [createFlightBooking, setCreateFlightBooking] = useState(false);
   const [flightPNR, setFlightPNR] = useState("");
   const [ticketingDeadline, setTicketingDeadline] = useState("");
@@ -282,6 +283,7 @@ function PricingSheet() {
         airport_transfer_id: selectedAirportTransfer?.airport_transfer_id || '',
         airport_transfer_quantity: airportTransferQuantity,
         airport_transfer_price: selectedAirportTransfer ? selectedAirportTransfer.price * airportTransferQuantity : 0,
+        airport_transfer_direction: selectedAirportTransfer ? transferDirection : '',
         circuit_transfer_id: selectedCircuitTransfer?.circuit_transfer_id || '',
         circuit_transfer_quantity: circuitTransferQuantity,
         circuit_transfer_price: selectedCircuitTransfer ? selectedCircuitTransfer.price * circuitTransferQuantity : 0,
@@ -439,6 +441,7 @@ function PricingSheet() {
                   paymentStatus={paymentStatus}
                   originalNights={originalNights}
                   salesTeam={salesTeam}
+                  transferDirection={transferDirection}
                 />
               </div>
             )}
@@ -534,6 +537,7 @@ function PricingSheet() {
                         paymentStatus={paymentStatus}
                         originalNights={originalNights}
                         salesTeam={salesTeam}
+                        transferDirection={transferDirection}
                       />
                     </div>
                   </TabsContent>

@@ -53,8 +53,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { jwtDecode } from "jwt-decode";
+import { useNavigate } from "react-router-dom";
 
 function BookingForm({ 
   numberOfAdults, 
@@ -83,7 +85,9 @@ function BookingForm({
   originalNights,
   salesTeam,
   open,
-  onOpenChange
+  onOpenChange,
+  transferDirection,
+  onBookingComplete
 }) {
   const { theme } = useTheme();
   const [showAlert, setShowAlert] = useState(false);
@@ -96,6 +100,7 @@ function BookingForm({
   const [paymentPercents, setPaymentPercents] = useState([33.33, 33.33, 33.34]);
   const [paymentAmounts, setPaymentAmounts] = useState([0, 0, 0]);
   const [currentUser, setCurrentUser] = useState(null);
+  const navigate = useNavigate();
 
   const currencySymbols = {
     GBP: "£",
@@ -447,19 +452,14 @@ function BookingForm({
   };
 
   const handleSubmit = async (values) => {
-    console.log('Button pressed - handleSubmit called');
-    console.log('Current isSubmitting state:', isSubmitting);
-    
     if (isSubmitting) {
       console.log('Submission blocked: Already submitting');
       return;
     }
 
     try {
-      console.log('Starting form submission process');
-      console.log('Form values:', values);
       setIsSubmitting(true);
-      console.log('isSubmitting set to true');
+      console.log('Starting form submission process');
 
       // Format dates for the API
       const formatDate = (date) => {
@@ -479,6 +479,29 @@ function BookingForm({
       const payment2Date = selectedPackage?.payment_date_2 || '';
       const payment3Date = selectedPackage?.payment_date_3 || '';
       console.log('Payment dates:', { payment1Date, payment2Date, payment3Date });
+
+      // Calculate nights and extra nights
+      const totalNights = dateRange?.from && dateRange?.to ? 
+        differenceInCalendarDays(dateRange.to, dateRange.from) : 0;
+      const originalNightsValue = selectedRoom?.nights || originalNights || 0;
+      const extraNightsValue = totalNights > originalNightsValue ? totalNights - originalNightsValue : 0;
+
+      // Calculate room prices
+      const baseRoomPrice = selectedRoom ? Number(selectedRoom.price) : 0;
+      const extraNightsPrice = selectedRoom ? extraNightsValue * Number(selectedRoom.extra_night_price) : 0;
+      const totalRoomPrice = (baseRoomPrice + extraNightsPrice) * roomQuantity;
+
+      console.log('Night calculations:', {
+        dateRange,
+        totalNights,
+        originalNightsValue,
+        extraNightsValue,
+        baseRoomPrice,
+        extraNightsPrice,
+        totalRoomPrice,
+        roomQuantity,
+        selectedRoomNights: selectedRoom?.nights
+      });
 
       // Prepare the booking data according to API requirements
       const bookingData = {
@@ -524,20 +547,18 @@ function BookingForm({
         room_id: selectedRoom?.room_id || '',
         check_in_date: dateRange?.from ? formatDate(dateRange.from) : '',
         check_out_date: dateRange?.to ? formatDate(dateRange.to) : '',
-        nights: dateRange?.from && dateRange?.to ? 
-          Math.ceil((dateRange.to - dateRange.from) / (1000 * 60 * 60 * 24)) : 0,
-        extra_nights: dateRange?.from && dateRange?.to ? 
-          Math.max(differenceInCalendarDays(dateRange.to, dateRange.from) - originalNights, 0) : 0,
+        nights: totalNights,
+        extra_nights: extraNightsValue,
         room_quantity: roomQuantity,
-        room_price: selectedRoom ? 
-          (Number(selectedRoom.price) + 
-           (Math.max(differenceInCalendarDays(dateRange.to, dateRange.from) - originalNights, 0) * Number(selectedRoom.extra_night_price))) * 
-          roomQuantity : 0,
+        room_price: totalRoomPrice,
+        extra_nights_price: extraNightsPrice * roomQuantity,
+        base_room_price: baseRoomPrice * roomQuantity,
         
         // Transfer details
         airport_transfer_id: selectedAirportTransfer?.airport_transfer_id || '',
         airport_transfer_quantity: airportTransferQuantity,
         airport_transfer_price: selectedAirportTransfer ? selectedAirportTransfer.price * airportTransferQuantity : 0,
+        airport_transfer_direction: transferDirection || 'both',
         circuit_transfer_id: selectedCircuitTransfer?.circuit_transfer_id || '',
         circuit_transfer_quantity: circuitTransferQuantity,
         circuit_transfer_price: selectedCircuitTransfer ? selectedCircuitTransfer.price * circuitTransferQuantity : 0,
@@ -589,7 +610,7 @@ function BookingForm({
           
           // Set booking details for confirmation dialog
           setBookingDetails({
-            bookingRef: response.data.booking_ref || 'Pending',
+            bookingRef: response.data.booking_ref || `${values.booking_reference_prefix}${values.booking_reference}`,
             bookerName: values.booker_name,
             event: selectedEvent?.event || 'N/A',
             package: selectedPackage?.package_name || 'N/A',
@@ -601,23 +622,26 @@ function BookingForm({
             ]
           });
           
+          // Show success message
+          toast.success('Booking created successfully!');
+          
           // Show confirmation dialog
           setShowConfirmation(true);
+          
+          // Reset form
+          form.reset();
+          
+          // Close the booking form dialog
+          onOpenChange(false);
+          
+          // Call the refresh callback if provided
+          if (onBookingComplete) {
+            onBookingComplete();
+          }
         }
-        
-        // Show success message
-        toast.success('Booking created successfully!');
         
       } catch (error) {
         console.error('API request failed:', error);
-        console.error('Error details:', {
-          message: error.message,
-          response: error.response,
-          status: error.response?.status,
-          data: error.response?.data
-        });
-        
-        // Show more specific error message
         const errorMessage = error.response?.data?.message || 'Failed to create booking. Please try again.';
         toast.error(errorMessage);
       } finally {
@@ -625,690 +649,750 @@ function BookingForm({
       }
     } catch (error) {
       console.error('Form validation error:', error);
-      console.error('Form state:', form.formState);
-      console.error('Form errors:', form.formState.errors);
       toast.error('Please check all required fields are filled correctly.');
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Create Booking</DialogTitle>
-          <DialogDescription>
-            Fill in the booking details below
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Create Booking</DialogTitle>
+            <DialogDescription>
+              Fill in the booking details below
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-8">
-          {/* Left Column - Summary */}
-          <div className="space-y-4">
-            <div className="bg-muted/50 p-3 rounded-lg space-y-4">
-              <h3 className="font-semibold text-lg">Booking Summary</h3>
-              
-              {/* Package Details Section */}
-              <div className="space-y-3 border-b pb-3">
-                <h4 className="font-medium text-base">Package Details</h4>
+          <div className="grid grid-cols-2 gap-8">
+            {/* Left Column - Summary */}
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-3 rounded-lg space-y-4">
+                <h3 className="font-semibold text-lg">Booking Summary</h3>
                 
-                {/* Event & Package */}
-                <div className="space-y-1.5 bg-card p-2 rounded-md">
-                  <h5 className="text-sm font-medium text-muted-foreground">Event & Package</h5>
-                  <div className="text-sm space-y-0.5">
-                    <p><span className="font-medium">Event:</span> {selectedEvent?.event || "Not selected"}</p>
-                    <p><span className="font-medium">Package:</span> {selectedPackage?.package_name || "Not selected"}</p>
-                    <p><span className="font-medium">Number of Adults:</span> {numberOfAdults}</p>
+                {/* Package Details Section */}
+                <div className="space-y-3 border-b pb-3">
+                  <h4 className="font-medium text-base">Package Details</h4>
+                  
+                  {/* Event & Package */}
+                  <div className="space-y-1.5 bg-card p-2 rounded-md">
+                    <h5 className="text-sm font-medium text-muted-foreground">Event & Package</h5>
+                    <div className="text-sm space-y-0.5">
+                      <p><span className="font-medium">Event:</span> {selectedEvent?.event || "Not selected"}</p>
+                      <p><span className="font-medium">Package:</span> {selectedPackage?.package_name || "Not selected"}</p>
+                      <p><span className="font-medium">Number of Adults:</span> {numberOfAdults}</p>
+                    </div>
                   </div>
+
+                  {/* Hotel & Room */}
+                  {selectedHotel && (
+                    <div className="space-y-1.5 bg-card p-2 rounded-md">
+                      <h5 className="text-sm font-medium text-muted-foreground">Hotel & Room</h5>
+                      <div className="text-sm space-y-0.5">
+                        <p><span className="font-medium">Hotel:</span> {selectedHotel?.hotel_name || "Not selected"}</p>
+                        <p><span className="font-medium">Room:</span> {selectedRoom?.room_category || "Not selected"} - {selectedRoom?.room_type || "Not selected"} x{roomQuantity}</p>
+                        <p><span className="font-medium">Check-in:</span> {dateRange?.from ? format(dateRange.from, "PPP") : "Not selected"}</p>
+                        <p><span className="font-medium">Check-out:</span> {dateRange?.to ? format(dateRange.to, "PPP") : "Not selected"}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ticket */}
+                  {selectedTicket && (
+                    <div className="space-y-1.5 bg-card p-2 rounded-md">
+                      <h5 className="text-sm font-medium text-muted-foreground">Ticket</h5>
+                      <div className="text-sm space-y-0.5">
+                        <p><span className="font-medium">Ticket Type:</span> {selectedTicket?.ticket_name || "Not selected"} x{ticketQuantity}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Transfers */}
+                  {(selectedCircuitTransfer || selectedAirportTransfer) && (
+                    <div className="space-y-1.5 bg-card p-2 rounded-md">
+                      <h5 className="text-sm font-medium text-muted-foreground">Transfers</h5>
+                      <div className="text-sm space-y-0.5">
+                        {selectedCircuitTransfer && (
+                          <p><span className="font-medium">Circuit Transfer:</span> {selectedCircuitTransfer?.transport_type || "Not selected"} x{circuitTransferQuantity}</p>
+                        )}
+                        {selectedAirportTransfer && (
+                          <p><span className="font-medium">Airport Transfer:</span> {selectedAirportTransfer?.transport_type || "Not selected"} x{airportTransferQuantity}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Hotel & Room */}
-                {selectedHotel && (
-                  <div className="space-y-1.5 bg-card p-2 rounded-md">
-                    <h5 className="text-sm font-medium text-muted-foreground">Hotel & Room</h5>
-                    <div className="text-sm space-y-0.5">
-                      <p><span className="font-medium">Hotel:</span> {selectedHotel?.hotel_name || "Not selected"}</p>
-                      <p><span className="font-medium">Room:</span> {selectedRoom?.room_category || "Not selected"} - {selectedRoom?.room_type || "Not selected"} x{roomQuantity}</p>
-                      <p><span className="font-medium">Check-in:</span> {dateRange?.from ? format(dateRange.from, "PPP") : "Not selected"}</p>
-                      <p><span className="font-medium">Check-out:</span> {dateRange?.to ? format(dateRange.to, "PPP") : "Not selected"}</p>
-                    </div>
-                  </div>
-                )}
+                {/* Flight & Lounge Section */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-base">Additional Services</h4>
 
-                {/* Ticket */}
-                {selectedTicket && (
-                  <div className="space-y-1.5 bg-card p-2 rounded-md">
-                    <h5 className="text-sm font-medium text-muted-foreground">Ticket</h5>
-                    <div className="text-sm space-y-0.5">
-                      <p><span className="font-medium">Ticket Type:</span> {selectedTicket?.ticket_name || "Not selected"} x{ticketQuantity}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Transfers */}
-                {(selectedCircuitTransfer || selectedAirportTransfer) && (
-                  <div className="space-y-1.5 bg-card p-2 rounded-md">
-                    <h5 className="text-sm font-medium text-muted-foreground">Transfers</h5>
-                    <div className="text-sm space-y-0.5">
-                      {selectedCircuitTransfer && (
-                        <p><span className="font-medium">Circuit Transfer:</span> {selectedCircuitTransfer?.transport_type || "Not selected"} x{circuitTransferQuantity}</p>
-                      )}
-                      {selectedAirportTransfer && (
-                        <p><span className="font-medium">Airport Transfer:</span> {selectedAirportTransfer?.transport_type || "Not selected"} x{airportTransferQuantity}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Flight & Lounge Section */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-base">Additional Services</h4>
-
-                {/* Flight */}
-                {selectedFlight && (
-                  <div className="space-y-1.5 bg-card p-2 rounded-md">
-                    <h5 className="text-sm font-medium text-muted-foreground">Flight</h5>
-                    <div className="text-sm space-y-0.5">
-                      <p><span className="font-medium">Airline:</span> {selectedFlight.airline} • {selectedFlight.class} x{flightQuantity}</p>
-                      <p><span className="font-medium">Outbound:</span> {selectedFlight.outbound_flight}</p>
-                      <p><span className="font-medium">Inbound:</span> {selectedFlight.inbound_flight}</p>
-                      <div className="flex items-center space-x-2 pt-1">
-                        <Switch
-                          id="create-flight-booking"
-                          checked={form.watch("create_flight_booking")}
-                          onCheckedChange={(checked) => form.setValue("create_flight_booking", checked)}
-                        />
-                        <Label htmlFor="create-flight-booking" className="text-sm">
-                          Create Flight Booking
-                        </Label>
+                  {/* Flight */}
+                  {selectedFlight && (
+                    <div className="space-y-1.5 bg-card p-2 rounded-md">
+                      <h5 className="text-sm font-medium text-muted-foreground">Flight</h5>
+                      <div className="text-sm space-y-0.5">
+                        <p><span className="font-medium">Airline:</span> {selectedFlight.airline} • {selectedFlight.class} x{flightQuantity}</p>
+                        <p><span className="font-medium">Outbound:</span> {selectedFlight.outbound_flight}</p>
+                        <p><span className="font-medium">Inbound:</span> {selectedFlight.inbound_flight}</p>
+                        <div className="flex items-center space-x-2 pt-1">
+                          <Switch
+                            id="create-flight-booking"
+                            checked={form.watch("create_flight_booking")}
+                            onCheckedChange={(checked) => form.setValue("create_flight_booking", checked)}
+                          />
+                          <Label htmlFor="create-flight-booking" className="text-sm">
+                            Create Flight Booking
+                          </Label>
+                        </div>
+                        {form.watch("create_flight_booking") && (
+                          <div className="space-y-1.5 pt-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Booking Reference:</span>
+                              <Input 
+                                value={form.watch("flight_booking_reference")}
+                                onChange={(e) => form.setValue("flight_booking_reference", e.target.value)}
+                                className="h-7 text-xs"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Ticketing Deadline:</span>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "h-7 text-xs justify-start text-left font-normal",
+                                      !form.watch("ticketing_deadline") && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {form.watch("ticketing_deadline") ? (
+                                      format(form.watch("ticketing_deadline"), "PPP")
+                                    ) : (
+                                      <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={form.watch("ticketing_deadline")}
+                                    onSelect={(date) => form.setValue("ticketing_deadline", date)}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Status:</span>
+                              <Select
+                                value={form.watch("flight_status")}
+                                onValueChange={(value) => form.setValue("flight_status", value)}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="booked_ticketed_paid">Booked, Ticketed & Paid</SelectItem>
+                                  <SelectItem value="booked_ticketed_not_paid">Booked, Ticketed, Not Paid</SelectItem>
+                                  <SelectItem value="booked_not_ticketed">Booked, Not Ticketed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {form.watch("create_flight_booking") && (
-                        <div className="space-y-1.5 pt-1.5">
-                          <div className="flex items-center gap-2">
+                    </div>
+                  )}
+
+                  {/* Lounge Pass */}
+                  {selectedLoungePass && (
+                    <div className="space-y-1.5 bg-card p-2 rounded-md">
+                      <h5 className="text-sm font-medium text-muted-foreground">Lounge Pass</h5>
+                      <div className="text-sm space-y-0.5">
+                        <p><span className="font-medium">Type:</span> {selectedLoungePass.variant} x{loungePassQuantity}</p>
+                        <div className="flex items-center space-x-2 pt-1">
+                          <Switch
+                            id="create-lounge-booking"
+                            checked={form.watch("create_lounge_booking")}
+                            onCheckedChange={(checked) => form.setValue("create_lounge_booking", checked)}
+                          />
+                          <Label htmlFor="create-lounge-booking" className="text-sm">
+                            Create Lounge Pass Booking
+                          </Label>
+                        </div>
+                        {form.watch("create_lounge_booking") && (
+                          <div className="flex items-center gap-2 pt-1.5">
                             <span className="font-medium">Booking Reference:</span>
                             <Input 
-                              value={form.watch("flight_booking_reference")}
-                              onChange={(e) => form.setValue("flight_booking_reference", e.target.value)}
+                              value={form.watch("lounge_booking_reference")}
+                              onChange={(e) => form.setValue("lounge_booking_reference", e.target.value)}
                               className="h-7 text-xs"
                             />
                           </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Total Price */}
+                <div className="pt-3 border-t">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Total Price:</span>
+                    <span className="text-lg font-bold">
+                      {currencySymbols[selectedCurrency]}{Number(totalPrice).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Booking Form */}
+            <div>
+              <Form {...form}>
+                <form
+                  onSubmit={(e) => {
+                    console.log('Form onSubmit triggered');
+                    console.log('Current form values:', form.getValues());
+                    console.log('Detailed form errors:', JSON.stringify(form.formState.errors, null, 2));
+                    form.handleSubmit(handleSubmit)(e);
+                  }}
+                  className="space-y-4"
+                >
+                  {/* Booking Reference */}
+                  <div className="grid grid-cols-1 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="booking_reference"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Booking Reference</FormLabel>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">Ticketing Deadline:</span>
-                            <Popover>
-                              <PopoverTrigger asChild>
+                            <span className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                              {form.watch("booking_reference_prefix")}
+                            </span>
+                            <FormControl>
+                              <Input 
+                                {...field}
+                                className="bg-background text-xs h-7 font-mono w-20"
+                                maxLength={4}
+                                placeholder="0001"
+                              />
+                            </FormControl>
+                          </div>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Booker Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="booker_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Booker Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter booker's name" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="booker_email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Booker Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="Enter booker's email"
+                              {...field}
+                              className="bg-background text-xs h-7"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="booker_phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Booker Phone</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter booker's phone" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Address Section */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
+                    <FormField
+                      control={form.control}
+                      name="address_line_1"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Address Line 1</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Address Line 1" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="address_line_2"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Address Line 2</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Optional Address Line 2" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">City</FormLabel>
+                          <FormControl>
+                            <Input placeholder="City" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="postcode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Postcode</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Postcode" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Country</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Country" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Traveller Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
+                    <FormField
+                      control={form.control}
+                      name="lead_traveller_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Lead Traveller Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Lead Traveller" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="lead_traveller_phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Lead Traveller Phone</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Phone Number" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="lead_traveller_email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Lead Traveller Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Email Address" {...field} className="bg-background text-xs h-7" />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {Array.from({ length: numberOfAdults - 1 }).map(
+                      (_, index) => (
+                        <FormField
+                          key={index}
+                          control={form.control}
+                          name={`guest_traveller_names.${index}`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-foreground text-xs">
+                                Guest {index + 1} Name
+                                <span className="text-destructive ml-1">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder={`Guest ${index + 1}`}
+                                  {...field}
+                                  className={cn(
+                                    "bg-background text-xs h-7",
+                                    form.formState.errors.guest_traveller_names?.[index] && "border-primary"
+                                  )}
+                                />
+                              </FormControl>
+                              {form.formState.errors.guest_traveller_names?.[index] && (
+                                <p className="text-xs text-primary mt-1">
+                                  Please enter guest {index + 1}'s name
+                                </p>
+                              )}
+                            </FormItem>
+                          )}
+                        />
+                      )
+                    )}
+                  </div>
+                  {/* Booking Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
+                    <FormField
+                      control={form.control}
+                      name="booking_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Booking Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
                                 <Button
                                   variant="outline"
                                   className={cn(
-                                    "h-7 text-xs justify-start text-left font-normal",
-                                    !form.watch("ticketing_deadline") && "text-muted-foreground"
+                                    "w-full justify-start text-left font-normal bg-background text-xs h-7",
+                                    !field.value && "text-muted-foreground"
                                   )}
                                 >
-                                  {form.watch("ticketing_deadline") ? (
-                                    format(form.watch("ticketing_deadline"), "PPP")
+                                  {field.value ? (
+                                    format(field.value, "PPP")
                                   ) : (
                                     <span>Pick a date</span>
                                   )}
                                   <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
                                 </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={form.watch("ticketing_deadline")}
-                                  onSelect={(date) => form.setValue("ticketing_deadline", date)}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">Status:</span>
-                            <Select
-                              value={form.watch("flight_status")}
-                              onValueChange={(value) => form.setValue("flight_status", value)}
-                            >
-                              <SelectTrigger className="h-7 text-xs">
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="booked_ticketed_paid">Booked, Ticketed & Paid</SelectItem>
-                                <SelectItem value="booked_ticketed_not_paid">Booked, Ticketed, Not Paid</SelectItem>
-                                <SelectItem value="booked_not_ticketed">Booked, Not Ticketed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Lounge Pass */}
-                {selectedLoungePass && (
-                  <div className="space-y-1.5 bg-card p-2 rounded-md">
-                    <h5 className="text-sm font-medium text-muted-foreground">Lounge Pass</h5>
-                    <div className="text-sm space-y-0.5">
-                      <p><span className="font-medium">Type:</span> {selectedLoungePass.variant} x{loungePassQuantity}</p>
-                      <div className="flex items-center space-x-2 pt-1">
-                        <Switch
-                          id="create-lounge-booking"
-                          checked={form.watch("create_lounge_booking")}
-                          onCheckedChange={(checked) => form.setValue("create_lounge_booking", checked)}
-                        />
-                        <Label htmlFor="create-lounge-booking" className="text-sm">
-                          Create Lounge Pass Booking
-                        </Label>
-                      </div>
-                      {form.watch("create_lounge_booking") && (
-                        <div className="flex items-center gap-2 pt-1.5">
-                          <span className="font-medium">Booking Reference:</span>
-                          <Input 
-                            value={form.watch("lounge_booking_reference")}
-                            onChange={(e) => form.setValue("lounge_booking_reference", e.target.value)}
-                            className="h-7 text-xs"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Total Price */}
-              <div className="pt-3 border-t">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Total Price:</span>
-                  <span className="text-lg font-bold">
-                    {currencySymbols[selectedCurrency]}{Number(totalPrice).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Booking Form */}
-          <div>
-            <Form {...form}>
-              <form
-                onSubmit={(e) => {
-                  console.log('Form onSubmit triggered');
-                  console.log('Current form values:', form.getValues());
-                  console.log('Detailed form errors:', JSON.stringify(form.formState.errors, null, 2));
-                  form.handleSubmit(handleSubmit)(e);
-                }}
-                className="space-y-4"
-              >
-                {/* Booking Reference */}
-                <div className="grid grid-cols-1 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="booking_reference"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Booking Reference</FormLabel>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono bg-muted px-2 py-1 rounded">
-                            {form.watch("booking_reference_prefix")}
-                          </span>
-                          <FormControl>
-                            <Input 
-                              {...field}
-                              className="bg-background text-xs h-7 font-mono w-20"
-                              maxLength={4}
-                              placeholder="0001"
-                            />
-                          </FormControl>
-                        </div>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Booker Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="booker_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Booker Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter booker's name" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="booker_email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Booker Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="Enter booker's email"
-                            {...field}
-                            className="bg-background text-xs h-7"
-                          />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="booker_phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Booker Phone</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter booker's phone" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Address Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
-                  <FormField
-                    control={form.control}
-                    name="address_line_1"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Address Line 1</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Address Line 1" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="address_line_2"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Address Line 2</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Optional Address Line 2" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">City</FormLabel>
-                        <FormControl>
-                          <Input placeholder="City" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="postcode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Postcode</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Postcode" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="country"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Country</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Country" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Traveller Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
-                  <FormField
-                    control={form.control}
-                    name="lead_traveller_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Lead Traveller Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Lead Traveller" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="lead_traveller_phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Lead Traveller Phone</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Phone Number" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="lead_traveller_email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Lead Traveller Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Email Address" {...field} className="bg-background text-xs h-7" />
-                        </FormControl>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {Array.from({ length: numberOfAdults - 1 }).map(
-                    (_, index) => (
-                      <FormField
-                        key={index}
-                        control={form.control}
-                        name={`guest_traveller_names.${index}`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground text-xs">
-                              Guest {index + 1} Name
-                              <span className="text-red-500 ml-1">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={`Guest ${index + 1}`}
-                                {...field}
-                                className={cn(
-                                  "bg-background text-xs h-7",
-                                  form.formState.errors.guest_traveller_names?.[index] && "border-red-500"
-                                )}
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                initialFocus
                               />
-                            </FormControl>
-                            {form.formState.errors.guest_traveller_names?.[index] && (
-                              <p className="text-xs text-red-500 mt-1">
-                                Please enter guest {index + 1}'s name
-                              </p>
-                            )}
-                          </FormItem>
-                        )}
-                      />
-                    )
-                  )}
-                </div>
-                {/* Booking Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-border pt-2">
-                  <FormField
-                    control={form.control}
-                    name="booking_date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Booking Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="acquisition"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Acquisition</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal bg-background text-xs h-7",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
-                              </Button>
+                              <SelectTrigger className="w-full bg-background text-xs h-7">
+                                <SelectValue placeholder="Acquisition source" />
+                              </SelectTrigger>
                             </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="acquisition"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Acquisition</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full bg-background text-xs h-7">
-                              <SelectValue placeholder="Acquisition source" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="referral">Referral</SelectItem>
-                            <SelectItem value="newsletter">Newsletter</SelectItem>
-                            <SelectItem value="unknown">Unknown</SelectItem>
-                            <SelectItem value="meta">Meta</SelectItem>
-                            <SelectItem value="repeat">Repeat</SelectItem>
-                            <SelectItem value="organic">Organic</SelectItem>
-                            <SelectItem value="b2b">B2B (Travel agent)</SelectItem>
-                            <SelectItem value="adwords">Adwords</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="booking_type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">Booking Type</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full bg-background text-xs h-7">
-                              <SelectValue placeholder="Booking type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="actual">Actual</SelectItem>
-                            <SelectItem value="provisional">Provisional</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="atol_abtot"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground text-xs">ATOL/ABTOT</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full bg-background text-xs h-7">
-                              <SelectValue placeholder="ATOL/ABTOT" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="abtot">ABTOT</SelectItem>
-                            <SelectItem value="atol">ATOL (Package)</SelectItem>
-                            <SelectItem value="na">N/A (Non EU)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage className="text-xs" />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                            <SelectContent>
+                              <SelectItem value="referral">Referral</SelectItem>
+                              <SelectItem value="newsletter">Newsletter</SelectItem>
+                              <SelectItem value="unknown">Unknown</SelectItem>
+                              <SelectItem value="meta">Meta</SelectItem>
+                              <SelectItem value="repeat">Repeat</SelectItem>
+                              <SelectItem value="organic">Organic</SelectItem>
+                              <SelectItem value="b2b">B2B (Travel agent)</SelectItem>
+                              <SelectItem value="adwords">Adwords</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="booking_type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">Booking Type</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full bg-background text-xs h-7">
+                                <SelectValue placeholder="Booking type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="actual">Actual</SelectItem>
+                              <SelectItem value="provisional">Provisional</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="atol_abtot"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground text-xs">ATOL/ABTOT</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full bg-background text-xs h-7">
+                                <SelectValue placeholder="ATOL/ABTOT" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="abtot">ABTOT</SelectItem>
+                              <SelectItem value="atol">ATOL (Package)</SelectItem>
+                              <SelectItem value="na">N/A (Non EU)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                {/* Payment Info */}
-                <div className="mb-2">
-                  <div className="border-t border-border pt-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xs font-medium">Payment Schedule</h3>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={customPayments}
-                          onCheckedChange={handleCustomPaymentsToggle}
-                          id="custom-payments"
-                        />
-                        <Label htmlFor="custom-payments" className="text-xs">
-                          Adjust Payment Schedule
-                        </Label>
+                  {/* Payment Info */}
+                  <div className="mb-2">
+                    <div className="border-t border-border pt-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xs font-medium">Payment Schedule</h3>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={customPayments}
+                            onCheckedChange={handleCustomPaymentsToggle}
+                            id="custom-payments"
+                          />
+                          <Label htmlFor="custom-payments" className="text-xs">
+                            Adjust Payment Schedule
+                          </Label>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      {[0, 1, 2].map((idx) => (
-                        <div className="space-y-1 p-2 rounded-md border bg-card" key={idx}>
-                          <div className="flex justify-between items-center">
-                            <label className="text-xs font-medium">Payment {idx + 1}</label>
-                            {customPayments && (
-                              <span className="text-xs text-muted-foreground">
-                                {paymentPercents[idx]}%
-                              </span>
-                            )}
-                          </div>
-                          
-                          {customPayments && (
-                            <div className="flex items-center gap-2">
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  value={paymentPercents[idx]}
-                                  onChange={(e) => {
-                                    const newPercent = Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
-                                    handlePaymentChange(idx, newPercent);
-                                  }}
-                                  className={cn(
-                                    "w-20 bg-background h-7 text-xs",
-                                    paymentPercents.reduce((sum, p) => sum + p, 0) !== 100 && "border-red-500"
-                                  )}
-                                  step="1"
-                                  min="0"
-                                  max="100"
-                                  placeholder="0"
-                                />
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">%</span>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground">
-                              {idx === 0 ? (
-                                "Due on booking"
-                              ) : (
-                                selectedPackage?.[`payment_date_${idx + 1}`] || "Date not set"
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        {[0, 1, 2].map((idx) => (
+                          <div className="space-y-1 p-2 rounded-md border bg-card" key={idx}>
+                            <div className="flex justify-between items-center">
+                              <label className="text-xs font-medium">Payment {idx + 1}</label>
+                              {customPayments && (
+                                <span className="text-xs text-muted-foreground">
+                                  {paymentPercents[idx]}%
+                                </span>
                               )}
                             </div>
-
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs font-medium">
-                                {currencySymbols[selectedCurrency]}{paymentAmounts[idx].toFixed(2)}
+                            
+                            {customPayments && (
+                              <div className="flex items-center gap-2">
+                                <div className="relative">
+                                  <Input
+                                    type="number"
+                                    value={paymentPercents[idx]}
+                                    onChange={(e) => {
+                                      const newPercent = Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
+                                      handlePaymentChange(idx, newPercent);
+                                    }}
+                                    className={cn(
+                                      "w-20 bg-background h-7 text-xs",
+                                      paymentPercents.reduce((sum, p) => sum + p, 0) !== 100 && "border-red-500"
+                                    )}
+                                    step="1"
+                                    min="0"
+                                    max="100"
+                                    placeholder="0"
+                                  />
+                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">%</span>
+                                </div>
                               </div>
-                              <FormField
-                                control={form.control}
-                                name={`payment${idx + 1}_status`}
-                                render={({ field }) => (
-                                  <FormItem className="flex flex-row items-center space-x-1">
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                        className="h-3 w-3"
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="text-xs">Paid</FormLabel>
-                                  </FormItem>
+                            )}
+
+                            <div className="space-y-1">
+                              <div className="text-xs text-muted-foreground">
+                                {idx === 0 ? (
+                                  "Due on booking"
+                                ) : (
+                                  selectedPackage?.[`payment_date_${idx + 1}`] || "Date not set"
                                 )}
-                              />
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <div className="text-xs font-medium">
+                                  {currencySymbols[selectedCurrency]}{paymentAmounts[idx].toFixed(2)}
+                                </div>
+                                <FormField
+                                  control={form.control}
+                                  name={`payment${idx + 1}_status`}
+                                  render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-1">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value}
+                                          onCheckedChange={field.onChange}
+                                          className="h-3 w-3"
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="text-xs">Paid</FormLabel>
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="mt-2 px-2 py-1 rounded-md border bg-card flex justify-between items-center">
-                      <span className="text-xs font-medium">Total</span>
-                      <span className="text-sm font-semibold">
-                        {currencySymbols[selectedCurrency]}{totalPrice.toFixed(2)}
-                      </span>
+                        ))}
+                      </div>
+                      
+                      <div className="mt-2 px-2 py-1 rounded-md border bg-card flex justify-between items-center">
+                        <span className="text-xs font-medium">Total</span>
+                        <span className="text-sm font-semibold">
+                          {currencySymbols[selectedCurrency]}{totalPrice.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="pt-4">
-                  <Button 
-                    type="submit" 
-                    size="default" 
-                    className="w-full"
-                    disabled={isSubmitting}
-                    onClick={() => {
-                      console.log('Submit button clicked');
-                      console.log('isSubmitting state:', isSubmitting);
-                      console.log('Form state:', form.formState);
-                      console.log('Form errors:', form.formState.errors);
-                      console.log('Guest traveller names:', form.getValues('guest_traveller_names'));
-                    }}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      "Submit Booking"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </Form>
+                  <div className="pt-4">
+                    <Button 
+                      type="submit" 
+                      size="default" 
+                      className="w-full"
+                      disabled={isSubmitting}
+                      onClick={() => {
+                        console.log('Submit button clicked');
+                        console.log('isSubmitting state:', isSubmitting);
+                        console.log('Form state:', form.formState);
+                        console.log('Form errors:', form.formState.errors);
+                        console.log('Guest traveller names:', form.getValues('guest_traveller_names'));
+                      }}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        "Submit Booking"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Booking Confirmed!</DialogTitle>
+            <DialogDescription>
+              Your booking has been successfully created.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Booking Reference:</span>
+                <span className="text-sm font-mono">{bookingDetails?.bookingRef}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Booker:</span>
+                <span className="text-sm">{bookingDetails?.bookerName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Event:</span>
+                <span className="text-sm">{bookingDetails?.event}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Package:</span>
+                <span className="text-sm">{bookingDetails?.package}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Total Price:</span>
+                <span className="text-sm font-semibold">{bookingDetails?.totalPrice}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Payment Schedule:</h4>
+              {bookingDetails?.paymentSchedule.map((payment, index) => (
+                <div key={index} className="flex justify-between text-sm">
+                  <span>Payment {index + 1}:</span>
+                  <span>{payment.date} - {currencySymbols[selectedCurrency]}{payment.amount.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-start">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowConfirmation(false);
+                // Call the refresh callback if provided
+                if (onBookingComplete) {
+                  onBookingComplete();
+                }
+              }}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -1339,7 +1423,9 @@ BookingForm.propTypes = {
   originalNights: PropTypes.number,
   salesTeam: PropTypes.object,
   open: PropTypes.bool,
-  onOpenChange: PropTypes.func
+  onOpenChange: PropTypes.func,
+  transferDirection: PropTypes.string,
+  onBookingComplete: PropTypes.func
 };
 
 export { BookingForm };
