@@ -66,7 +66,6 @@ import PropTypes from "prop-types";
 import QuotePDF from "./QuotePDF";
 import { FileText } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
-import { CategoriesTable } from "@/components/ui/categoriesTable";
 
 function InternalPricing({
   numberOfAdults,
@@ -470,42 +469,69 @@ function InternalPricing({
       return;
     }
 
+    console.log('Tier Selection Started - Tier ID:', tierId);
     const selectedTierData = packageTiers.find((tier) => tier.tier_id === tierId);
+    console.log('Selected Tier Data:', selectedTierData);
     setSelectedTier(selectedTierData);
 
     if (selectedTierData) {
       try {
         // Set all the selections based on the tier data
         if (selectedTierData.ticket_id) {
+          console.log('Processing Ticket Selection:');
+          console.log('- Looking for ticket_id:', selectedTierData.ticket_id);
+          console.log('- Available tickets:', tickets);
+          
           const ticket = tickets.find((t) => t.ticket_id === selectedTierData.ticket_id);
+          console.log('- Found ticket:', ticket);
+          
           if (ticket) {
+            console.log('- Ticket details:', {
+              id: ticket.ticket_id,
+              name: ticket.ticket_name,
+              remaining: ticket.remaining,
+              category_id: ticket.category_id
+            });
+            
             if (parseInt(ticket.remaining) <= 0) {
-              // Find next available ticket
+              console.log('- Ticket is sold out, looking for next available ticket');
               const nextAvailableTicket = tickets.find(t => parseInt(t.remaining) > 0);
+              console.log('- Next available ticket:', nextAvailableTicket);
+              
               if (nextAvailableTicket) {
-                // Find the corresponding category for the next available ticket
                 const ticketCategory = categories.find(cat => cat.category_id === nextAvailableTicket.category_id);
+                console.log('- Category for next available ticket:', ticketCategory);
+                
                 const ticketWithCategory = {
                   ...nextAvailableTicket,
                   category: ticketCategory
                 };
+                console.log('- Setting ticket with category:', ticketWithCategory);
                 setSelectedTicket(ticketWithCategory);
                 setTicketQuantity(numberOfAdults);
                 toast.success(`Selected ticket was sold out. Automatically selected next available ticket: ${nextAvailableTicket.ticket_name}`);
               } else {
+                console.log('- No available tickets found');
                 toast.error("No available tickets found");
               }
             } else {
-              // Find the corresponding category for the selected ticket
               const ticketCategory = categories.find(cat => cat.category_id === ticket.category_id);
+              console.log('- Category for selected ticket:', ticketCategory);
+              
               const ticketWithCategory = {
                 ...ticket,
                 category: ticketCategory
               };
+              console.log('- Setting ticket with category:', ticketWithCategory);
               setSelectedTicket(ticketWithCategory);
               setTicketQuantity(numberOfAdults);
             }
+          } else {
+            console.log('- No ticket found with ID:', selectedTierData.ticket_id);
+            console.log('- Available ticket IDs:', tickets.map(t => t.ticket_id));
           }
+        } else {
+          console.log('No ticket_id in tier data');
         }
 
         if (selectedTierData.hotel_id) {
@@ -943,17 +969,6 @@ function InternalPricing({
                 )}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Categories Table */}
-        {selectedPackage && (
-          <div className="mt-4">
-            <h2 className="text-xs font-semibold mb-2 text-foreground">Categories</h2>
-            <CategoriesTable 
-              eventId={selectedEvent?.event_id} 
-              packageId={selectedPackage?.package_id} 
-            />
           </div>
         )}
 

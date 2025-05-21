@@ -78,6 +78,7 @@ import {
 } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ItineraryGenerator } from './ItineraryGenerator';
 
 function BookingsTable() {
   const [bookings, setBookings] = useState([]);
@@ -983,6 +984,11 @@ function BookingsTable() {
           </DialogHeader>
           {viewingBooking && (
             <div className="w-full columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+              {/* Add Itinerary Generator at the top */}
+              <div className="break-inside-avoid col-span-full">
+                <ItineraryGenerator booking={viewingBooking} />
+              </div>
+
               {/* Basic Information */}
               <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
                 <div className="grid grid-cols-2 gap-3">
