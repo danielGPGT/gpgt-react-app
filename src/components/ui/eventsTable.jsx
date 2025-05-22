@@ -48,7 +48,6 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { DatePickerWithRange } from "@/components/ui/date-picker-range";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -59,15 +58,24 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format, parse, isValid } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 
 function EventsTable() {
   const [events, setEvents] = useState([]);
+  const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
   const [sportFilter, setSportFilter] = useState("all");
-  const [cityFilter, setCityFilter] = useState("all");
+  const [consultantFilter, setConsultantFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -92,7 +100,7 @@ function EventsTable() {
     { value: "event_start_date", label: "Start Date" },
     { value: "event_end_date", label: "End Date" },
     { value: "venue", label: "Venue" },
-    { value: "city", label: "City" },
+    { value: "status", label: "status" }
   ];
   const [sortColumn, setSortColumn] = useState("event");
   const [sortDirection, setSortDirection] = useState("asc");
@@ -104,10 +112,9 @@ function EventsTable() {
     event_id: "Event ID",
     event_start_date: "Event Start date",
     event_end_date: "Event End Date",
-    venue: "Venue",
-    city: "City",
-    venue_map: "Venue Map",
+    venue_id: "Venue ID",
     consultant_id: "Consultant ID",
+    status: "status"
   };
 
   useEffect(() => {
@@ -115,12 +122,14 @@ function EventsTable() {
       setLoading(true);
       setError(null);
       try {
-        const [eventsRes, usersRes] = await Promise.all([
+        const [eventsRes, usersRes, venuesRes] = await Promise.all([
           api.get("/event"),
-          api.get("/users")
+          api.get("/users"),
+          api.get("/venues")
         ]);
         setEvents(eventsRes.data);
         setUsers(usersRes.data);
+        setVenues(venuesRes.data);
       } catch (err) {
         setError("Failed to fetch events.");
       } finally {
@@ -130,27 +139,36 @@ function EventsTable() {
     fetchEvents();
   }, []);
 
-  // Unique sport and city options
+  // Unique sport, consultant, and year options
   const sportOptions = useMemo(() => {
     const unique = Array.from(new Set(events.map((e) => e.sport)));
     return unique.filter(Boolean).sort();
   }, [events]);
-  const cityOptions = useMemo(() => {
-    const unique = Array.from(new Set(events.map((e) => e.city)));
+
+  const consultantOptions = useMemo(() => {
+    const unique = Array.from(new Set(events.map((e) => e.consultant_id)));
     return unique.filter(Boolean).sort();
+  }, [events]);
+
+  const yearOptions = useMemo(() => {
+    const unique = Array.from(new Set(events.map((e) => {
+      const date = new Date(e.event_start_date);
+      return date.getFullYear();
+    })));
+    return unique.filter(Boolean).sort((a, b) => b - a); // Sort years in descending order
   }, [events]);
 
   // Filtered and sorted events
   const filteredEvents = useMemo(() => {
     let result = events.filter((event) => {
       const sportMatch = sportFilter === "all" || event.sport === sportFilter;
-      const cityMatch = cityFilter === "all" || event.city === cityFilter;
+      const consultantMatch = consultantFilter === "all" || event.consultant_id === consultantFilter;
+      const statusMatch = statusFilter === "all" || event.status === statusFilter;
+      const yearMatch = yearFilter === "all" || new Date(event.event_start_date).getFullYear().toString() === yearFilter;
       const searchMatch = searchQuery === "" || 
         event.event.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.sport.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.city.toLowerCase().includes(searchQuery.toLowerCase());
-      return sportMatch && cityMatch && searchMatch;
+        event.sport.toLowerCase().includes(searchQuery.toLowerCase());
+      return sportMatch && consultantMatch && statusMatch && yearMatch && searchMatch;
     });
     // Sorting
     if (sortColumn) {
@@ -163,23 +181,22 @@ function EventsTable() {
       });
     }
     return result;
-  }, [events, sportFilter, cityFilter, sortColumn, sortDirection, searchQuery]);
+  }, [events, sportFilter, consultantFilter, statusFilter, yearFilter, searchQuery, sortColumn, sortDirection]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [sportFilter, cityFilter, searchQuery]);
+  }, [sportFilter, consultantFilter, statusFilter, yearFilter, searchQuery]);
 
   // Add/Edit form state
   const initialEventState = {
     sport: "",
     event: "",
-    event_start_date: "",
-    event_end_date: "",
-    venue: "",
-    city: "",
-    venue_map: "",
+    event_start_date: null,
+    event_end_date: null,
+    venue_id: "",
     consultant_id: "",
+    status: "sales open"
   };
   const [formData, setFormData] = useState(initialEventState);
   const [formErrors, setFormErrors] = useState({});
@@ -195,12 +212,11 @@ function EventsTable() {
     setFormData({
       sport: event.sport,
       event: event.event,
-      event_start_date: event.event_start_date,
-      event_end_date: event.event_end_date,
-      venue: event.venue,
-      city: event.city,
-      venue_map: event.venue_map || "",
+      event_start_date: parseDateFromDB(event.event_start_date),
+      event_end_date: parseDateFromDB(event.event_end_date),
+      venue_id: event.venue_id,
       consultant_id: event.consultant_id || "",
+      status: event.status || "sales open"
     });
     setFormErrors({});
     setIsEditDialogOpen(true);
@@ -226,8 +242,43 @@ function EventsTable() {
     validateField(field, value);
   };
 
+  // Helper function to parse date from database
+  const parseDateFromDB = (dateStr) => {
+    if (!dateStr) return null;
+    
+    // Try DD-MM-YYYY format first
+    let parsedDate = parse(dateStr, 'dd-MM-yyyy', new Date());
+    if (isValid(parsedDate)) return parsedDate;
+    
+    // Try YYYY-MM-DD format
+    parsedDate = parse(dateStr, 'yyyy-MM-dd', new Date());
+    if (isValid(parsedDate)) return parsedDate;
+    
+    return null;
+  };
+
+  // Helper function to format date for display
+  const formatDateForDisplay = (date) => {
+    if (!date) return '';
+    return format(date, 'dd-MM-yyyy');
+  };
+
   // Add event
   const handleAddEvent = async () => {
+    // Validate required fields
+    const requiredFields = ["sport", "event", "event_start_date", "event_end_date", "venue_id", "consultant_id"];
+    const errors = {};
+    requiredFields.forEach(field => {
+      if (!formData[field]) {
+        errors[field] = "Required";
+      }
+    });
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     // Check for duplicate event
     const isDuplicate = events.some(
       (e) => e.event === formData.event && e.sport === formData.sport
@@ -240,10 +291,19 @@ function EventsTable() {
       return;
     }
 
-    if (!validateField("event", formData.event)) return;
     setIsAdding(true);
     try {
-      await api.post("/event", formData);
+      const eventData = {
+        sport: formData.sport,
+        event: formData.event,
+        event_start_date: formatDateForDisplay(formData.event_start_date),
+        event_end_date: formatDateForDisplay(formData.event_end_date),
+        venue_id: formData.venue_id,
+        consultant_id: formData.consultant_id,
+        status: "sales open"
+      };
+
+      await api.post("/event", eventData);
       setSuccessMessage("Event added successfully!");
       setShowSuccessDialog(true);
       setIsAddDialogOpen(false);
@@ -262,6 +322,20 @@ function EventsTable() {
   const handleEditEvent = async () => {
     if (!editingEvent) return;
 
+    // Validate required fields
+    const requiredFields = ["sport", "event", "event_start_date", "event_end_date", "venue_id", "consultant_id"];
+    const errors = {};
+    requiredFields.forEach(field => {
+      if (!formData[field]) {
+        errors[field] = "Required";
+      }
+    });
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     // Check for duplicate event (excluding the current event being edited)
     const isDuplicate = events.some(
       (e) =>
@@ -277,13 +351,18 @@ function EventsTable() {
       return;
     }
 
-    if (!validateField("event", formData.event)) return;
     setIsEditing(true);
     try {
       // Compare with original event to find changed fields
       const changedFields = {};
       Object.keys(formData).forEach((key) => {
-        if (formData[key] !== editingEvent[key]) {
+        if (key === 'event_start_date' || key === 'event_end_date') {
+          const newValue = formatDateForDisplay(formData[key]);
+          const oldValue = editingEvent[key];
+          if (newValue !== oldValue) {
+            changedFields[key] = newValue;
+          }
+        } else if (key !== 'status' && formData[key] !== editingEvent[key]) {
           changedFields[key] = formData[key];
         }
       });
@@ -390,6 +469,18 @@ function EventsTable() {
     }
   };
 
+  // Helper function to get venue name
+  const getVenueName = (venueId) => {
+    const venue = venues.find(v => v.venue_id === venueId);
+    return venue ? venue.venue_name : "Unknown Venue";
+  };
+
+  // Helper function to get consultant name
+  const getConsultantName = (consultantId) => {
+    const consultant = users.find(u => u.user_id === consultantId);
+    return consultant ? `${consultant.first_name} ${consultant.last_name}` : "Unassigned";
+  };
+
   if (loading) {
     return (
       <div className="text-center text-muted-foreground p-8">
@@ -429,15 +520,41 @@ function EventsTable() {
             placeholder="Filter by Sport"
             className="w-[300px]"
           />
-          <Select value={cityFilter} onValueChange={setCityFilter}>
+          <Select value={consultantFilter} onValueChange={setConsultantFilter}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by City" />
+              <SelectValue placeholder="Filter by Consultant" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Cities</SelectItem>
-              {cityOptions.map((city) => (
-                <SelectItem key={city} value={city}>
-                  {city}
+              <SelectItem value="all">All Consultants</SelectItem>
+              {users
+                .filter(user => user.role === "Internal Sales")
+                .map((user) => (
+                  <SelectItem key={user.user_id} value={user.user_id}>
+                    {user.first_name} {user.last_name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="sales open">Sales Open</SelectItem>
+              <SelectItem value="sales closed">Sales Closed</SelectItem>
+              <SelectItem value="coming soon">Coming Soon</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by Year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {yearOptions.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -552,8 +669,8 @@ function EventsTable() {
               <TableHead className="text-xs py-2">Start Date</TableHead>
               <TableHead className="text-xs py-2">End Date</TableHead>
               <TableHead className="text-xs py-2">Venue</TableHead>
-              <TableHead className="text-xs py-2">City</TableHead>
-              <TableHead className="text-xs py-2">Venue Map</TableHead>
+              <TableHead className="text-xs py-2">Consultant</TableHead>
+              <TableHead className="text-xs py-2">Status</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -577,21 +694,21 @@ function EventsTable() {
                   <TableCell className="text-xs py-1.5">{event.event}</TableCell>
                   <TableCell className="text-xs py-1.5">{event.event_start_date}</TableCell>
                   <TableCell className="text-xs py-1.5">{event.event_end_date}</TableCell>
-                  <TableCell className="text-xs py-1.5">{event.venue}</TableCell>
-                  <TableCell className="text-xs py-1.5">{event.city}</TableCell>
+                  <TableCell className="text-xs py-1.5">{getVenueName(event.venue_id)}</TableCell>
+                  <TableCell className="text-xs py-1.5">{getConsultantName(event.consultant_id)}</TableCell>
                   <TableCell className="text-xs py-1.5">
-                    {event.venue_map ? (
-                      <a
-                        href={event.venue_map}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary underline font-medium"
-                      >
-                        View
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground">N/A</span>
-                    )}
+                    <Badge
+                      variant="outline"
+                      className={`${
+                        event.status === "sales closed"
+                          ? "bg-destructive/10 text-destructive"
+                          : event.status === "sales open"
+                          ? "bg-success/10 text-success"
+                          : "bg-warning/10 text-warning"
+                      }`}
+                    >
+                      {event.status === "sales open" ? "Sales Open" : "Sales Closed"}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
                     <div className="flex gap-1">
@@ -709,9 +826,7 @@ function EventsTable() {
                     <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
                   </div>
                   <p className="text-lg font-medium text-primary">
-                    {isEditDialogOpen
-                      ? "Updating Event..."
-                      : "Adding Event..."}
+                    {isEditDialogOpen ? "Updating Event..." : "Adding Event..."}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Please wait while we process your request
@@ -719,126 +834,169 @@ function EventsTable() {
                 </div>
               </div>
             )}
-            <div
-              className={
-                isAdding || isEditing
-                  ? "opacity-50 pointer-events-none"
-                  : "space-y-4"
-              }
-            >
-              {/* Sport */}
-              <div className="space-y-2">
-                <Label htmlFor="sport">Sport</Label>
-                <Input
-                  id="sport"
-                  value={formData.sport}
-                  onChange={(e) => handleFieldChange("sport", e.target.value)}
-                  disabled={isAdding || isEditing}
-                  placeholder="e.g., Formula 1"
-                />
-                {formErrors.sport && (
-                  <p className="text-sm text-red-500">{formErrors.sport}</p>
-                )}
+            <div className={isAdding || isEditing ? "opacity-50 pointer-events-none" : "space-y-6"}>
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Sport */}
+                  <div className="space-y-2">
+                    <Label htmlFor="sport">Sport</Label>
+                    <Input
+                      id="sport"
+                      value={formData.sport}
+                      onChange={(e) => handleFieldChange("sport", e.target.value)}
+                      disabled={isAdding || isEditing}
+                      placeholder="e.g., Formula 1"
+                    />
+                    {formErrors.sport && (
+                      <p className="text-sm text-red-500">{formErrors.sport}</p>
+                    )}
+                  </div>
+
+                  {/* Event Name */}
+                  <div className="space-y-2">
+                    <Label htmlFor="event">Event Name</Label>
+                    <Input
+                      id="event"
+                      value={formData.event}
+                      onChange={(e) => handleFieldChange("event", e.target.value)}
+                      disabled={isAdding || isEditing}
+                      placeholder="e.g., Abu Dhabi Grand Prix 2025"
+                    />
+                    {formErrors.event && (
+                      <p className="text-sm text-red-500">{formErrors.event}</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Event Name */}
-              <div className="space-y-2">
-                <Label htmlFor="event">Event Name</Label>
-                <Input
-                  id="event"
-                  value={formData.event}
-                  onChange={(e) => handleFieldChange("event", e.target.value)}
-                  disabled={isAdding || isEditing}
-                  placeholder="e.g., Abu Dhabi Grand Prix 2025"
-                />
-                {formErrors.event && (
-                  <p className="text-sm text-red-500">{formErrors.event}</p>
-                )}
+              {/* Event Details */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Event Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Start Date */}
+                  <div className="space-y-2">
+                    <Label>Start Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !formData.event_start_date && "text-muted-foreground"
+                          )}
+                          disabled={isAdding || isEditing}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.event_start_date ? (
+                            format(formData.event_start_date, "dd-MM-yyyy")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={formData.event_start_date}
+                          onSelect={(date) => handleFieldChange("event_start_date", date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {formErrors.event_start_date && (
+                      <p className="text-sm text-red-500">{formErrors.event_start_date}</p>
+                    )}
+                  </div>
+
+                  {/* End Date */}
+                  <div className="space-y-2">
+                    <Label>End Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !formData.event_end_date && "text-muted-foreground"
+                          )}
+                          disabled={isAdding || isEditing}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.event_end_date ? (
+                            format(formData.event_end_date, "dd-MM-yyyy")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={formData.event_end_date}
+                          onSelect={(date) => handleFieldChange("event_end_date", date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {formErrors.event_end_date && (
+                      <p className="text-sm text-red-500">{formErrors.event_end_date}</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Start/End Date */}
-              <div className="space-y-2">
-                <Label>Event Dates</Label>
-                <DatePickerWithRange
-                  date={{
-                    from: formData.event_start_date
-                      ? new Date(formData.event_start_date)
-                      : undefined,
-                    to: formData.event_end_date
-                      ? new Date(formData.event_end_date)
-                      : undefined,
-                  }}
-                  setDate={({ from, to }) => {
-                    handleFieldChange(
-                      "event_start_date",
-                      from ? from.toISOString().slice(0, 10) : ""
-                    );
-                    handleFieldChange(
-                      "event_end_date",
-                      to ? to.toISOString().slice(0, 10) : ""
-                    );
-                  }}
-                />
-              </div>
+              {/* Assignment */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Assignment</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Venue Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="venue_id">Venue</Label>
+                    <Combobox
+                      options={venues.map(venue => ({
+                        value: venue.venue_id,
+                        label: `${venue.venue_name} (${venue.city})`,
+                        searchText: `${venue.venue_name} ${venue.city}`.toLowerCase()
+                      }))}
+                      value={formData.venue_id}
+                      onChange={(value) => handleFieldChange("venue_id", value)}
+                      placeholder="Search by venue name or city"
+                      disabled={isAdding || isEditing}
+                    />
+                    {formErrors.venue_id && (
+                      <p className="text-sm text-red-500">{formErrors.venue_id}</p>
+                    )}
+                  </div>
 
-              {/* Venue */}
-              <div className="space-y-2">
-                <Label htmlFor="venue">Venue</Label>
-                <Input
-                  id="venue"
-                  value={formData.venue}
-                  onChange={(e) => handleFieldChange("venue", e.target.value)}
-                  disabled={isAdding || isEditing}
-                  placeholder="e.g., Yas Marina Circuit"
-                />
-              </div>
-
-              {/* City */}
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => handleFieldChange("city", e.target.value)}
-                  disabled={isAdding || isEditing}
-                  placeholder="e.g., Abu Dhabi"
-                />
-              </div>
-
-              {/* Venue Map URL */}
-              <div className="space-y-2">
-                <Label htmlFor="venue_map">Venue Map URL</Label>
-                <Input
-                  id="venue_map"
-                  value={formData.venue_map}
-                  onChange={(e) => handleFieldChange("venue_map", e.target.value)}
-                  disabled={isAdding || isEditing}
-                  placeholder="https://..."
-                />
-              </div>
-
-              {/* Consultant Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="consultant_id">Consultant</Label>
-                <Select
-                  value={formData.consultant_id || "none"}
-                  onValueChange={(value) => handleFieldChange("consultant_id", value === "none" ? "" : value)}
-                  disabled={isAdding || isEditing}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a consultant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {users
-                      .filter(user => user.role === "Internal Sales")
-                      .map((user) => (
-                        <SelectItem key={user.user_id} value={user.user_id}>
-                          {user.first_name} {user.last_name}
-                        </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {/* Consultant Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="consultant_id">Consultant</Label>
+                    <Select
+                      value={formData.consultant_id || "none"}
+                      onValueChange={(value) => handleFieldChange("consultant_id", value === "none" ? "" : value)}
+                      disabled={isAdding || isEditing}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a consultant" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {users
+                          .filter(user => user.role === "Internal Sales")
+                          .map((user) => (
+                            <SelectItem key={user.user_id} value={user.user_id}>
+                              {user.first_name} {user.last_name}
+                            </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formErrors.consultant_id && (
+                      <p className="text-sm text-red-500">{formErrors.consultant_id}</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {formErrors.api && (

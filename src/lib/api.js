@@ -46,6 +46,22 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 // Initialize the Google AI client
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
+// Function to update an existing itinerary
+export const updateItinerary = async (bookingId, content) => {
+  try {
+    console.log('Attempting to update itinerary for bookingId:', bookingId);
+    const response = await api.put(`/itineraries?bookingId=${bookingId}`, {
+      content,
+      updated_at: new Date().toISOString()
+    });
+    console.log('Update itinerary response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating itinerary:', error);
+    throw error;
+  }
+};
+
 // Function to generate itinerary using Gemini
 export const generateItinerary = async (bookingData) => {
   try {
@@ -70,7 +86,7 @@ export const generateItinerary = async (bookingData) => {
    - Airport transfers
    - Flight times
    - Event sessions
-   - Meals
+   - Breakfast only, dont include lunch or dinner
 6. Add any important notes or reminders after the relevant activity
 7. Use clear, concise language
 8. Separate each day with a blank line
@@ -97,49 +113,24 @@ Number of Travelers: ${bookingData.adults}`;
     }
 
     // Store the generated itinerary
-    try {
-      await storeItinerary(bookingData.booking_id, response.text);
-    } catch (error) {
-      console.warn('Failed to store itinerary:', error);
-      // Continue even if storage fails
-    }
-
-    return response.text;
+    const storedItinerary = await storeItinerary(bookingData.booking_id, response.text);
+    return storedItinerary.content;
   } catch (error) {
     console.error('Error generating itinerary:', error);
     throw error;
   }
 };
 
-// Function to store an itinerary
-export const storeItinerary = async (bookingId, itinerary) => {
-  try {
-    const response = await api.post('/itineraries', {
-      booking_id: bookingId,
-      content: itinerary,
-      generated_at: new Date().toISOString()
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error storing itinerary:', error);
-    // Return a mock response for now
-    return {
-      id: Date.now().toString(),
-      booking_id: bookingId,
-      content: itinerary,
-      generated_at: new Date().toISOString()
-    };
-  }
-};
-
 // Function to get an itinerary by booking ID
 export const getItinerary = async (bookingId) => {
   try {
-    const response = await api.get(`/itineraries/${bookingId}`);
-    return response.data;
+    console.log('Checking for existing itinerary with bookingId:', bookingId);
+    const response = await api.get(`/itineraries?bookingId=${bookingId}`);
+    console.log('getItinerary response:', response.data);
+    // Return null if the response is an empty array
+    return Array.isArray(response.data) && response.data.length > 0 ? response.data[0] : null;
   } catch (error) {
     console.error('Error retrieving itinerary:', error);
-    // Return null instead of throwing error
     return null;
   }
 };
@@ -153,6 +144,33 @@ export const getBookingItineraries = async (bookingId) => {
     console.error('Error retrieving booking itineraries:', error);
     // Return empty array instead of throwing error
     return [];
+  }
+};
+
+// Function to store an itinerary
+export const storeItinerary = async (bookingId, itinerary) => {
+  try {
+    // First check if an itinerary already exists
+    console.log('Checking if itinerary exists before storing for bookingId:', bookingId);
+    const existingItinerary = await getItinerary(bookingId);
+    console.log('Existing itinerary check result:', existingItinerary);
+    
+    if (existingItinerary) {
+      console.log('Itinerary already exists, throwing error');
+      throw new Error('An itinerary already exists for this booking. Please use the update function instead.');
+    }
+
+    console.log('Storing new itinerary for bookingId:', bookingId);
+    const response = await api.post('/itineraries', {
+      booking_id: bookingId,
+      content: itinerary,
+      generated_at: new Date().toISOString()
+    });
+    console.log('Store itinerary response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error storing itinerary:', error);
+    throw error;
   }
 };
 

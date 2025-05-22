@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { generateItinerary, getItinerary } from '@/lib/api';
+import { generateItinerary, getItinerary, updateItinerary } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, History } from 'lucide-react';
+import { Loader2, History, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ItineraryPDF from "./ItineraryPDF";
 import {
@@ -31,14 +31,24 @@ export function ItineraryGenerator({ booking }) {
 
   const loadSavedItineraries = async () => {
     try {
+      console.log('Loading saved itineraries for booking:', booking?.booking_id);
       const response = await getItinerary(booking.booking_id);
+      console.log('Loaded itineraries response:', response);
       if (response) {
         setSavedItineraries([response]);
         setSelectedItinerary(response);
         setItinerary(response.content);
+      } else {
+        // Clear the state if no itinerary exists
+        setSavedItineraries([]);
+        setSelectedItinerary(null);
+        setItinerary(null);
       }
     } catch (error) {
       console.error('Failed to load saved itineraries:', error);
+      // Clear the state on error
+      setSavedItineraries([]);
+      setSelectedItinerary(null);
     }
   };
 
@@ -46,7 +56,9 @@ export function ItineraryGenerator({ booking }) {
     try {
       setLoading(true);
       setError(null);
+      console.log('Generating new itinerary for booking:', booking?.booking_id);
       const generatedItinerary = await generateItinerary(booking);
+      console.log('Generated itinerary:', generatedItinerary);
       setItinerary(generatedItinerary);
       setShowPDF(true);
       toast.success('Itinerary generated successfully!');
@@ -54,8 +66,44 @@ export function ItineraryGenerator({ booking }) {
       await loadSavedItineraries();
     } catch (error) {
       console.error('Failed to generate itinerary:', error);
-      setError(error.message || 'Failed to generate itinerary. Please try again.');
-      toast.error(error.message || 'Failed to generate itinerary. Please try again.');
+      const errorMessage = error.message || 'Failed to generate itinerary. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      
+      // If the error is about existing itinerary, show the update button
+      if (errorMessage.includes('already exists')) {
+        console.log('Existing itinerary detected, loading saved itineraries');
+        await loadSavedItineraries();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateItinerary = async () => {
+    if (!booking?.booking_id) {
+      console.log('No booking ID available for update');
+      toast.error('No booking selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Updating itinerary for booking:', booking.booking_id);
+      const generatedItinerary = await generateItinerary(booking);
+      console.log('Generated new content for update:', generatedItinerary);
+      const updatedItinerary = await updateItinerary(booking.booking_id, generatedItinerary);
+      console.log('Update response:', updatedItinerary);
+      setItinerary(updatedItinerary.content);
+      setShowPDF(true);
+      toast.success('Itinerary updated successfully!');
+      // Reload saved itineraries after updating
+      await loadSavedItineraries();
+    } catch (error) {
+      console.error('Failed to update itinerary:', error);
+      setError(error.message || 'Failed to update itinerary. Please try again.');
+      toast.error(error.message || 'Failed to update itinerary. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -77,37 +125,57 @@ export function ItineraryGenerator({ booking }) {
           <CardTitle className="flex items-center justify-between">
             <span>Travel Itinerary</span>
             <div className="flex items-center gap-2">
-              {savedItineraries.length > 0 && (
-                <Select
-                  value={selectedItinerary?.id}
-                  onValueChange={handleItinerarySelect}
+              {savedItineraries.length > 0 && selectedItinerary ? (
+                <>
+                  <Select
+                    value={selectedItinerary?.id}
+                    onValueChange={handleItinerarySelect}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Select saved itinerary" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {savedItineraries.map((itinerary) => (
+                        <SelectItem key={itinerary.id} value={itinerary.id}>
+                          {new Date(itinerary.generated_at).toLocaleDateString()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    onClick={handleUpdateItinerary}
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Update Itinerary
+                      </>
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  onClick={handleGenerateItinerary}
+                  disabled={loading}
+                  className="w-full"
                 >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select saved itinerary" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {savedItineraries.map((itinerary) => (
-                      <SelectItem key={itinerary.id} value={itinerary.id}>
-                        {new Date(itinerary.generated_at).toLocaleDateString()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    'Generate Itinerary'
+                  )}
+                </Button>
               )}
-              <Button 
-                onClick={handleGenerateItinerary}
-                disabled={loading}
-                className="w-full"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  'Generate Itinerary'
-                )}
-              </Button>
             </div>
           </CardTitle>
         </CardHeader>
@@ -121,7 +189,7 @@ export function ItineraryGenerator({ booking }) {
           ) : itinerary ? (
             <div className="prose prose-sm max-w-none dark:prose-invert">
               {itinerary.split('\n').map((line, index) => (
-                <p key={index} className="mb-2">
+                <p key={`itinerary-line-${index}`} className="mb-2">
                   {line}
                 </p>
               ))}

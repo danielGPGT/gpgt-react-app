@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "@/lib/api";
+import api, { generateItinerary, getItinerary, updateItinerary } from "@/lib/api";
 import {
   Table,
   TableBody,
@@ -20,6 +20,9 @@ import {
   Eye,
   Loader2,
   ChevronDown,
+  RefreshCw,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import {
   Pagination,
@@ -79,6 +82,9 @@ import {
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ItineraryGenerator } from './ItineraryGenerator';
+import { Checkbox } from "@/components/ui/checkbox";
+import { MoreHorizontal } from "lucide-react";
+import ItineraryPDF from "./ItineraryPDF";
 
 function BookingsTable() {
   const [bookings, setBookings] = useState([]);
@@ -265,6 +271,95 @@ function BookingsTable() {
     pnl: "P&L",
   };
 
+  const [selectedBookings, setSelectedBookings] = useState([]);
+  const [isBulkGenerating, setIsBulkGenerating] = useState(false);
+  const [bookingsWithItineraries, setBookingsWithItineraries] = useState(new Set());
+  const [viewingItinerary, setViewingItinerary] = useState(null);
+  const [isItineraryDialogOpen, setIsItineraryDialogOpen] = useState(false);
+
+  // Add this function to handle bulk itinerary generation
+  const handleBulkGenerateItineraries = async () => {
+    if (selectedBookings.length === 0) return;
+    
+    setIsBulkGenerating(true);
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    // Show initial toast
+    toast.info(`Starting to process ${selectedBookings.length} itineraries...`);
+
+    for (const booking of selectedBookings) {
+      try {
+        console.log(`Processing itinerary for booking ${booking.booking_ref}...`);
+        
+        // First check if an itinerary exists
+        const existingItinerary = await getItinerary(booking.booking_id);
+        
+        if (existingItinerary) {
+          // If itinerary exists, update it
+          console.log(`Updating existing itinerary for ${booking.booking_ref}...`);
+          const generatedContent = await generateItinerary(booking);
+          await updateItinerary(booking.booking_id, generatedContent);
+          toast.success(`Updated itinerary for ${booking.booking_ref}`);
+        } else {
+          // If no itinerary exists, create new one
+          console.log(`Creating new itinerary for ${booking.booking_ref}...`);
+          await generateItinerary(booking);
+          toast.success(`Generated new itinerary for ${booking.booking_ref}`);
+        }
+        
+        results.success++;
+      } catch (error) {
+        console.error(`Failed to process itinerary for ${booking.booking_ref}:`, error);
+        results.failed++;
+        results.errors.push({
+          bookingRef: booking.booking_ref,
+          error: error.message
+        });
+        // Show error toast for this specific booking
+        toast.error(`Failed to process itinerary for ${booking.booking_ref}: ${error.message}`);
+      }
+    }
+
+    setIsBulkGenerating(false);
+    
+    // Show final summary toast
+    if (results.success > 0) {
+      toast.success(`Successfully processed ${results.success} itineraries`);
+    }
+    if (results.failed > 0) {
+      toast.error(`Failed to process ${results.failed} itineraries`);
+      console.error('Failed itineraries:', results.errors);
+    }
+
+    // Clear selection after completion
+    setSelectedBookings([]);
+  };
+
+  // Add this function to handle selection
+  const handleSelectBooking = (booking) => {
+    setSelectedBookings(prev => {
+      const isSelected = prev.some(b => b.booking_id === booking.booking_id);
+      if (isSelected) {
+        return prev.filter(b => b.booking_id !== booking.booking_id);
+      } else {
+        return [...prev, booking];
+      }
+    });
+  };
+
+  // Add this function to handle select all
+  const handleSelectAll = () => {
+    if (selectedBookings.length === currentItems.length) {
+      setSelectedBookings([]);
+    } else {
+      setSelectedBookings([...currentItems]);
+    }
+  };
+
   useEffect(() => {
     fetchBookings();
   }, []);
@@ -274,6 +369,8 @@ function BookingsTable() {
       setLoading(true);
       const response = await api.get("bookingFile");
       setBookings(response.data);
+      // Check itineraries after loading bookings
+      await checkBookingsItineraries(response.data);
     } catch (error) {
       console.error("Failed to fetch bookings:", error);
       toast.error("Failed to load bookings");
@@ -601,6 +698,81 @@ function BookingsTable() {
     return format(date, "dd-MMM-yyyy");
   };
 
+  // Add this function to check itineraries for all bookings
+  const checkBookingsItineraries = async (bookings) => {
+    const itineraryStatus = new Set();
+    for (const booking of bookings) {
+      try {
+        const itinerary = await getItinerary(booking.booking_id);
+        if (itinerary) {
+          itineraryStatus.add(booking.booking_id);
+        }
+      } catch (error) {
+        console.error(`Error checking itinerary for ${booking.booking_ref}:`, error);
+      }
+    }
+    setBookingsWithItineraries(itineraryStatus);
+  };
+
+  // Add bulk update function
+  const handleBulkUpdateItineraries = async () => {
+    if (selectedBookings.length === 0) return;
+    
+    setIsBulkGenerating(true);
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    // Show initial toast
+    toast.info(`Starting to update ${selectedBookings.length} itineraries...`);
+
+    for (const booking of selectedBookings) {
+      try {
+        console.log(`Updating itinerary for booking ${booking.booking_ref}...`);
+        const generatedContent = await generateItinerary(booking);
+        await updateItinerary(booking.booking_id, generatedContent);
+        results.success++;
+        toast.success(`Updated itinerary for ${booking.booking_ref}`);
+      } catch (error) {
+        console.error(`Failed to update itinerary for ${booking.booking_ref}:`, error);
+        results.failed++;
+        results.errors.push({
+          bookingRef: booking.booking_ref,
+          error: error.message
+        });
+        toast.error(`Failed to update itinerary for ${booking.booking_ref}: ${error.message}`);
+      }
+    }
+
+    setIsBulkGenerating(false);
+    
+    if (results.success > 0) {
+      toast.success(`Successfully updated ${results.success} itineraries`);
+    }
+    if (results.failed > 0) {
+      toast.error(`Failed to update ${results.failed} itineraries`);
+      console.error('Failed updates:', results.errors);
+    }
+
+    setSelectedBookings([]);
+  };
+
+  // Add this function to handle viewing an itinerary
+  const handleViewItinerary = async (booking) => {
+    try {
+      const itinerary = await getItinerary(booking.booking_id);
+      if (itinerary) {
+        setViewingItinerary({ booking, itinerary: itinerary.content });
+        setIsItineraryDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Error loading itinerary:', error);
+      toast.error('Failed to load itinerary');
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center text-muted-foreground">
@@ -781,10 +953,66 @@ function BookingsTable() {
               )}
             </span>
           </div>
+
+          {selectedBookings.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {selectedBookings.length} selected
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    Bulk Actions <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={handleBulkGenerateItineraries}
+                    disabled={isBulkGenerating}
+                  >
+                    {isBulkGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Generate New Itineraries
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleBulkUpdateItineraries}
+                    disabled={isBulkGenerating}
+                  >
+                    {isBulkGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Update Existing Itineraries
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
+              <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={selectedBookings.length === currentItems.length}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead className="text-xs py-2">Booking Ref</TableHead>
               <TableHead className="text-xs py-2">Status</TableHead>
               <TableHead className="text-xs py-2">Event</TableHead>
@@ -795,12 +1023,20 @@ function BookingsTable() {
               <TableHead className="text-xs py-2">Total Sold (GBP)</TableHead>
               <TableHead className="text-xs py-2">P&L</TableHead>
               <TableHead className="text-xs py-2">Payment Status</TableHead>
+              <TableHead className="text-xs py-2">Itinerary</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.map((booking) => (
               <TableRow key={booking.booking_id} className="hover:bg-muted/50">
+                <TableCell>
+                  <Checkbox
+                    checked={selectedBookings.some(b => b.booking_id === booking.booking_id)}
+                    onCheckedChange={() => handleSelectBooking(booking)}
+                    aria-label={`Select booking ${booking.booking_ref}`}
+                  />
+                </TableCell>
                 <TableCell className="text-xs py-1.5 font-medium">
                   {booking.booking_ref}
                 </TableCell>
@@ -836,6 +1072,25 @@ function BookingsTable() {
                   >
                     {booking.payment_status}
                   </Badge>
+                </TableCell>
+                <TableCell className="text-xs py-1.5">
+                  {bookingsWithItineraries.has(booking.booking_id) ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center gap-1 h-6 px-2"
+                      onClick={() => handleViewItinerary(booking)}
+                    >
+                      <FileText className="h-3 w-3" />
+                      <span>View Itinerary</span>
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </Button>
+                  ) : (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      <FileText className="h-3 w-3" />
+                      Not Generated
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-xs py-1.5">
                   <div className="flex gap-1">
@@ -984,11 +1239,6 @@ function BookingsTable() {
           </DialogHeader>
           {viewingBooking && (
             <div className="w-full columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
-              {/* Add Itinerary Generator at the top */}
-              <div className="break-inside-avoid col-span-full">
-                <ItineraryGenerator booking={viewingBooking} />
-              </div>
-
               {/* Basic Information */}
               <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -1997,6 +2247,23 @@ function BookingsTable() {
                 </Button>
               </DialogFooter>
             </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Itinerary Dialog */}
+      <Dialog open={isItineraryDialogOpen} onOpenChange={setIsItineraryDialogOpen}>
+        <DialogContent className="max-w-[95vw] h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              Itinerary - {viewingItinerary?.booking.booking_ref}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingItinerary && (
+            <ItineraryPDF 
+              bookingData={viewingItinerary.booking} 
+              itinerary={viewingItinerary.itinerary} 
+            />
           )}
         </DialogContent>
       </Dialog>

@@ -72,6 +72,7 @@ function PackagesTable() {
   const itemsPerPage = 15;
   const [eventFilter, setEventFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [events, setEvents] = useState([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -147,12 +148,13 @@ function PackagesTable() {
     let result = packages.filter((pkg) => {
       const eventMatch = eventFilter === "all" || pkg.event === eventFilter;
       const typeMatch = typeFilter === "all" || pkg.package_type === typeFilter;
+      const statusMatch = statusFilter === "all" || pkg.status === statusFilter;
       const searchMatch = searchQuery === "" || 
         pkg.event.toLowerCase().includes(searchQuery.toLowerCase()) ||
         pkg.package_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         pkg.package_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (pkg.url && pkg.url.toLowerCase().includes(searchQuery.toLowerCase()));
-      return eventMatch && typeMatch && searchMatch;
+      return eventMatch && typeMatch && statusMatch && searchMatch;
     });
     // Sorting
     if (sortColumn) {
@@ -165,12 +167,12 @@ function PackagesTable() {
       });
     }
     return result;
-  }, [packages, eventFilter, typeFilter, sortColumn, sortDirection, searchQuery]);
+  }, [packages, eventFilter, typeFilter, statusFilter, sortColumn, sortDirection, searchQuery]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [eventFilter, typeFilter, searchQuery]);
+  }, [eventFilter, typeFilter, statusFilter, searchQuery]);
 
   // Add/Edit form state
   const initialPackageState = {
@@ -181,8 +183,7 @@ function PackagesTable() {
     url: "",
     payment_date_1: "",
     payment_date_2: "",
-    payment_date_3: "",
-    package_status: "sales open"
+    payment_date_3: ""
   };
   const [formData, setFormData] = useState(initialPackageState);
   const [formErrors, setFormErrors] = useState({});
@@ -201,7 +202,6 @@ function PackagesTable() {
       package_name: pkg.package_name,
       package_type: pkg.package_type,
       url: pkg.url || "",
-      package_status: pkg.package_status || "sales open"
     });
     
     // Parse payment dates
@@ -278,7 +278,6 @@ function PackagesTable() {
       const payload = {
         ...addData,
         event: formData.event,
-        package_status: formData.package_status || "sales open",
         payment_date_1: formatDateForAPI(paymentDate1),
         payment_date_2: formatDateForAPI(paymentDate2),
         payment_date_3: formatDateForAPI(paymentDate3)
@@ -324,10 +323,6 @@ function PackagesTable() {
 
       if (formData.package_type !== editingPackage.package_type) {
         changedFields["package_type"] = formData.package_type;
-      }
-
-      if (formData.package_status !== editingPackage.package_status) {
-        changedFields["package_status"] = formData.package_status;
       }
 
       // Add payment date changes
@@ -498,6 +493,17 @@ function PackagesTable() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="sales open">Sales Open</SelectItem>
+              <SelectItem value="sales closed">Sales Closed</SelectItem>
+              <SelectItem value="coming soon">Coming Soon</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         {isSelectionMode && selectedPackages.length > 0 && (
           <Button
@@ -657,14 +663,14 @@ function PackagesTable() {
                     <Badge
                       variant="outline"
                       className={`${
-                        pkg.package_status === "sales closed"
+                        pkg.status === "sales closed"
                           ? "bg-destructive/10 text-destructive"
-                          : pkg.package_status === "sales open"
+                          : pkg.status === "sales open"
                           ? "bg-success/10 text-success"
                           : "bg-warning/10 text-warning"
                       }`}
                     >
-                      {pkg.package_status}
+                      {pkg.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
@@ -927,24 +933,6 @@ function PackagesTable() {
                     />
                   </div>
                 </div>
-              </div>
-              {/* Package Status */}
-              <div className="space-y-2">
-                <Label htmlFor="package_status">Package Status</Label>
-                <Select
-                  value={formData.package_status}
-                  onValueChange={(value) => handleFieldChange("package_status", value)}
-                  disabled={isAdding || isEditing}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sales open">Sales Open</SelectItem>
-                    <SelectItem value="sales closed">Sales Closed</SelectItem>
-                    <SelectItem value="coming soon">Coming Soon</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
               {formErrors.api && (
                 <div className="text-sm text-destructive text-center">

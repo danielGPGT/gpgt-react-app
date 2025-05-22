@@ -55,6 +55,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import api from "@/lib/api";
+import { Combobox } from "@/components/ui/combobox";
 
 export function VenuesTable() {
   const [venues, setVenues] = useState([]);
@@ -92,6 +93,32 @@ export function VenuesTable() {
   };
   const [newVenue, setNewVenue] = useState(initialVenueState);
 
+  // Add field mappings at the top of the component
+  const venueFieldMappings = {
+    venue_id: "Venue ID",
+    venue_name: "Venue Name",
+    city: "City",
+    country: "Country",
+    latitude: "Latitude",
+    longitude: "Longitude",
+    venue_info: "Venue Info"
+  };
+
+  // Add new state for filters
+  const [countryFilter, setCountryFilter] = useState("all");
+  const [cityFilter, setCityFilter] = useState("all");
+
+  // Add unique country and city options
+  const countryOptions = useMemo(() => {
+    const unique = Array.from(new Set(venues.map((v) => v.country)));
+    return unique.filter(Boolean).sort();
+  }, [venues]);
+
+  const cityOptions = useMemo(() => {
+    const unique = Array.from(new Set(venues.map((v) => v.city)));
+    return unique.filter(Boolean).sort();
+  }, [venues]);
+
   useEffect(() => {
     fetchVenues();
   }, []);
@@ -128,12 +155,36 @@ export function VenuesTable() {
   const handleEditVenue = async () => {
     try {
       setIsEditing(true);
-      await api.put(`/venues/${editingVenue.venue_id}`, editingVenue);
+      
+      // Compare with original venue to find changed fields
+      const changedFields = {};
+      Object.keys(editingVenue).forEach((key) => {
+        if (editingVenue[key] !== venues.find(v => v.venue_id === editingVenue.venue_id)?.[key]) {
+          changedFields[key] = editingVenue[key];
+        }
+      });
+
+      // Only update if there are changes
+      if (Object.keys(changedFields).length === 0) {
+        toast.info("No changes were made");
+        setIsEditDialogOpen(false);
+        return;
+      }
+
+      // Update each changed field
+      for (const [field, value] of Object.entries(changedFields)) {
+        await api.put(`/venues/Venue ID/${editingVenue.venue_id}`, {
+          column: venueFieldMappings[field],
+          value: value
+        });
+      }
+
       toast.success("Venue updated successfully");
       setIsEditDialogOpen(false);
       setEditingVenue(null);
       fetchVenues();
     } catch (error) {
+      console.error("Failed to update venue:", error);
       toast.error("Failed to update venue");
     } finally {
       setIsEditing(false);
@@ -143,12 +194,13 @@ export function VenuesTable() {
   const handleDeleteVenue = async () => {
     try {
       setIsDeleting(true);
-      await api.delete(`/venues/${venueToDelete.venue_id}`);
+      await api.delete(`/venues/Venue ID/${venueToDelete.venue_id}`);
       toast.success("Venue deleted successfully");
       setShowDeleteDialog(false);
       setVenueToDelete(null);
       fetchVenues();
     } catch (error) {
+      console.error("Failed to delete venue:", error);
       toast.error("Failed to delete venue");
     } finally {
       setIsDeleting(false);
@@ -165,7 +217,7 @@ export function VenuesTable() {
     setShowDeleteDialog(true);
   };
 
-  // Filter and sort venues
+  // Update the filteredAndSortedVenues function
   const filteredAndSortedVenues = useMemo(() => {
     let result = [...venues];
 
@@ -180,6 +232,16 @@ export function VenuesTable() {
       );
     }
 
+    // Apply country filter
+    if (countryFilter !== "all") {
+      result = result.filter((venue) => venue.country === countryFilter);
+    }
+
+    // Apply city filter
+    if (cityFilter !== "all") {
+      result = result.filter((venue) => venue.city === cityFilter);
+    }
+
     // Apply sorting
     result.sort((a, b) => {
       const aValue = a[sortColumn]?.toLowerCase() || "";
@@ -190,7 +252,12 @@ export function VenuesTable() {
     });
 
     return result;
-  }, [venues, searchQuery, sortColumn, sortDirection]);
+  }, [venues, searchQuery, countryFilter, cityFilter, sortColumn, sortDirection]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [countryFilter, cityFilter, searchQuery]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedVenues.length / itemsPerPage);
@@ -212,6 +279,26 @@ export function VenuesTable() {
               className="pl-8 w-[300px]"
             />
           </div>
+          <Combobox
+            options={[
+              { value: "all", label: "All Countries" },
+              ...countryOptions.map((country) => ({ value: country, label: country })),
+            ]}
+            value={countryFilter}
+            onChange={setCountryFilter}
+            placeholder="Filter by Country"
+            className="w-[200px]"
+          />
+          <Combobox
+            options={[
+              { value: "all", label: "All Cities" },
+              ...cityOptions.map((city) => ({ value: city, label: city })),
+            ]}
+            value={cityFilter}
+            onChange={setCityFilter}
+            placeholder="Filter by City"
+            className="w-[200px]"
+          />
         </div>
         <div className="flex items-center gap-2">
           <DropdownMenu>
@@ -299,7 +386,13 @@ export function VenuesTable() {
                     {venue.latitude}, {venue.longitude}
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
-                    {venue.venue_info || "N/A"}
+                    {venue.venue_info ? (
+                      <div className="max-w-[200px] truncate" title={venue.venue_info}>
+                        {venue.venue_info}
+                      </div>
+                    ) : (
+                      "N/A"
+                    )}
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
                     <div className="flex gap-1">
@@ -379,79 +472,104 @@ export function VenuesTable() {
 
       {/* Add Venue Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Venue</DialogTitle>
             <DialogDescription>
               Fill in the details for the new venue.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="venue_name">Venue Name</Label>
-              <Input
-                id="venue_name"
-                value={newVenue.venue_name}
-                onChange={(e) =>
-                  setNewVenue({ ...newVenue, venue_name: e.target.value })
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                value={newVenue.city}
-                onChange={(e) =>
-                  setNewVenue({ ...newVenue, city: e.target.value })
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                value={newVenue.country}
-                onChange={(e) =>
-                  setNewVenue({ ...newVenue, country: e.target.value })
-                }
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="latitude">Latitude</Label>
-                <Input
-                  id="latitude"
-                  type="number"
-                  step="any"
-                  value={newVenue.latitude}
-                  onChange={(e) =>
-                    setNewVenue({ ...newVenue, latitude: e.target.value })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="longitude">Longitude</Label>
-                <Input
-                  id="longitude"
-                  type="number"
-                  step="any"
-                  value={newVenue.longitude}
-                  onChange={(e) =>
-                    setNewVenue({ ...newVenue, longitude: e.target.value })
-                  }
-                />
+          <div className="grid gap-6 py-4">
+            {/* Basic Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Basic Information</h3>
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="venue_name">Venue Name</Label>
+                  <Input
+                    id="venue_name"
+                    value={newVenue.venue_name}
+                    onChange={(e) =>
+                      setNewVenue({ ...newVenue, venue_name: e.target.value })
+                    }
+                    placeholder="e.g., Albert Park Circuit"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      value={newVenue.city}
+                      onChange={(e) =>
+                        setNewVenue({ ...newVenue, city: e.target.value })
+                      }
+                      placeholder="e.g., Melbourne"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="country">Country</Label>
+                    <Input
+                      id="country"
+                      value={newVenue.country}
+                      onChange={(e) =>
+                        setNewVenue({ ...newVenue, country: e.target.value })
+                      }
+                      placeholder="e.g., Australia"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="venue_info">Venue Info</Label>
-              <Textarea
-                id="venue_info"
-                value={newVenue.venue_info}
-                onChange={(e) =>
-                  setNewVenue({ ...newVenue, venue_info: e.target.value })
-                }
-              />
+
+            {/* Location Details Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Location Details</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="latitude">Latitude</Label>
+                  <Input
+                    id="latitude"
+                    type="number"
+                    step="any"
+                    value={newVenue.latitude}
+                    onChange={(e) =>
+                      setNewVenue({ ...newVenue, latitude: e.target.value })
+                    }
+                    placeholder="e.g., -37.8497"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="longitude">Longitude</Label>
+                  <Input
+                    id="longitude"
+                    type="number"
+                    step="any"
+                    value={newVenue.longitude}
+                    onChange={(e) =>
+                      setNewVenue({ ...newVenue, longitude: e.target.value })
+                    }
+                    placeholder="e.g., 144.968"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Additional Information</h3>
+              <div className="grid gap-2">
+                <Label htmlFor="venue_info">Venue Info</Label>
+                <Textarea
+                  id="venue_info"
+                  value={newVenue.venue_info}
+                  onChange={(e) =>
+                    setNewVenue({ ...newVenue, venue_info: e.target.value })
+                  }
+                  placeholder="Enter any additional information about the venue..."
+                  className="min-h-[100px]"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -478,97 +596,122 @@ export function VenuesTable() {
 
       {/* Edit Venue Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Venue</DialogTitle>
             <DialogDescription>
               Update the venue details.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit_venue_name">Venue Name</Label>
-              <Input
-                id="edit_venue_name"
-                value={editingVenue?.venue_name || ""}
-                onChange={(e) =>
-                  setEditingVenue({
-                    ...editingVenue,
-                    venue_name: e.target.value,
-                  })
-                }
-              />
+          <div className="grid gap-6 py-4">
+            {/* Basic Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Basic Information</h3>
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_venue_name">Venue Name</Label>
+                  <Input
+                    id="edit_venue_name"
+                    value={editingVenue?.venue_name || ""}
+                    onChange={(e) =>
+                      setEditingVenue({
+                        ...editingVenue,
+                        venue_name: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., Albert Park Circuit"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit_city">City</Label>
+                    <Input
+                      id="edit_city"
+                      value={editingVenue?.city || ""}
+                      onChange={(e) =>
+                        setEditingVenue({
+                          ...editingVenue,
+                          city: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., Melbourne"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit_country">Country</Label>
+                    <Input
+                      id="edit_country"
+                      value={editingVenue?.country || ""}
+                      onChange={(e) =>
+                        setEditingVenue({
+                          ...editingVenue,
+                          country: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., Australia"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit_city">City</Label>
-              <Input
-                id="edit_city"
-                value={editingVenue?.city || ""}
-                onChange={(e) =>
-                  setEditingVenue({
-                    ...editingVenue,
-                    city: e.target.value,
-                  })
-                }
-              />
+
+            {/* Location Details Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Location Details</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_latitude">Latitude</Label>
+                  <Input
+                    id="edit_latitude"
+                    type="number"
+                    step="any"
+                    value={editingVenue?.latitude || ""}
+                    onChange={(e) =>
+                      setEditingVenue({
+                        ...editingVenue,
+                        latitude: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., -37.8497"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_longitude">Longitude</Label>
+                  <Input
+                    id="edit_longitude"
+                    type="number"
+                    step="any"
+                    value={editingVenue?.longitude || ""}
+                    onChange={(e) =>
+                      setEditingVenue({
+                        ...editingVenue,
+                        longitude: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., 144.968"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit_country">Country</Label>
-              <Input
-                id="edit_country"
-                value={editingVenue?.country || ""}
-                onChange={(e) =>
-                  setEditingVenue({
-                    ...editingVenue,
-                    country: e.target.value,
-                  })
-                }
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+
+            {/* Additional Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Additional Information</h3>
               <div className="grid gap-2">
-                <Label htmlFor="edit_latitude">Latitude</Label>
-                <Input
-                  id="edit_latitude"
-                  type="number"
-                  step="any"
-                  value={editingVenue?.latitude || ""}
+                <Label htmlFor="edit_venue_info">Venue Info</Label>
+                <Textarea
+                  id="edit_venue_info"
+                  value={editingVenue?.venue_info || ""}
                   onChange={(e) =>
                     setEditingVenue({
                       ...editingVenue,
-                      latitude: e.target.value,
+                      venue_info: e.target.value,
                     })
                   }
+                  placeholder="Enter any additional information about the venue..."
+                  className="min-h-[100px]"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit_longitude">Longitude</Label>
-                <Input
-                  id="edit_longitude"
-                  type="number"
-                  step="any"
-                  value={editingVenue?.longitude || ""}
-                  onChange={(e) =>
-                    setEditingVenue({
-                      ...editingVenue,
-                      longitude: e.target.value,
-                    })
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit_venue_info">Venue Info</Label>
-              <Textarea
-                id="edit_venue_info"
-                value={editingVenue?.venue_info || ""}
-                onChange={(e) =>
-                  setEditingVenue({
-                    ...editingVenue,
-                    venue_info: e.target.value,
-                  })
-                }
-              />
             </div>
           </div>
           <DialogFooter>
@@ -625,3 +768,4 @@ export function VenuesTable() {
     </div>
   );
 }
+

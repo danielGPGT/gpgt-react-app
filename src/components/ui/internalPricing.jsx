@@ -902,8 +902,18 @@ function InternalPricing({
               </SelectTrigger>
               <SelectContent>
                 {filteredEvents.map((event) => (
-                  <SelectItem key={event.event_id} value={event.event_id}>
-                    {event.event || event.event_name}
+                  <SelectItem 
+                    key={event.event_id} 
+                    value={event.event_id}
+                    disabled={event.status === "sales closed"}
+                    className={event.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{event.event || event.event_name}</span>
+                      {event.status === "sales closed" && (
+                        <span className="text-xs text-muted-foreground">Sales Closed</span>
+                      )}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -928,8 +938,18 @@ function InternalPricing({
                   </SelectTrigger>
                   <SelectContent>
                     {packages.map((pkg, idx) => (
-                      <SelectItem key={idx} value={pkg.package_id}>
-                        {pkg.package_name}
+                      <SelectItem 
+                        key={idx} 
+                        value={pkg.package_id}
+                        disabled={pkg.status === "sales closed"}
+                        className={pkg.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{pkg.package_name}</span>
+                          {pkg.status === "sales closed" && (
+                            <span className="text-xs text-muted-foreground">Sales Closed</span>
+                          )}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -960,8 +980,18 @@ function InternalPricing({
                     <SelectContent>
                       <SelectItem value="none">No Tier</SelectItem>
                       {packageTiers.map((tier) => (
-                        <SelectItem key={tier.tier_id} value={tier.tier_id}>
-                          {tier.tier_type}
+                        <SelectItem 
+                          key={tier.tier_id} 
+                          value={tier.tier_id}
+                          disabled={tier.status === "sales closed"}
+                          className={tier.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
+                        >
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">{tier.tier_type}</span>
+                            {tier.status === "sales closed" && (
+                              <span className="text-xs text-muted-foreground">Sales Closed</span>
+                            )}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -56,6 +56,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 function TiersTable() {
   const [tiers, setTiers] = useState([]);
@@ -65,6 +66,7 @@ function TiersTable() {
   const itemsPerPage = 15;
   const [packageFilter, setPackageFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [packages, setPackages] = useState([]);
   const [hotels, setHotels] = useState([]);
@@ -126,7 +128,7 @@ function TiersTable() {
     fetchData();
   }, []);
 
-  // Unique package and type options
+  // Unique package, type, and year options
   const packageOptions = useMemo(() => {
     const unique = Array.from(new Set(tiers.map((t) => t.package_name)));
     return unique.filter(Boolean).sort();
@@ -137,11 +139,20 @@ function TiersTable() {
     return unique.filter(Boolean).sort();
   }, [tiers]);
 
+  const yearOptions = useMemo(() => {
+    const unique = Array.from(new Set(tiers.map((t) => {
+      const date = new Date(t.event_start_date);
+      return date.getFullYear();
+    })));
+    return unique.filter(Boolean).sort((a, b) => b - a); // Sort years in descending order
+  }, [tiers]);
+
   // Filtered and sorted tiers
   const filteredTiers = useMemo(() => {
     let result = tiers.filter((tier) => {
       const packageMatch = packageFilter === "all" || tier.package_name === packageFilter;
       const typeMatch = typeFilter === "all" || tier.tier_type === typeFilter;
+      const yearMatch = yearFilter === "all" || new Date(tier.event_start_date).getFullYear().toString() === yearFilter;
       const searchMatch = searchQuery === "" || 
         tier.package_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         tier.tier_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -164,7 +175,7 @@ function TiersTable() {
           const at = airportTransfers.find(a => a.airport_transfer_id === tier.airport_transfer_id);
           return at ? at.transport_type.toLowerCase().includes(searchQuery.toLowerCase()) : false;
         })();
-      return packageMatch && typeMatch && searchMatch;
+      return packageMatch && typeMatch && yearMatch && searchMatch;
     });
     // Sorting
     if (sortColumn) {
@@ -177,12 +188,12 @@ function TiersTable() {
       });
     }
     return result;
-  }, [tiers, packageFilter, typeFilter, sortColumn, sortDirection, searchQuery, hotels, rooms, circuitTransfers, airportTransfers]);
+  }, [tiers, packageFilter, typeFilter, yearFilter, sortColumn, sortDirection, searchQuery, hotels, rooms, circuitTransfers, airportTransfers]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [packageFilter, typeFilter, searchQuery]);
+  }, [packageFilter, typeFilter, yearFilter, searchQuery]);
 
   // Add/Edit form state
   const initialTierState = {
@@ -193,6 +204,7 @@ function TiersTable() {
     room_id: "",
     circuit_transfer_id: "",
     airport_transfer_id: "",
+    status: "sales open"
   };
   const [formData, setFormData] = useState(initialTierState);
   const [formErrors, setFormErrors] = useState({});
@@ -205,7 +217,7 @@ function TiersTable() {
         return;
       }
       try {
-        const res = await api.get(`/tickets`, {
+        const res = await api.get(`/new tickets`, {
           params: { packageId: formData.package_id },
         });
         setTickets(res.data);
@@ -312,6 +324,7 @@ function TiersTable() {
       room_id: tier.room_id,
       circuit_transfer_id: tier.circuit_transfer_id,
       airport_transfer_id: tier.airport_transfer_id,
+      status: tier.status || "sales open"
     });
     setFormErrors({});
     setIsEditDialogOpen(true);
@@ -349,6 +362,7 @@ function TiersTable() {
       "hotel_id",
       "room_id",
       "airport_transfer_id",
+      "status"
     ];
     for (const field of requiredFields) {
       if (!formData[field] || formData[field].trim() === "") {
@@ -394,6 +408,7 @@ function TiersTable() {
         room_id: formData.room_id,
         circuit_transfer_id: formData.circuit_transfer_id,
         airport_transfer_id: formData.airport_transfer_id,
+        status: formData.status
       };
       console.log("Submitting tier payload:", payload);
       await api.post("/package-tiers", payload);
@@ -440,6 +455,9 @@ function TiersTable() {
       }
       if (formData.airport_transfer_id !== editingTier.airport_transfer_id) {
         changedFields.airport_transfer_id = formData.airport_transfer_id;
+      }
+      if (formData.status !== editingTier.status) {
+        changedFields.status = formData.status;
       }
       // For ticket_name, compare by ticket_id and look up name
       if (formData.ticket_id !== editingTier.ticket_id) {
@@ -569,6 +587,19 @@ function TiersTable() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by Year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {yearOptions.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button
           variant="outline"
@@ -643,87 +674,104 @@ function TiersTable() {
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
-              <TableHead className="text-xs py-2">Package</TableHead>
-              <TableHead className="text-xs py-2">Tier Type</TableHead>
-              <TableHead className="text-xs py-2">Ticket</TableHead>
-              <TableHead className="text-xs py-2">Hotel</TableHead>
-              <TableHead className="text-xs py-2">Room</TableHead>
-              <TableHead className="text-xs py-2">Circuit Transfer</TableHead>
-              <TableHead className="text-xs py-2">Airport Transfer</TableHead>
-              <TableHead className="text-xs py-2">Actions</TableHead>
+              <TableHead className="text-xs py-1.5">Package</TableHead>
+              <TableHead className="text-xs py-1.5">Tier Type</TableHead>
+              <TableHead className="text-xs py-1.5">Ticket</TableHead>
+              <TableHead className="text-xs py-1.5">Hotel & Room</TableHead>
+              <TableHead className="text-xs py-1.5">Transfers</TableHead>
+              <TableHead className="text-xs py-1.5">Status</TableHead>
+              <TableHead className="text-xs py-1.5">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.length > 0 ? (
               currentItems.map((tier) => (
                 <TableRow key={tier.tier_id} className="hover:bg-muted/50">
-                  <TableCell className="text-xs py-1.5">{tier.package_name}</TableCell>
-                  <TableCell className="text-xs py-1.5">{tier.tier_type}</TableCell>
-                  <TableCell className="text-xs py-1.5">{tier.ticket_name}</TableCell>
-                  <TableCell className="text-xs py-1.5">
-                    {(() => {
-                      const hotel = hotels.find(
-                        (h) => h.hotel_id === tier.hotel_id
-                      );
-                      return hotel ? hotel.hotel_name : tier.hotel_id || "N/A";
-                    })()}
+                  <TableCell className="text-xs py-1">{tier.package_name}</TableCell>
+                  <TableCell className="text-xs py-1">{tier.tier_type}</TableCell>
+                  <TableCell className="text-xs py-1">{tier.ticket_name}</TableCell>
+                  <TableCell className="text-xs py-1">
+                    <div className="space-y-0.5">
+                      {(() => {
+                        const hotel = hotels.find(
+                          (h) => h.hotel_id === tier.hotel_id
+                        );
+                        return hotel ? hotel.hotel_name : tier.hotel_id || "N/A";
+                      })()}
+                      <div className="text-muted-foreground">
+                        {(() => {
+                          const room = rooms.find(
+                            (r) => r.room_id === tier.room_id
+                          );
+                          return room
+                            ? `${room.room_category || ""}${
+                                room.room_category && room.room_type ? " – " : ""
+                              }${room.room_type || ""}`.trim()
+                            : tier.room_id || "N/A";
+                        })()}
+                      </div>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-xs py-1.5">
-                    {(() => {
-                      const room = rooms.find(
-                        (r) => r.room_id === tier.room_id
-                      );
-                      return room
-                        ? `${room.room_category || ""}${
-                            room.room_category && room.room_type ? " – " : ""
-                          }${room.room_type || ""}`.trim()
-                        : tier.room_id || "N/A";
-                    })()}
+                  <TableCell className="text-xs py-1">
+                    <div className="space-y-0.5">
+                      {(() => {
+                        const ct = circuitTransfers.find(
+                          (c) =>
+                            c.circuit_transfer_id === tier.circuit_transfer_id
+                        );
+                        return ct
+                          ? <span className="text-muted-foreground">Circuit: {ct.transport_type}</span>
+                          : tier.circuit_transfer_id || "N/A";
+                      })()}
+                      <div>
+                        {(() => {
+                          const at = airportTransfers.find(
+                            (a) =>
+                              a.airport_transfer_id === tier.airport_transfer_id
+                          );
+                          return at
+                            ? <span className="text-muted-foreground">Airport: {at.transport_type}</span>
+                            : tier.airport_transfer_id || "N/A";
+                        })()}
+                      </div>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-xs py-1.5">
-                    {(() => {
-                      const ct = circuitTransfers.find(
-                        (c) =>
-                          c.circuit_transfer_id === tier.circuit_transfer_id
-                      );
-                      return ct
-                        ? ct.transport_type
-                        : tier.circuit_transfer_id || "N/A";
-                    })()}
+                  <TableCell className="text-xs py-1">
+                    <Badge
+                      variant="outline"
+                      className={`${
+                        tier.status === "sales closed"
+                          ? "bg-destructive/10 text-destructive"
+                          : tier.status === "sales open"
+                          ? "bg-success/10 text-success"
+                          : "bg-warning/10 text-warning"
+                      }`}
+                    >
+                      {tier.status}
+                    </Badge>
                   </TableCell>
-                  <TableCell className="text-xs py-1.5">
-                    {(() => {
-                      const at = airportTransfers.find(
-                        (a) =>
-                          a.airport_transfer_id === tier.airport_transfer_id
-                      );
-                      return at
-                        ? at.transport_type
-                        : tier.airport_transfer_id || "N/A";
-                    })()}
-                  </TableCell>
-                  <TableCell className="text-xs py-1.5">
+                  <TableCell className="text-xs py-1">
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => openEditDialog(tier)}
-                        className="h-7 w-7"
+                        className="h-6 w-6"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-3 w-3" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteClick(tier)}
                         disabled={isDeleting}
-                        className="h-7 w-7"
+                        className="h-6 w-6"
                       >
                         {isDeleting &&
                         tierToDelete?.tier_id === tier.tier_id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          <Trash2 className="h-3 w-3 text-destructive" />
                         )}
                       </Button>
                     </div>
@@ -733,8 +781,8 @@ function TiersTable() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={8}
-                  className="text-center text-muted-foreground text-xs py-1.5"
+                  colSpan={7}
+                  className="text-center text-muted-foreground text-xs py-1"
                 >
                   No tiers found.
                 </TableCell>
@@ -1005,8 +1053,26 @@ function TiersTable() {
                   className="w-full"
                 />
               </div>
+              {/* Status */}
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => handleFieldChange("status", value)}
+                  disabled={isAdding || isEditing}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sales open">Sales Open</SelectItem>
+                    <SelectItem value="sales closed">Sales Closed</SelectItem>
+                    <SelectItem value="coming soon">Coming Soon</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {formErrors.api && (
-                <div className="text-sm text-red-500 text-center">
+                <div className="text-sm text-destructive text-center">
                   {formErrors.api}
                 </div>
               )}
@@ -1094,7 +1160,7 @@ function TiersTable() {
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-green-600">
+            <AlertDialogTitle className="text-success">
               Success
             </AlertDialogTitle>
             <AlertDialogDescription>{successMessage}</AlertDialogDescription>

@@ -122,6 +122,9 @@ function ExternalPricing({
   const [tickets, setTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
 
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+
   const [circuitTransfers, setCircuitTransfers] = useState([]);
   const [loadingCircuitTransfers, setLoadingCircuitTransfers] = useState(false);
 
@@ -359,6 +362,7 @@ function ExternalPricing({
     setFlights([]);
     setLoungePasses([]);
     setSalesTeams([]);
+    setCategories([]);
 
     if (foundEvent) {
       try {
@@ -366,8 +370,9 @@ function ExternalPricing({
         setLoadingFlights(true);
         setLoadingLoungePasses(true);
         setLoadingSalesTeams(true);
+        setLoadingCategories(true);
 
-        const [packagesRes, flightsRes, loungePassesRes, usersRes] =
+        const [packagesRes, flightsRes, loungePassesRes, usersRes, categoriesRes] =
           await Promise.all([
             api.get("/packages", { params: { eventId: foundEvent.event_id } }),
             api.get("/flights", { params: { eventId: foundEvent.event_id } }),
@@ -375,11 +380,15 @@ function ExternalPricing({
               params: { eventId: foundEvent.event_id },
             }),
             api.get("/users"),
+            api.get("/categories", {
+              params: { eventId: foundEvent.event_id },
+            })
           ]);
 
         setPackages(packagesRes.data);
         setFlights(flightsRes.data);
         setLoungePasses(loungePassesRes.data);
+        setCategories(categoriesRes.data);
         
         // Find consultant from users data using consultant_id from event
         if (foundEvent.consultant_id) {
@@ -395,11 +404,13 @@ function ExternalPricing({
         setFlights([]);
         setLoungePasses([]);
         setSalesTeams([]);
+        setCategories([]);
       } finally {
         setLoadingPackages(false);
         setLoadingFlights(false);
         setLoadingLoungePasses(false);
         setLoadingSalesTeams(false);
+        setLoadingCategories(false);
       }
     }
   };
@@ -415,28 +426,34 @@ function ExternalPricing({
     setSelectedTicket(null);
     setPackageTiers([]);
     setSelectedTier(null);
+    setCategories([]);
 
     if (foundPackage) {
       try {
         setLoadingHotels(true);
         setLoadingTickets(true);
         setLoadingTiers(true);
+        setLoadingCategories(true);
 
-        const [hotelsRes, ticketsRes, tiersRes] = await Promise.all([
+        const [hotelsRes, ticketsRes, tiersRes, categoriesRes] = await Promise.all([
           api.get("/hotels", {
             params: { packageId: foundPackage.package_id },
           }),
-          api.get("/tickets", {
+          api.get("/new tickets", {
             params: { packageId: foundPackage.package_id },
           }),
           api.get("/package-tiers", {
             params: { packageId: foundPackage.package_id },
           }),
+          api.get("/categories", {
+            params: { eventId: selectedEvent.event_id },
+          })
         ]);
 
         setHotels(hotelsRes.data);
         setTickets(ticketsRes.data);
         setPackageTiers(tiersRes.data);
+        setCategories(categoriesRes.data);
       } catch (error) {
         console.error(
           "Failed to fetch hotels, tickets, or tiers:",
@@ -445,10 +462,12 @@ function ExternalPricing({
         setHotels([]);
         setTickets([]);
         setPackageTiers([]);
+        setCategories([]);
       } finally {
         setLoadingHotels(false);
         setLoadingTickets(false);
         setLoadingTiers(false);
+        setLoadingCategories(false);
       }
     }
   };
@@ -687,13 +706,37 @@ function ExternalPricing({
     setSelectedRoom(foundRoom);
   };
 
-  const handleTicketSelect = (ticketId) => {
+  const handleTicketSelect = async (ticketId) => {
     if (ticketId === "none") {
       setSelectedTicket(null);
+      setTicketQuantity(0);
       return;
     }
+
     const foundTicket = tickets.find((ticket) => ticket.ticket_id === ticketId);
-    setSelectedTicket(foundTicket);
+    if (foundTicket) {
+      console.log('Selected Ticket:', foundTicket);
+      console.log('Available Categories:', categories);
+      console.log('Ticket Category ID:', foundTicket.category_id);
+      
+      // Find the corresponding category
+      const ticketCategory = categories.find(cat => cat.category_id === foundTicket.category_id);
+      console.log('Found Category:', ticketCategory);
+      
+      if (!ticketCategory) {
+        console.warn('No matching category found for ticket:', foundTicket);
+      }
+      
+      // Merge category information with ticket
+      const ticketWithCategory = {
+        ...foundTicket,
+        category: ticketCategory
+      };
+      console.log('Ticket with Category:', ticketWithCategory);
+      
+      setSelectedTicket(ticketWithCategory);
+      setTicketQuantity(numberOfAdults);
+    }
   };
 
   const handleCircuitTransferSelect = (transferId) => {
@@ -780,8 +823,18 @@ function ExternalPricing({
             </SelectTrigger>
             <SelectContent>
               {filteredEvents.map((event) => (
-                <SelectItem key={event.event_id} value={event.event_id}>
-                  {event.event || event.event_name}
+                <SelectItem 
+                  key={event.event_id} 
+                  value={event.event_id}
+                  disabled={event.status === "sales closed"}
+                  className={event.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">{event.event || event.event_name}</span>
+                    {event.status === "sales closed" && (
+                      <span className="text-xs text-muted-foreground">Sales Closed</span>
+                    )}
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -810,8 +863,18 @@ function ExternalPricing({
                   </SelectTrigger>
                   <SelectContent>
                     {packages.map((pkg, idx) => (
-                      <SelectItem key={idx} value={pkg.package_id}>
-                        {pkg.package_name}
+                      <SelectItem 
+                        key={idx} 
+                        value={pkg.package_id}
+                        disabled={pkg.status === "sales closed"}
+                        className={pkg.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{pkg.package_name}</span>
+                          {pkg.status === "sales closed" && (
+                            <span className="text-xs text-muted-foreground">Sales Closed</span>
+                          )}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -853,9 +916,17 @@ function ExternalPricing({
                 <SelectContent>
                   <SelectItem value="none">No Tier</SelectItem>
                   {packageTiers.map((tier) => (
-                    <SelectItem key={tier.tier_id} value={tier.tier_id}>
+                    <SelectItem 
+                      key={tier.tier_id} 
+                      value={tier.tier_id}
+                      disabled={tier.status === "sales closed"}
+                      className={tier.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
+                    >
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{tier.tier_type}</span>
+                        {tier.status === "sales closed" && (
+                          <span className="text-xs text-muted-foreground">Sales Closed</span>
+                        )}
                       </div>
                     </SelectItem>
                   ))}
@@ -1145,59 +1216,103 @@ function ExternalPricing({
 
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle className="mb-2 text-foreground">
+                      <DialogTitle className="mb-4 text-foreground">
                         {selectedTicket.ticket_name}
                       </DialogTitle>
-                      <DialogDescription>
-                        Ticket details for{" "}
-                        <strong className="text-foreground">
-                          {selectedTicket.ticket_name}
-                        </strong>
-                      </DialogDescription>
                     </DialogHeader>
-
-                    <div className="text-sm text-muted-foreground mt-2 space-y-2">
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          Ticket Type: {selectedTicket.ticket_type}
-                        </p>
+                    <div className="text-sm text-muted-foreground mt-2 space-y-4">
+                      {/* Ticket Information */}
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-foreground">Ticket Information</h3>
+                        <div className="grid grid-cols-2 gap-2">
+                          <p className="font-medium text-foreground">Ticket Type:</p>
+                          <p>{selectedTicket.ticket_type}</p>
+                          <p className="font-medium text-foreground">Event Days:</p>
+                          <p>{selectedTicket.event_days}</p>
+                          <p className="font-medium text-foreground">Available:</p>
+                          <p>{selectedTicket.remaining === "purchased_to_order" ? "Purchased to Order" : `${selectedTicket.remaining} tickets left`}</p>
+                        </div>
                       </div>
 
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          Event Days: {selectedTicket.event_days}
-                        </p>
-                      </div>
+                      {/* Category Information */}
+                      {selectedTicket.category && (
+                        <div className="space-y-2">
+                          <h3 className="font-semibold text-foreground">Category Information</h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            <p className="font-medium text-foreground">Delivery Days:</p>
+                            <p>{selectedTicket.category.ticket_delivery_days} days</p>
+                          </div>
 
-                      <div className="flex items-center gap-2 pt-2">
-                        {selectedTicket.video_wall && (
-                          <Badge>
-                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
-                              <MonitorPlay className="w-4 h-4 text-primary-foreground" />
-                              <span>Video Wall</span>
+                          {/* Category Features */}
+                          <div className="space-y-2">
+                            <p className="font-medium text-foreground">Features:</p>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge 
+                                variant={selectedTicket.category.video_wall ? "default" : "outline"} 
+                                className={`flex items-center gap-1 ${selectedTicket.category.video_wall ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                              >
+                                <MonitorPlay className="h-3 w-3" />
+                                Video Wall
+                                {selectedTicket.category.video_wall && (
+                                  <CheckCircle className="h-3 w-3" />
+                                )}
+                              </Badge>
+                              <Badge 
+                                variant={selectedTicket.category.covered_seat ? "default" : "outline"} 
+                                className={`flex items-center gap-1 ${selectedTicket.category.covered_seat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                              >
+                                <Umbrella className="h-3 w-3" />
+                                Covered Seat
+                                {selectedTicket.category.covered_seat && (
+                                  <CheckCircle className="h-3 w-3" />
+                                )}
+                              </Badge>
+                              <Badge 
+                                variant={selectedTicket.category.numbered_seat ? "default" : "outline"} 
+                                className={`flex items-center gap-1 ${selectedTicket.category.numbered_seat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                              >
+                                <Hash className="h-3 w-3" />
+                                Numbered Seat
+                                {selectedTicket.category.numbered_seat && (
+                                  <CheckCircle className="h-3 w-3" />
+                                )}
+                              </Badge>
                             </div>
-                          </Badge>
-                        )}
-                        {selectedTicket.covered_seat && (
-                          <Badge>
-                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
-                              <Umbrella className="w-4 h-4 text-primary-foreground" />
-                              <span>Covered Seat</span>
+                          </div>
+
+                          {/* Additional Category Info */}
+                          {selectedTicket.category.category_info && (
+                            <div className="space-y-2">
+                              <p className="font-medium text-foreground">Additional Information:</p>
+                              <p className="text-sm">{selectedTicket.category.category_info}</p>
                             </div>
-                          </Badge>
-                        )}
-                        {selectedTicket.numbered_seat && (
-                          <Badge>
-                            <div className="flex items-center gap-1 text-xs text-primary-foreground">
-                              <Hash className="w-4 h-4 text-primary-foreground" />
-                              <span>Numbered Seat</span>
+                          )}
+
+                          {/* Category Images */}
+                          {(selectedTicket.category.ticket_image_1 || selectedTicket.category.ticket_image_2) && (
+                            <div className="space-y-2">
+                              <p className="font-medium text-foreground">Ticket Images:</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {selectedTicket.category.ticket_image_1 && (
+                                  <img 
+                                    src={selectedTicket.category.ticket_image_1} 
+                                    alt="Ticket View 1" 
+                                    className="rounded-md w-full h-auto"
+                                  />
+                                )}
+                                {selectedTicket.category.ticket_image_2 && (
+                                  <img 
+                                    src={selectedTicket.category.ticket_image_2} 
+                                    alt="Ticket View 2" 
+                                    className="rounded-md w-full h-auto"
+                                  />
+                                )}
+                              </div>
                             </div>
-                          </Badge>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-
-                    <DialogFooter className="pt-4"></DialogFooter>
                   </DialogContent>
                 </Dialog>
               </div>
