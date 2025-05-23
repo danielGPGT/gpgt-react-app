@@ -74,6 +74,21 @@ const categoryFieldMappings = {
   ticket_image_2: "Ticket image 2",
 };
 
+// Column mapping for API requests
+const columnMap = {
+  venue_id: "Venue ID",
+  category_name: "Category Name",
+  gpgt_category_name: "GPGT Category Name",
+  package_type: "Package Type",
+  ticket_delivery_days: "Ticket Delivery Days",
+  video_wall: "Video Wall",
+  covered_seat: "Covered Seat",
+  numbered_seat: "Numbered Seat",
+  category_info: "Category Info",
+  ticket_image_1: "Ticket image 1",
+  ticket_image_2: "Ticket image 2"
+};
+
 export function CategoriesTable() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,6 +133,27 @@ export function CategoriesTable() {
     ticket_image_1: "",
     ticket_image_2: "",
   });
+
+  // Unique venues from categories with names from venues endpoint (for table filter)
+  const uniqueVenues = useMemo(() => {
+    const venueIds = [...new Set(categories.map(cat => cat.venue_id))];
+    return venueIds
+      .map(id => {
+        const venue = venues.find(v => v.venue_id === id);
+        return venue ? {
+          venue_id: id,
+          venue_name: venue.venue_name
+        } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.venue_name.localeCompare(b.venue_name));
+  }, [categories, venues]);
+
+  // All venues sorted by name (for forms)
+  const allVenues = useMemo(() => {
+    return [...venues]
+      .sort((a, b) => a.venue_name.localeCompare(b.venue_name));
+  }, [venues]);
 
   // Fetch categories and venues
   useEffect(() => {
@@ -174,8 +210,8 @@ export function CategoriesTable() {
         let aVal, bVal;
         
         if (sortColumn === "venue_name") {
-          const venueA = venues.find(v => v.venue_id === a.venue_id)?.venue_name || "";
-          const venueB = venues.find(v => v.venue_id === b.venue_id)?.venue_name || "";
+          const venueA = uniqueVenues.find(v => v.venue_id === a.venue_id)?.venue_name || "";
+          const venueB = uniqueVenues.find(v => v.venue_id === b.venue_id)?.venue_name || "";
           aVal = venueA.toLowerCase();
           bVal = venueB.toLowerCase();
         } else {
@@ -189,7 +225,7 @@ export function CategoriesTable() {
       });
     }
     return result;
-  }, [categories, venues, packageTypeFilter, venueFilter, sortColumn, sortDirection, searchQuery]);
+  }, [categories, uniqueVenues, packageTypeFilter, venueFilter, sortColumn, sortDirection, searchQuery]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -339,12 +375,42 @@ export function CategoriesTable() {
 
     setIsEditing(true);
     try {
+      console.log('Original category:', selectedCategory);
+      console.log('Form data:', formData);
+
+      // Compare with original category to find changed fields
       const changedFields = {};
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== selectedCategory[key]) {
-          changedFields[key] = formData[key];
+        const originalValue = selectedCategory[key];
+        const newValue = formData[key];
+        
+        console.log(`Comparing ${key}:`, {
+          original: originalValue,
+          new: newValue,
+          type: typeof newValue,
+          isEqual: originalValue === newValue
+        });
+
+        // Special handling for ticket image fields
+        if (key === 'ticket_image_1' || key === 'ticket_image_2') {
+          if (newValue !== originalValue) {
+            changedFields[key] = newValue || ""; // Use empty string if null/undefined
+          }
+        } else if (originalValue !== newValue) {
+          // Format the value based on its type
+          let value = newValue;
+          if (typeof value === 'boolean') {
+            value = value ? "TRUE" : "FALSE";
+          } else if (value === null || value === undefined) {
+            value = "";
+          } else {
+            value = value.toString();
+          }
+          changedFields[key] = value;
         }
       });
+
+      console.log('Changed fields:', changedFields);
 
       if (Object.keys(changedFields).length === 0) {
         toast.info("No changes were made");
@@ -352,7 +418,40 @@ export function CategoriesTable() {
         return;
       }
 
-      await api.put(`/n-categories/${selectedCategory.category_id}`, changedFields);
+      // Update only changed fields
+      for (const [field, value] of Object.entries(changedFields)) {
+        // Get the exact column name from the mapping
+        const columnName = categoryFieldMappings[field];
+        if (!columnName) {
+          console.error(`No mapping found for field: ${field}`);
+          continue;
+        }
+
+        console.log('Sending update request:', {
+          url: `/n-categories/Category ID/${selectedCategory.category_id}`,
+          column: columnName,
+          value,
+          field
+        });
+
+        try {
+          const response = await api.put(`/n-categories/Category ID/${selectedCategory.category_id}`, {
+            column: columnName,
+            value
+          });
+          console.log('Update response:', response.data);
+        } catch (error) {
+          console.error(`Failed to update field ${field}:`, error);
+          console.error('Request details:', {
+            url: error.config?.url,
+            method: error.config?.method,
+            data: error.config?.data,
+            response: error.response?.data
+          });
+          throw error;
+        }
+      }
+
       toast.success("Category updated successfully!", {
         description: `Changes to ${formData.category_name} have been saved`
       });
@@ -361,7 +460,21 @@ export function CategoriesTable() {
       fetchCategories();
     } catch (error) {
       console.error("Failed to update category:", error);
-      const errorMessage = "Failed to update category. Please try again.";
+      console.error("Request details:", {
+        url: error.config?.url,
+        method: error.config?.method,
+        data: error.config?.data,
+        response: error.response?.data
+      });
+      
+      let errorMessage = "Failed to update category. Please try again.";
+      
+      if (error.response?.status === 404) {
+        errorMessage = "Category not found. It may have been deleted.";
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       setFormErrors({ api: errorMessage });
       toast.error(errorMessage, {
         description: "There was an error processing your request"
@@ -445,7 +558,7 @@ export function CategoriesTable() {
           <Combobox
             options={[
               { value: "all", label: "All Venues" },
-              ...venues.map(venue => ({
+              ...uniqueVenues.map(venue => ({
                 value: venue.venue_id,
                 label: venue.venue_name
               }))
@@ -549,7 +662,7 @@ export function CategoriesTable() {
               currentItems.map((category) => (
                 <TableRow key={category.category_id} className="hover:bg-muted/50">
                   <TableCell className="text-xs py-1.5">
-                    {venues.find(v => v.venue_id === category.venue_id)?.venue_name || "Unknown Venue"}
+                    {uniqueVenues.find(v => v.venue_id === category.venue_id)?.venue_name || "Unknown Venue"}
                   </TableCell>
                   <TableCell className="text-xs py-1.5">{category.category_name}</TableCell>
                   <TableCell className="text-xs py-1.5">{category.package_type}</TableCell>
@@ -706,21 +819,15 @@ export function CategoriesTable() {
               {!showEditDialog && (
                 <div className="space-y-2">
                   <Label>Venue</Label>
-                  <Select
+                  <Combobox
+                    options={allVenues.map(venue => ({
+                      value: venue.venue_id,
+                      label: venue.venue_name
+                    }))}
                     value={formData.venue_id}
-                    onValueChange={(value) => handleFieldChange("venue_id", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select venue" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {venues.map(venue => (
-                        <SelectItem key={venue.venue_id} value={venue.venue_id}>
-                          {venue.venue_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => handleFieldChange("venue_id", value)}
+                    placeholder="Select venue"
+                  />
                   {formErrors.venue_id && (
                     <p className="text-sm text-destructive">{formErrors.venue_id}</p>
                   )}
@@ -731,7 +838,7 @@ export function CategoriesTable() {
                 <div className="space-y-2">
                   <Label>Venue</Label>
                   <Input
-                    value={venues.find(v => v.venue_id === formData.venue_id)?.venue_name || ""}
+                    value={allVenues.find(v => v.venue_id === formData.venue_id)?.venue_name || ""}
                     disabled
                     readOnly
                     className="bg-muted"

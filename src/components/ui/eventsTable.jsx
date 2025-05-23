@@ -300,7 +300,7 @@ function EventsTable() {
         event_end_date: formatDateForDisplay(formData.event_end_date),
         venue_id: formData.venue_id,
         consultant_id: formData.consultant_id,
-        status: "sales open"
+        status: ""
       };
 
       await api.post("/event", eventData);
