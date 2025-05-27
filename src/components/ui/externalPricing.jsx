@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { jwtDecode } from "jwt-decode";
 import { X } from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 
 function ExternalPricing({
   numberOfAdults,
@@ -164,6 +165,8 @@ function ExternalPricing({
 
   const [showFlightDialog, setShowFlightDialog] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState("none");
+
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   async function fetchExchangeRate(base = "GBP", target = "USD") {
     const res = await fetch(
@@ -477,36 +480,95 @@ function ExternalPricing({
       setSelectedTier(null);
       return;
     }
-    const selectedTierData = packageTiers.find(
-      (tier) => tier.tier_id === tierId
-    );
+    const selectedTierData = packageTiers.find((tier) => tier.tier_id === tierId);
     setSelectedTier(selectedTierData);
 
     if (selectedTierData) {
       try {
         // Set ticket
         if (selectedTierData.ticket_id) {
-          const ticket = tickets.find(
-            (t) => t.ticket_id === selectedTierData.ticket_id
-          );
+          const ticket = tickets.find((t) => t.ticket_id === selectedTierData.ticket_id);
           if (ticket) {
             if (parseInt(ticket.remaining) <= 0) {
               // Find next available ticket
-              const nextAvailableTicket = tickets.find(
-                (t) => parseInt(t.remaining) > 0
-              );
+              const nextAvailableTicket = tickets.find((t) => parseInt(t.remaining) > 0);
               if (nextAvailableTicket) {
-                setSelectedTicket(nextAvailableTicket);
-                setTicketQuantity(numberOfAdults);
-                toast.success(
-                  `Selected ticket was sold out. Automatically selected next available ticket: ${nextAvailableTicket.ticket_name}`
-                );
+                // Fetch category info for next available ticket
+                try {
+                  const categoryRes = await api.get("/n-categories", {
+                    params: { categoryId: nextAvailableTicket.category_id }
+                  });
+                  if (categoryRes.data && categoryRes.data.length > 0) {
+                    const matchedCategory = categoryRes.data.find(cat => cat.category_id === nextAvailableTicket.category_id);
+                    if (matchedCategory) {
+                      const ticketWithCategory = {
+                        ...nextAvailableTicket,
+                        category: {
+                          ...matchedCategory,
+                          category_name: matchedCategory.category_name || matchedCategory.gpgt_category_name,
+                          video_wall: matchedCategory.video_wall || false,
+                          covered_seat: matchedCategory.covered_seat || false,
+                          numbered_seat: matchedCategory.numbered_seat || false,
+                          category_info: matchedCategory.category_info || '',
+                          ticket_delivery_days: matchedCategory.ticket_delivery_days || 0,
+                          ticket_image_1: matchedCategory.ticket_image_1 || '',
+                          ticket_image_2: matchedCategory.ticket_image_2 || ''
+                        }
+                      };
+                      setSelectedTicket(ticketWithCategory);
+                      setTicketQuantity(numberOfAdults);
+                    } else {
+                      setSelectedTicket(nextAvailableTicket);
+                      setTicketQuantity(numberOfAdults);
+                    }
+                  } else {
+                    setSelectedTicket(nextAvailableTicket);
+                    setTicketQuantity(numberOfAdults);
+                  }
+                } catch (error) {
+                  setSelectedTicket(nextAvailableTicket);
+                  setTicketQuantity(numberOfAdults);
+                }
               } else {
                 toast.error("No available tickets found");
               }
             } else {
-              setSelectedTicket(ticket);
-              setTicketQuantity(numberOfAdults);
+              // Fetch category info for selected ticket
+              try {
+                const categoryRes = await api.get("/n-categories", {
+                  params: { categoryId: ticket.category_id }
+                });
+                if (categoryRes.data && categoryRes.data.length > 0) {
+                  const matchedCategory = categoryRes.data.find(cat => cat.category_id === ticket.category_id);
+                  if (matchedCategory) {
+                    const ticketWithCategory = {
+                      ...ticket,
+                      category: {
+                        ...matchedCategory,
+                        category_name: matchedCategory.category_name || matchedCategory.gpgt_category_name,
+                        video_wall: matchedCategory.video_wall || false,
+                        covered_seat: matchedCategory.covered_seat || false,
+                        numbered_seat: matchedCategory.numbered_seat || false,
+                        category_info: matchedCategory.category_info || '',
+                        ticket_delivery_days: matchedCategory.ticket_delivery_days || 0,
+                        ticket_image_1: matchedCategory.ticket_image_1 || '',
+                        ticket_image_2: matchedCategory.ticket_image_2 || ''
+                      }
+                    };
+                    setSelectedTicket(ticketWithCategory);
+                    setTicketQuantity(numberOfAdults);
+                  } else {
+                    setSelectedTicket(ticket);
+                    setTicketQuantity(numberOfAdults);
+                  }
+                } else {
+                  setSelectedTicket(ticket);
+                  setTicketQuantity(numberOfAdults);
+                }
+              } catch (error) {
+                setSelectedTicket(ticket);
+                setTicketQuantity(numberOfAdults);
+              }
             }
           }
         }
@@ -1208,110 +1270,131 @@ function ExternalPricing({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-fit text-xs bg-primary text-primary-foreground pointer-events-auto"
+                      className="w-fit text-xs bg-primary text-primary-foreground"
                     >
-                      More Ticket info
+                      More Ticket Info
                     </Button>
                   </DialogTrigger>
 
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="sm:max-w-6xl p-5 rounded-lg shadow-lg">
                     <DialogHeader>
-                      <DialogTitle className="mb-4 text-foreground">
+                      <DialogTitle className="mb-2 text-xl font-semibold text-foreground text-left">
                         {selectedTicket.ticket_name}
                       </DialogTitle>
                     </DialogHeader>
-                    <div className="text-sm text-muted-foreground mt-2 space-y-4">
-                      {/* Ticket Information */}
-                      <div className="space-y-2">
-                        <h3 className="font-semibold text-foreground">Ticket Information</h3>
-                        <div className="grid grid-cols-2 gap-2">
-                          <p className="font-medium text-foreground">Ticket Type:</p>
-                          <p>{selectedTicket.ticket_type}</p>
-                          <p className="font-medium text-foreground">Event Days:</p>
-                          <p>{selectedTicket.event_days}</p>
-                          <p className="font-medium text-foreground">Available:</p>
-                          <p>{selectedTicket.remaining === "purchased_to_order" ? "Purchased to Order" : `${selectedTicket.remaining} tickets left`}</p>
-                        </div>
-                      </div>
-
-                      {/* Category Information */}
-                      {selectedTicket.category && (
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-foreground">Category Information</h3>
-                          <div className="grid grid-cols-2 gap-2">
-                            <p className="font-medium text-foreground">Delivery Days:</p>
-                            <p>{selectedTicket.category.ticket_delivery_days} days</p>
-                          </div>
-
-                          {/* Category Features */}
-                          <div className="space-y-2">
-                            <p className="font-medium text-foreground">Features:</p>
-                            <div className="flex flex-wrap gap-2">
-                              <Badge 
-                                variant={selectedTicket.category.video_wall ? "default" : "outline"} 
-                                className={`flex items-center gap-1 ${selectedTicket.category.video_wall ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                              >
-                                <MonitorPlay className="h-3 w-3" />
-                                Video Wall
-                                {selectedTicket.category.video_wall && (
-                                  <CheckCircle className="h-3 w-3" />
-                                )}
-                              </Badge>
-                              <Badge 
-                                variant={selectedTicket.category.covered_seat ? "default" : "outline"} 
-                                className={`flex items-center gap-1 ${selectedTicket.category.covered_seat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                              >
-                                <Umbrella className="h-3 w-3" />
-                                Covered Seat
-                                {selectedTicket.category.covered_seat && (
-                                  <CheckCircle className="h-3 w-3" />
-                                )}
-                              </Badge>
-                              <Badge 
-                                variant={selectedTicket.category.numbered_seat ? "default" : "outline"} 
-                                className={`flex items-center gap-1 ${selectedTicket.category.numbered_seat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                              >
-                                <Hash className="h-3 w-3" />
-                                Numbered Seat
-                                {selectedTicket.category.numbered_seat && (
-                                  <CheckCircle className="h-3 w-3" />
-                                )}
-                              </Badge>
-                            </div>
-                          </div>
-
-                          {/* Additional Category Info */}
-                          {selectedTicket.category.category_info && (
-                            <div className="space-y-2">
-                              <p className="font-medium text-foreground">Additional Information:</p>
-                              <p className="text-sm">{selectedTicket.category.category_info}</p>
-                            </div>
-                          )}
-
-                          {/* Category Images */}
-                          {(selectedTicket.category.ticket_image_1 || selectedTicket.category.ticket_image_2) && (
-                            <div className="space-y-2">
-                              <p className="font-medium text-foreground">Ticket Images:</p>
-                              <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                      {/* Carousel Column */}
+                      {(selectedTicket.category?.ticket_image_1 || selectedTicket.category?.ticket_image_2) && (
+                        <div className="flex justify-center md:justify-start h-full">
+                          <div className="relative w-full max-w-xl rounded-md h-full">
+                            <Carousel className="w-full h-full rounded-md" setApi={api => {
+                              if (api) {
+                                api.on('select', () => setCarouselIndex(api.selectedScrollSnap()));
+                              }
+                            }}>
+                              <CarouselContent className="rounded-md h-100">
                                 {selectedTicket.category.ticket_image_1 && (
-                                  <img 
-                                    src={selectedTicket.category.ticket_image_1} 
-                                    alt="Ticket View 1" 
-                                    className="rounded-md w-full h-auto"
-                                  />
+                                  <CarouselItem>
+                                    <img
+                                      src={selectedTicket.category.ticket_image_1}
+                                      alt="Ticket View 1"
+                                      className="w-full h-full object-cover rounded-md"
+                                    />
+                                  </CarouselItem>
                                 )}
                                 {selectedTicket.category.ticket_image_2 && (
-                                  <img 
-                                    src={selectedTicket.category.ticket_image_2} 
-                                    alt="Ticket View 2" 
-                                    className="rounded-md w-full h-auto"
-                                  />
+                                  <CarouselItem>
+                                    <img
+                                      src={selectedTicket.category.ticket_image_2}
+                                      alt="Ticket View 2"
+                                      className="w-full h-full object-cover rounded-md"
+                                    />
+                                  </CarouselItem>
                                 )}
-                              </div>
-                            </div>
-                          )}
+                              </CarouselContent>
+                              <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 bg-background shadow rounded-full" />
+                              <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 bg-background shadow rounded-full" />
+                              {/* Image index indicator */}
+                              {(selectedTicket.category.ticket_image_1 && selectedTicket.category.ticket_image_2) && (
+                                <div className="absolute top-4 left-16 -translate-x-1/2 bg-primary font-bold text-primary-foreground text-xs px-3 py-1 rounded-md z-10">
+                                  Image {carouselIndex + 1} of 2
+                                </div>
+                              )}
+                            </Carousel>
+                          </div>
                         </div>
                       )}
+                      {/* Info Column */}
+                      <div className="space-y-4">
+                        {/* Ticket Information */}
+                        <div>
+                          <h3 className="font-semibold text-base text-primary mb-1 border-b border-muted pb-1 text-left">Ticket Information</h3>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            <p className="font-medium text-foreground">Ticket Type:</p>
+                            <p>{selectedTicket.ticket_type}</p>
+                            <p className="font-medium text-foreground">Event Days:</p>
+                            <p>{selectedTicket.event_days}</p>
+                            <p className="font-medium text-foreground">Available:</p>
+                            <p>{selectedTicket.remaining === "purchased_to_order" ? "Purchased to Order" : `${selectedTicket.remaining} tickets left`}</p>
+                          </div>
+                        </div>
+                        {/* Category Information */}
+                        {selectedTicket.category && (
+                          <div>
+                            <h3 className="font-semibold text-base text-primary mb-1 border-b border-muted pb-1 text-left">Category Information</h3>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                              <p className="font-medium text-foreground">Category Name:</p>
+                              <p>{selectedTicket.category.category_name}</p>
+                              <p className="font-medium text-foreground">Package Type:</p>
+                              <p>{selectedTicket.category.package_type}</p>
+                              <p className="font-medium text-foreground">Delivery Days:</p>
+                              <p>{selectedTicket.category.ticket_delivery_days} days</p>
+                            </div>
+                            {/* Additional Info */}
+                            {selectedTicket.category.category_info && (
+                              <div className="mt-6">
+                                <h4 className="font-medium text-foreground mb-1">Additional Information:</h4>
+                                <p className="text-sm text-muted-foreground">{selectedTicket.category.category_info}</p>
+                              </div>
+                            )}
+                            {/* Features */}
+                            <div className="mt-4">
+                              <div className="flex flex-wrap gap-1">
+                                <Badge 
+                                  variant={selectedTicket.category.video_wall ? "default" : "outline"} 
+                                  className={`flex items-center gap-1 px-2 py-0.5 text-xs ${selectedTicket.category.video_wall ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                                >
+                                  <MonitorPlay className="h-3 w-3" />
+                                  Video Wall
+                                  {selectedTicket.category.video_wall && (
+                                    <CheckCircle className="h-3 w-3" />
+                                  )}
+                                </Badge>
+                                <Badge 
+                                  variant={selectedTicket.category.covered_seat ? "default" : "outline"} 
+                                  className={`flex items-center gap-1 px-2 py-0.5 text-xs ${selectedTicket.category.covered_seat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                                >
+                                  <Umbrella className="h-3 w-3" />
+                                  Covered Seat
+                                  {selectedTicket.category.covered_seat && (
+                                    <CheckCircle className="h-3 w-3" />
+                                  )}
+                                </Badge>
+                                <Badge 
+                                  variant={selectedTicket.category.numbered_seat ? "default" : "outline"} 
+                                  className={`flex items-center gap-1 px-2 py-0.5 text-xs ${selectedTicket.category.numbered_seat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                                >
+                                  <Hash className="h-3 w-3" />
+                                  Numbered Seat
+                                  {selectedTicket.category.numbered_seat && (
+                                    <CheckCircle className="h-3 w-3" />
+                                  )}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -1645,8 +1728,6 @@ function ExternalPricing({
           )}
         </div>
       )}
-
-     
 
     </div>
   );

@@ -57,21 +57,32 @@ import {
 import api from "@/lib/api";
 import { Combobox } from "@/components/ui/combobox";
 
-export function VenuesTable() {
+export function VenuesTable({ 
+  onVenuesLoaded, 
+  editingVenue, 
+  setEditingVenue, 
+  isEditDialogOpen, 
+  setIsEditDialogOpen, 
+  isDeleting, 
+  venueToDelete, 
+  setVenueToDelete, 
+  showDeleteDialog, 
+  setShowDeleteDialog, 
+  onEditVenue,
+  isEditing,
+  openEditDialog,
+  isAddDialogOpen,
+  setIsAddDialogOpen,
+  newVenue,
+  setNewVenue
+}) {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
   const [searchQuery, setSearchQuery] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingVenue, setEditingVenue] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [venueToDelete, setVenueToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sorting options
   const sortColumns = [
@@ -91,7 +102,18 @@ export function VenuesTable() {
     longitude: "",
     venue_info: "",
   };
-  const [newVenue, setNewVenue] = useState(initialVenueState);
+
+  // Update form when newVenue changes
+  useEffect(() => {
+    if (newVenue && (newVenue.latitude || newVenue.longitude)) {
+      // Only update if we have coordinates from the map
+      setNewVenue(prev => ({
+        ...prev,  // Keep existing values including city and country
+        latitude: newVenue.latitude,
+        longitude: newVenue.longitude
+      }));
+    }
+  }, [newVenue?.latitude, newVenue?.longitude]); // Only depend on coordinates
 
   // Add field mappings at the top of the component
   const venueFieldMappings = {
@@ -128,6 +150,7 @@ export function VenuesTable() {
       setLoading(true);
       const response = await api.get("/venues");
       setVenues(response.data);
+      onVenuesLoaded?.(response.data);
       setError(null);
     } catch (err) {
       setError("Failed to fetch venues");
@@ -207,9 +230,8 @@ export function VenuesTable() {
     }
   };
 
-  const openEditDialog = (venue) => {
-    setEditingVenue({ ...venue });
-    setIsEditDialogOpen(true);
+  const handleEditClick = (venue) => {
+    openEditDialog(venue);
   };
 
   const handleDeleteClick = (venue) => {
@@ -399,7 +421,7 @@ export function VenuesTable() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => openEditDialog(venue)}
+                        onClick={() => handleEditClick(venue)}
                         className="h-7 w-7"
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -471,7 +493,12 @@ export function VenuesTable() {
       )}
 
       {/* Add Venue Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+        setIsAddDialogOpen(open);
+        if (!open) {
+          setNewVenue(initialVenueState);
+        }
+      }}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Venue</DialogTitle>
@@ -488,9 +515,9 @@ export function VenuesTable() {
                   <Label htmlFor="venue_name">Venue Name</Label>
                   <Input
                     id="venue_name"
-                    value={newVenue.venue_name}
+                    value={newVenue?.venue_name || ""}
                     onChange={(e) =>
-                      setNewVenue({ ...newVenue, venue_name: e.target.value })
+                      setNewVenue(prev => ({ ...prev, venue_name: e.target.value }))
                     }
                     placeholder="e.g., Albert Park Circuit"
                   />
@@ -500,9 +527,9 @@ export function VenuesTable() {
                     <Label htmlFor="city">City</Label>
                     <Input
                       id="city"
-                      value={newVenue.city}
+                      value={newVenue?.city || ""}
                       onChange={(e) =>
-                        setNewVenue({ ...newVenue, city: e.target.value })
+                        setNewVenue(prev => ({ ...prev, city: e.target.value }))
                       }
                       placeholder="e.g., Melbourne"
                     />
@@ -511,9 +538,9 @@ export function VenuesTable() {
                     <Label htmlFor="country">Country</Label>
                     <Input
                       id="country"
-                      value={newVenue.country}
+                      value={newVenue?.country || ""}
                       onChange={(e) =>
-                        setNewVenue({ ...newVenue, country: e.target.value })
+                        setNewVenue(prev => ({ ...prev, country: e.target.value }))
                       }
                       placeholder="e.g., Australia"
                     />
@@ -532,11 +559,12 @@ export function VenuesTable() {
                     id="latitude"
                     type="number"
                     step="any"
-                    value={newVenue.latitude}
+                    value={newVenue?.latitude || ""}
                     onChange={(e) =>
-                      setNewVenue({ ...newVenue, latitude: e.target.value })
+                      setNewVenue(prev => ({ ...prev, latitude: e.target.value }))
                     }
                     placeholder="e.g., -37.8497"
+                    readOnly={!!newVenue?.latitude}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -545,11 +573,12 @@ export function VenuesTable() {
                     id="longitude"
                     type="number"
                     step="any"
-                    value={newVenue.longitude}
+                    value={newVenue?.longitude || ""}
                     onChange={(e) =>
-                      setNewVenue({ ...newVenue, longitude: e.target.value })
+                      setNewVenue(prev => ({ ...prev, longitude: e.target.value }))
                     }
                     placeholder="e.g., 144.968"
+                    readOnly={!!newVenue?.longitude}
                   />
                 </div>
               </div>
@@ -562,9 +591,9 @@ export function VenuesTable() {
                 <Label htmlFor="venue_info">Venue Info</Label>
                 <Textarea
                   id="venue_info"
-                  value={newVenue.venue_info}
+                  value={newVenue?.venue_info || ""}
                   onChange={(e) =>
-                    setNewVenue({ ...newVenue, venue_info: e.target.value })
+                    setNewVenue(prev => ({ ...prev, venue_info: e.target.value }))
                   }
                   placeholder="Enter any additional information about the venue..."
                   className="min-h-[100px]"
@@ -575,7 +604,10 @@ export function VenuesTable() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsAddDialogOpen(false)}
+              onClick={() => {
+                setIsAddDialogOpen(false);
+                setNewVenue(initialVenueState);
+              }}
               disabled={isAdding}
             >
               Cancel
@@ -722,7 +754,7 @@ export function VenuesTable() {
             >
               Cancel
             </Button>
-            <Button onClick={handleEditVenue} disabled={isEditing}>
+            <Button onClick={() => onEditVenue(editingVenue)} disabled={isEditing}>
               {isEditing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

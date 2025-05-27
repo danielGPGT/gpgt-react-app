@@ -2,7 +2,7 @@ import axios from 'axios';
 import { GoogleGenAI } from "@google/genai";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://gpgt-api.onrender.com/api/v1/' || 'http://localhost:3000/api/v1/',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1/' || 'https://gpgt-api.onrender.com/api/v1/',
   withCredentials: true // allow cookies (useful later if you want secure auth)
 });
 
@@ -69,27 +69,53 @@ export const generateItinerary = async (bookingData) => {
       throw new Error('Gemini API key is not configured');
     }
 
-    const prompt = `Create a detailed day-by-day itinerary for a Grand Prix event, don't include any unnecessary information. Format the response in a clear, structured way with the following guidelines:
+    const prompt = `
+You are an expert travel planner. Create a **day-by-day itinerary** for a Grand Prix weekend based on the booking details provided. Your goal is to make the itinerary **clear, simple, and fully detailed**, including only **essential information** — nothing extra or promotional.
 
-1. Start each day with "Day X - [Day of Week] - [Day Title]" on a new line
-2. List each activity with its time in 24-hour format (HH:MM)
-3. Use the hotel name "${bookingData.hotel_name}" when first mentioning the hotel
-4. Include flight information with:
-   - Full airport names (e.g., "London Heathrow Airport" not just "Heathrow")
-   - Departure and arrival times
-   - Flight number (only if provided in the booking)
-   Outbound: ${bookingData.flight_outbound}
-   Inbound: ${bookingData.flight_inbound}
-5. Include all important timings for:
-   - Hotel check-in/out
-   - Circuit transfers: Use "${bookingData.circuit_transfer_type.replace(/\(.*?\)/g, '').trim()}"
-   - Airport transfers
-   - Flight times
-   - Event sessions
-   - Breakfast only, dont include lunch or dinner
-6. Add any important notes or reminders after the relevant activity
-7. Use clear, concise language
-8. Separate each day with a blank line
+**Formatting Guidelines:**
+1. Each day should begin with the line:  
+   **"Day X - [Day of Week] - [Title of the Day]"**  
+   e.g., "Day 1 - Friday - Arrival & Practice"
+
+2. List each activity on a **new line**, using this structure:  
+   **HH:MM - [Activity Title]**  
+   e.g., "14:30 - Transfer to circuit"
+
+3. Use **24-hour time format (HH:MM)**. Always maintain chronological order.
+
+4. Use the full hotel name **"${bookingData.hotel_name}"** the first time it is mentioned. After that, you can refer to it simply as "the hotel".
+
+5. Include **flight details** using this format:
+   - **Full airport names** (e.g., "London Heathrow Airport" not just "Heathrow")
+   - Include both **departure** and **arrival** times
+   - Mention the **flight number**, only if it's provided
+   - Clearly label each as either **Outbound** or **Inbound**
+   Example:
+08:10 - Flight Outbound: London Heathrow Airport to Milan Malpensa Airport
+Flight number: BA123
+Arrival at 11:30
+
+6. Include **all relevant timings** for:
+- Hotel **check-in** and **check-out**
+- **Airport transfers**
+- **Circuit transfers**, labeled using: "${bookingData.circuit_transfer_type.replace(/\(.*?\)/g, '').trim()}"
+- **Formula 1 sessions**: Practice, Qualifying, Race
+- **Breakfast** (Only breakfast. Do not mention lunch or dinner.)
+
+7. After any activity that has additional requirements, include short **notes/reminders**, e.g.:  
+"Note: Please bring your race ticket and wear comfortable shoes."
+
+8. Maintain a **clean, professional tone** using **clear and concise** language. Avoid all filler or promotional content.
+
+9. **Separate each day** with a **single blank line**.
+
+**Booking Data Provided:**
+- Hotel: ${bookingData.hotel_name}
+- Flight Outbound: ${bookingData.flight_outbound}
+- Flight Inbound: ${bookingData.flight_inbound}
+- Circuit Transfer Type: ${bookingData.circuit_transfer_type.replace(/\(.*?\)/g, '').trim()}
+
+Create the final itinerary below:
 
 Booking Details:
 Event: ${bookingData.event_name}
