@@ -64,6 +64,7 @@ export function VenuesTable({
   isEditDialogOpen, 
   setIsEditDialogOpen, 
   isDeleting, 
+  setIsDeleting,
   venueToDelete, 
   setVenueToDelete, 
   showDeleteDialog, 

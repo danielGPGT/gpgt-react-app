@@ -150,6 +150,7 @@ function VenuesPage() {
               isEditDialogOpen={isEditDialogOpen}
               setIsEditDialogOpen={setIsEditDialogOpen}
               isDeleting={isDeleting}
+              setIsDeleting={setIsDeleting}
               venueToDelete={venueToDelete}
               setVenueToDelete={setVenueToDelete}
               showDeleteDialog={showDeleteDialog}

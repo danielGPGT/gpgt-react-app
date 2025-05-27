@@ -130,14 +130,26 @@ const VenuesMap = ({
     }
   }, [mode]);
 
-  const createCustomMarker = () => {
+  const createCustomMarker = (venue) => {
     const el = document.createElement('div');
     el.className = 'custom-marker';
+    
     // Get the computed primary color from the root element
     const root = document.documentElement;
     const primaryColor = getComputedStyle(root).getPropertyValue('--primary').trim();
+    const primaryForeground = getComputedStyle(root).getPropertyValue('--primary-foreground').trim();
     el.style.backgroundColor = primaryColor;
-    el.style.borderColor = getComputedStyle(root).getPropertyValue('--primary-foreground').trim();
+    el.style.borderColor = primaryForeground;
+
+    // If venue has an icon, create an inner div for the icon
+    if (venue?.venue_icon) {
+      const iconContainer = document.createElement('div');
+      iconContainer.className = 'venue-icon-container';
+      iconContainer.innerHTML = venue.venue_icon;
+      iconContainer.style.color = primaryForeground; // Set icon color to primary foreground
+      el.appendChild(iconContainer);
+    }
+
     return el;
   };
 
@@ -163,7 +175,7 @@ const VenuesMap = ({
       console.log('Creating marker for venue:', venue);
       // Create a marker with custom element
       const marker = new mapboxgl.Marker({
-        element: createCustomMarker(),
+        element: createCustomMarker(venue),
         draggable: true
       })
         .setLngLat([venue.longitude, venue.latitude])
@@ -753,11 +765,30 @@ const VenuesMap = ({
           cursor: pointer;
         }
         .custom-marker {
-          width: 20px;
-          height: 20px;
+          width: 30px;
+          height: 30px;
           border-radius: 50%;
           border: 2px solid;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+        .custom-marker:hover {
+          box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .venue-icon-container {
+          width: 22px;
+          height: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .venue-icon-container svg {
+          width: 100%;
+          height: 100%;
+          fill: currentColor;
         }
       `}</style>
     </div>
