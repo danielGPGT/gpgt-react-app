@@ -83,6 +83,8 @@ function HotelsTable() {
   // Form state
   const initialHotelState = {
     event_name: "",
+    package_id: "",
+    hotel_id: "",
     hotel_name: "",
     stars: "5",
     package_type: "",
@@ -90,6 +92,14 @@ function HotelsTable() {
     longitude: "",
     latitude: "",
     images: "",
+    city_tax_type: "",
+    city_tax_value: "",
+    city_tax_amount: "",
+    vat_type: "",
+    vat_amount: "",
+    commission: "",
+    resort_fee: "",
+    other_rates: ""
   };
 
   const [formData, setFormData] = useState(initialHotelState);
@@ -136,10 +146,21 @@ function HotelsTable() {
   );
   const eventOptions = useMemo(() => events, [events]);
 
+  // Tax type options for dropdowns
+  const cityTaxTypeOptions = [
+    { value: 'per_room', label: 'Per Room' },
+    { value: 'per_night', label: 'Per Night' },
+    { value: 'per_person', label: 'Per Person' },
+    { value: 'per_room_per_night', label: 'Per Room Per Night' },
+    { value: 'per_person_per_night', label: 'Per Person Per Night' },
+    { value: 'per_person_per_room', label: 'Per Person Per Room' },
+    { value: 'per_person_per_room_per_night', label: 'Per Person Per Room Per Night' },
+  ];
+
   const fetchInitialData = async () => {
     try {
       const [hotelsRes, packagesRes, eventsRes] = await Promise.all([
-        api.get("hotels"),
+        api.get("copy of hotels"),
         api.get("packages"),
         api.get("event"),
       ]);
@@ -260,20 +281,28 @@ function HotelsTable() {
   const handleAddHotel = async (formData) => {
     try {
       setIsAdding(true);
-      const hotelData = [
-        formData.event_name,
-        "",
-        "",
-        formData.hotel_name,
-        parseInt(formData.stars),
-        formData.package_type,
-        formData.hotel_info,
-        formData.longitude,
-        formData.latitude,
-        formData.images,
-      ];
+      const hotelData = {
+        event_name: formData.event_name,
+        package_id: formData.package_id || "",
+        hotel_id: formData.hotel_id || "",
+        hotel_name: formData.hotel_name,
+        stars: parseInt(formData.stars),
+        package_type: formData.package_type,
+        city_tax_type: formData.city_tax_type,
+        city_tax_value: formData.city_tax_value,
+        city_tax_amount: parseFloat(formData.city_tax_amount),
+        vat_type: formData.vat_type,
+        vat_amount: parseFloat(formData.vat_amount),
+        commission: parseFloat(formData.commission),
+        resort_fee: parseFloat(formData.resort_fee),
+        other_rates: formData.other_rates,
+        latitude: parseFloat(formData.latitude),
+        longitude: parseFloat(formData.longitude),
+        hotel_info: formData.hotel_info,
+        images: formData.images
+      };
 
-      await api.post("hotels", hotelData);
+      await api.post("copy of hotels", hotelData);
       toast.success("Hotel added successfully!");
       fetchInitialData();
     } catch (error) {
@@ -618,6 +647,125 @@ function HotelsTable() {
             </div>
           </div>
 
+          {/* Tax and Fees Information */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city_tax_type">City Tax Type</Label>
+                <Select
+                  value={formData.city_tax_type}
+                  onValueChange={(value) => handleFieldChange("city_tax_type", value)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select tax type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cityTaxTypeOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city_tax_value">City Tax Value Type</Label>
+                <Select
+                  value={formData.city_tax_value}
+                  onValueChange={(value) => handleFieldChange("city_tax_value", value)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select value type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city_tax_amount">City Tax Amount</Label>
+                <Input
+                  id="city_tax_amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.city_tax_amount}
+                  onChange={(e) => handleFieldChange("city_tax_amount", e.target.value)}
+                  placeholder="Enter tax amount"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vat_type">VAT Type</Label>
+                <Select
+                  value={formData.vat_type}
+                  onValueChange={(value) => handleFieldChange("vat_type", value)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select VAT type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="vat_amount">VAT Amount</Label>
+                <Input
+                  id="vat_amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.vat_amount}
+                  onChange={(e) => handleFieldChange("vat_amount", e.target.value)}
+                  placeholder="Enter VAT amount"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="commission">Commission</Label>
+                <Input
+                  id="commission"
+                  type="number"
+                  step="0.01"
+                  value={formData.commission}
+                  onChange={(e) => handleFieldChange("commission", e.target.value)}
+                  placeholder="Enter commission"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="resort_fee">Resort Fee (per night)</Label>
+                <Input
+                  id="resort_fee"
+                  type="number"
+                  step="0.01"
+                  value={formData.resort_fee}
+                  onChange={(e) => handleFieldChange("resort_fee", e.target.value)}
+                  placeholder="Enter resort fee"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="other_rates">Other Rates</Label>
+                <Input
+                  id="other_rates"
+                  value={formData.other_rates}
+                  onChange={(e) => handleFieldChange("other_rates", e.target.value)}
+                  placeholder="Enter other rates"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Form Actions */}
           <div className="flex justify-end gap-4">
             <Button
@@ -926,6 +1074,125 @@ function HotelsTable() {
             </div>
           </div>
 
+          {/* Tax and Fees Information */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city_tax_type">City Tax Type</Label>
+                <Select
+                  value={formData.city_tax_type}
+                  onValueChange={(value) => handleFieldChange("city_tax_type", value)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select tax type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cityTaxTypeOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city_tax_value">City Tax Value Type</Label>
+                <Select
+                  value={formData.city_tax_value}
+                  onValueChange={(value) => handleFieldChange("city_tax_value", value)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select value type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city_tax_amount">City Tax Amount</Label>
+                <Input
+                  id="city_tax_amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.city_tax_amount}
+                  onChange={(e) => handleFieldChange("city_tax_amount", e.target.value)}
+                  placeholder="Enter tax amount"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vat_type">VAT Type</Label>
+                <Select
+                  value={formData.vat_type}
+                  onValueChange={(value) => handleFieldChange("vat_type", value)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select VAT type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="vat_amount">VAT Amount</Label>
+                <Input
+                  id="vat_amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.vat_amount}
+                  onChange={(e) => handleFieldChange("vat_amount", e.target.value)}
+                  placeholder="Enter VAT amount"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="commission">Commission</Label>
+                <Input
+                  id="commission"
+                  type="number"
+                  step="0.01"
+                  value={formData.commission}
+                  onChange={(e) => handleFieldChange("commission", e.target.value)}
+                  placeholder="Enter commission"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="resort_fee">Resort Fee (per night)</Label>
+                <Input
+                  id="resort_fee"
+                  type="number"
+                  step="0.01"
+                  value={formData.resort_fee}
+                  onChange={(e) => handleFieldChange("resort_fee", e.target.value)}
+                  placeholder="Enter resort fee"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="other_rates">Other Rates</Label>
+                <Input
+                  id="other_rates"
+                  value={formData.other_rates}
+                  onChange={(e) => handleFieldChange("other_rates", e.target.value)}
+                  placeholder="Enter other rates"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Form Actions */}
           <div className="flex justify-end gap-4">
             <Button
@@ -1145,6 +1412,28 @@ function HotelsTable() {
     setIsEditDialogOpen(true);
   };
 
+  const formatDisplayValue = (value, type) => {
+    if (type === 'tax_type') {
+      switch (value) {
+        case 'per_room': return 'Per Room';
+        case 'per_night': return 'Per Night';
+        case 'per_person': return 'Per Person';
+        case 'per_room_per_night': return 'Per Room, Per Night';
+        case 'per_person_per_night': return 'Per Person, Per Night';
+        case 'per_person_per_room': return 'Per Person, Per Room';
+        case 'per_person_per_room_per_night': return 'Per Person, Per Room, Per Night';
+        default: return value;
+      }
+    }
+    if (type === 'tax_value') {
+      return value === 'percentage' ? 'Percentage' : 'Fixed Amount';
+    }
+    if (type === 'vat_type') {
+      return value === 'percentage' ? 'Percentage' : 'Fixed Amount';
+    }
+    return value;
+  };
+
   if (loading) {
     return (
       <div className="text-center text-muted-foreground">Loading hotels...</div>
@@ -1308,6 +1597,9 @@ function HotelsTable() {
               <TableHead className="text-xs py-2">Hotel Name</TableHead>
               <TableHead className="text-xs py-2">Rating</TableHead>
               <TableHead className="text-xs py-2">Package Type</TableHead>
+              <TableHead className="text-xs py-2">City Tax</TableHead>
+              <TableHead className="text-xs py-2">VAT</TableHead>
+              <TableHead className="text-xs py-2">Resort Fee</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -1322,6 +1614,15 @@ function HotelsTable() {
                   </div>
                 </TableCell>
                 <TableCell className="text-xs py-1.5">{item.package_type}</TableCell>
+                <TableCell className="text-xs py-1.5">
+                  {item.city_tax_amount}% ({formatDisplayValue(item.city_tax_type, 'tax_type')})
+                </TableCell>
+                <TableCell className="text-xs py-1.5">
+                  {item.vat_amount}% ({formatDisplayValue(item.vat_type, 'vat_type')})
+                </TableCell>
+                <TableCell className="text-xs py-1.5">
+                  ${item.resort_fee} (per night)
+                </TableCell>
                 <TableCell className="text-xs py-1.5">
                   <div className="flex gap-1">
                     <Button

@@ -117,7 +117,7 @@ function RoomsTable() {
   const fetchInitialData = async () => {
     try {
       const [roomsRes, hotelsRes] = await Promise.all([
-        api.get("Stock%20-%20rooms"),
+        api.get("copy of stock - rooms"),
         api.get("hotels"),
       ]);
 
@@ -210,7 +210,7 @@ function RoomsTable() {
         remaining: newRoom.booked - newRoom.used,
       };
 
-      await api.post("Stock%20-%20rooms", roomData);
+      await api.post("copy of stock - rooms", roomData);
       toast.success("Room added successfully");
       setIsAddDialogOpen(false);
       fetchInitialData();
@@ -228,7 +228,7 @@ function RoomsTable() {
         remaining: editingRoom.booked - editingRoom.used,
       };
 
-      await api.put(`Stock%20-%20rooms/${editingRoom.room_id}`, roomData);
+      await api.put(`copy of stock - rooms/${editingRoom.room_id}`, roomData);
       toast.success("Room updated successfully");
       setIsEditDialogOpen(false);
       setEditingRoom(null);
@@ -241,7 +241,7 @@ function RoomsTable() {
 
   const handleDeleteRoom = async (roomId) => {
     try {
-      await api.delete(`Stock%20-%20rooms/${roomId}`);
+      await api.delete(`copy of stock - rooms/${roomId}`);
       toast.success("Room deleted successfully");
       fetchInitialData();
     } catch (error) {
@@ -644,8 +644,9 @@ function RoomsTable() {
               <TableHead className="text-xs py-2">Booked</TableHead>
               <TableHead className="text-xs py-2">Used</TableHead>
               <TableHead className="text-xs py-2">Remaining</TableHead>
-              <TableHead className="text-xs py-2">Price/Night</TableHead>
+              <TableHead className="text-xs py-2">Price per Night (GBP)</TableHead>
               <TableHead className="text-xs py-2">Nights</TableHead>
+              <TableHead className="text-xs py-2">Breakfast Included</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -670,6 +671,7 @@ function RoomsTable() {
                 </TableCell>
                 <TableCell className="text-xs py-1.5">£{item["price_per_night_(gbp)"]}</TableCell>
                 <TableCell className="text-xs py-1.5">{item.nights}</TableCell>
+                <TableCell className="text-xs py-1.5">{item.breakfast_included ? "Yes" : "No"}</TableCell>
                 <TableCell className="text-xs py-1.5">
                   <div className="flex gap-1">
                     <Button
