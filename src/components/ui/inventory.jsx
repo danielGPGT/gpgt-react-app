@@ -1,7 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketTable } from "@/components/ui/ticketTable";
-import { RoomsTable } from "@/components/ui/roomsTable";
-import { HotelsTable } from "@/components/ui/hotelsTable";
+import HotelsWithRooms from "@/components/ui/HotelsWithRooms";
 import { LoungePassTable } from "@/components/ui/LoungePassTable";
 import { AirportTransferTable } from "@/components/ui/airportTransferTable";
 import {
@@ -24,11 +23,7 @@ function Inventory({ defaultTab = "tickets", onTabChange }) {
           </TabsTrigger>
           <TabsTrigger value="hotels" className="flex items-center gap-2">
             <Hotel className="h-4 w-4" />
-            Hotels
-          </TabsTrigger>
-          <TabsTrigger value="rooms" className="flex items-center gap-2">
-            <Bed className="h-4 w-4" />
-            Rooms
+            Hotels & Rooms
           </TabsTrigger>
           <TabsTrigger value="circuits" className="flex items-center gap-2">
             <Bus className="h-4 w-4" />
@@ -49,11 +44,7 @@ function Inventory({ defaultTab = "tickets", onTabChange }) {
         </TabsContent>
 
         <TabsContent value="hotels" className="mt-6">
-          <HotelsTable />
-        </TabsContent>
-
-        <TabsContent value="rooms" className="mt-6">
-          <RoomsTable />
+          <HotelsWithRooms />
         </TabsContent>
 
         <TabsContent value="circuits" className="mt-6">
