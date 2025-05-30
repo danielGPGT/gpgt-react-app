@@ -298,9 +298,11 @@ export const fetchVenueInfo = async (venueName) => {
     }
 
     const prompt = `
-You are a sports venue information expert, specializing in Formula 1 circuits and major sports venues. For the venue "${venueName}", provide the following information in JSON format:
+You are a motorsport venue information expert, specializing in Formula 1 and MotoGP circuits worldwide. Your primary focus is to provide precise and authoritative information about Formula 1 and MotoGP venues, including their exact coordinates, city, and country. If the venue is not related to Formula 1 or MotoGP, provide information for other major sports venues as a secondary priority.
+
+For the venue "${venueName}", provide the following information in JSON format:
 {
-  "venue_info": "A brief description of the venue (2-3 sentences), focusing on its role in Formula 1 or other major sports",
+  "venue_info": "A brief description of the venue (2-3 sentences), focusing on its role in Formula 1, MotoGP, or other major sports",
   "latitude": "The venue's EXACT latitude coordinate (must be a number between -90 and 90, with 8 decimal places precision)",
   "longitude": "The venue's EXACT longitude coordinate (must be a number between -180 and 180, with 8 decimal places precision)",
   "city": "The city where the venue is located",
@@ -308,15 +310,17 @@ You are a sports venue information expert, specializing in Formula 1 circuits an
 }
 
 CRITICAL REQUIREMENTS FOR COORDINATES:
-1. For Formula 1 circuits and Monaco venues:
-   - Circuit de Monaco (Monaco GP): (43.73944444, 7.42722222)
+1. For Formula 1 and MotoGP circuits:
+   - Always provide the most precise coordinates (main grandstand, pit building, or start/finish line)
+   - Example: Circuit de Monaco (Monaco GP): (43.73944444, 7.42722222)
    - Example: Circuit Paul Ricard: (43.25083333, 5.84500000)
    - Example: Silverstone Circuit: (52.07888889, -1.01694444)
-   - Example: Monza Circuit: (45.61888889, 9.29111111)
+   - Example: Mugello Circuit (MotoGP): (43.99750000, 11.37138889)
+   - Example: Sepang International Circuit (MotoGP): (2.76083333, 101.73861111)
 
 2. For tennis venues and other sports venues:
+   - Monte-Carlo Country Club (Roquebrune-Cap-Martin, France): (43.75221936, 7.44113061)
    - Roland Garros (Paris, France): (48.84694444, 2.24777778)
-   - Wimbledon (London, UK): (51.43416667, -0.21416667)
    - Wembley Stadium (London, UK): (51.55611111, -0.27944444)
    - Madison Square Garden (New York, USA): (40.75055556, -73.99361111)
 
@@ -326,27 +330,27 @@ CRITICAL REQUIREMENTS FOR COORDINATES:
    - Longitude must be between -180 and 180 degrees
    - DO NOT approximate or round coordinates
    - If you cannot find the exact coordinates with 8 decimal places precision, return null for both latitude and longitude
-   - For venues near borders (like Monte-Carlo Country Club), be especially careful with city and country information
+   - For venues near borders, be especially careful with city and country information
 
 VENUE INFORMATION GUIDELINES:
-1. For Formula 1 circuits:
-   - Include Formula 1 specific details
-   - Mention circuit length and notable features
-   - Include information about the Grand Prix event
-   - Focus on racing history and significance
+1. For Formula 1 and MotoGP circuits:
+   - Focus on the circuit's role in Formula 1 or MotoGP
+   - Mention circuit length, notable features, and racing history
+   - Include information about the Grand Prix or MotoGP event
+   - Provide details about the circuit's significance in motorsport
 
 2. For tennis venues:
-   - Monte-Carlo Country Club (Roquebrune-Cap-Martin, France): (43.752219361313024, 7.441130608503272)
    - Focus on tennis-specific details
    - Mention the tournaments hosted (e.g., Monte-Carlo Masters for Monte-Carlo Country Club)
    - Include information about the venue's history and significance in tennis
-   - For venues near Formula 1 circuits (like Monte-Carlo Country Club), mention their proximity but focus on their primary sport
+   - For venues near Formula 1 or MotoGP circuits, mention their proximity but focus on their primary sport
 
 3. For other sports venues:
+   - Only provide information if the venue is internationally significant
    - Focus on the primary sport(s) hosted
    - Include capacity and main features
    - Mention notable events and history
-   - Include any Formula 1 or motorsport events if applicable
+   - Include any Formula 1, MotoGP, or motorsport events if applicable
 
 4. For city and country:
    - Use official names
