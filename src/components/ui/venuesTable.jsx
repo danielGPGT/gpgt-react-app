@@ -1,5 +1,15 @@
 import { useEffect, useState, useMemo } from "react";
-import { MapPin, Plus, Trash2, Search, Filter, Pencil, Loader2, ChevronDown } from "lucide-react";
+import {
+  MapPin,
+  Plus,
+  Trash2,
+  Search,
+  Filter,
+  Pencil,
+  Loader2,
+  ChevronDown,
+  Sparkles,
+} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -56,26 +66,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import api from "@/lib/api";
 import { Combobox } from "@/components/ui/combobox";
+import { fetchVenueInfo } from "@/lib/api";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-export function VenuesTable({ 
-  onVenuesLoaded, 
-  editingVenue, 
-  setEditingVenue, 
-  isEditDialogOpen, 
-  setIsEditDialogOpen, 
-  isDeleting, 
+export function VenuesTable({
+  onVenuesLoaded,
+  editingVenue,
+  setEditingVenue,
+  isEditDialogOpen,
+  setIsEditDialogOpen,
+  isDeleting,
   setIsDeleting,
-  venueToDelete, 
-  setVenueToDelete, 
-  showDeleteDialog, 
-  setShowDeleteDialog, 
+  venueToDelete,
+  setVenueToDelete,
+  showDeleteDialog,
+  setShowDeleteDialog,
   onEditVenue,
   isEditing,
   openEditDialog,
   isAddDialogOpen,
   setIsAddDialogOpen,
   newVenue,
-  setNewVenue
+  setNewVenue,
 }) {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +96,8 @@ export function VenuesTable({
   const itemsPerPage = 15;
   const [searchQuery, setSearchQuery] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [isFetchingAI, setIsFetchingAI] = useState(false);
+  const [isFetchingEditAI, setIsFetchingEditAI] = useState(false);
 
   // Sorting options
   const sortColumns = [
@@ -108,10 +122,10 @@ export function VenuesTable({
   useEffect(() => {
     if (newVenue && (newVenue.latitude || newVenue.longitude)) {
       // Only update if we have coordinates from the map
-      setNewVenue(prev => ({
-        ...prev,  // Keep existing values including city and country
+      setNewVenue((prev) => ({
+        ...prev, // Keep existing values including city and country
         latitude: newVenue.latitude,
-        longitude: newVenue.longitude
+        longitude: newVenue.longitude,
       }));
     }
   }, [newVenue?.latitude, newVenue?.longitude]); // Only depend on coordinates
@@ -124,7 +138,7 @@ export function VenuesTable({
     country: "Country",
     latitude: "Latitude",
     longitude: "Longitude",
-    venue_info: "Venue Info"
+    venue_info: "Venue Info",
   };
 
   // Add new state for filters
@@ -179,11 +193,14 @@ export function VenuesTable({
   const handleEditVenue = async () => {
     try {
       setIsEditing(true);
-      
+
       // Compare with original venue to find changed fields
       const changedFields = {};
       Object.keys(editingVenue).forEach((key) => {
-        if (editingVenue[key] !== venues.find(v => v.venue_id === editingVenue.venue_id)?.[key]) {
+        if (
+          editingVenue[key] !==
+          venues.find((v) => v.venue_id === editingVenue.venue_id)?.[key]
+        ) {
           changedFields[key] = editingVenue[key];
         }
       });
@@ -199,7 +216,7 @@ export function VenuesTable({
       for (const [field, value] of Object.entries(changedFields)) {
         await api.put(`/venues/Venue ID/${editingVenue.venue_id}`, {
           column: venueFieldMappings[field],
-          value: value
+          value: value,
         });
       }
 
@@ -275,7 +292,14 @@ export function VenuesTable({
     });
 
     return result;
-  }, [venues, searchQuery, countryFilter, cityFilter, sortColumn, sortDirection]);
+  }, [
+    venues,
+    searchQuery,
+    countryFilter,
+    cityFilter,
+    sortColumn,
+    sortDirection,
+  ]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -305,7 +329,10 @@ export function VenuesTable({
           <Combobox
             options={[
               { value: "all", label: "All Countries" },
-              ...countryOptions.map((country) => ({ value: country, label: country })),
+              ...countryOptions.map((country) => ({
+                value: country,
+                label: country,
+              })),
             ]}
             value={countryFilter}
             onChange={setCountryFilter}
@@ -326,7 +353,11 @@ export function VenuesTable({
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="default" size="sm" className="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                className="flex items-center gap-2"
+              >
                 Sort <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -337,9 +368,7 @@ export function VenuesTable({
                   key={col.value}
                   onClick={() => setSortColumn(col.value)}
                   className={
-                    sortColumn === col.value
-                      ? "font-semibold text-primary"
-                      : ""
+                    sortColumn === col.value ? "font-semibold text-primary" : ""
                   }
                 >
                   {col.label} {sortColumn === col.value && "✓"}
@@ -350,9 +379,7 @@ export function VenuesTable({
               <DropdownMenuItem
                 onClick={() => setSortDirection("asc")}
                 className={
-                  sortDirection === "asc"
-                    ? "font-semibold text-primary"
-                    : ""
+                  sortDirection === "asc" ? "font-semibold text-primary" : ""
                 }
               >
                 Ascending {sortDirection === "asc" && "▲"}
@@ -360,9 +387,7 @@ export function VenuesTable({
               <DropdownMenuItem
                 onClick={() => setSortDirection("desc")}
                 className={
-                  sortDirection === "desc"
-                    ? "font-semibold text-primary"
-                    : ""
+                  sortDirection === "desc" ? "font-semibold text-primary" : ""
                 }
               >
                 Descending {sortDirection === "desc" && "▼"}
@@ -402,15 +427,22 @@ export function VenuesTable({
             ) : currentItems.length > 0 ? (
               currentItems.map((venue) => (
                 <TableRow key={venue.venue_id}>
-                  <TableCell className="text-xs py-1.5">{venue.venue_name}</TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {venue.venue_name}
+                  </TableCell>
                   <TableCell className="text-xs py-1.5">{venue.city}</TableCell>
-                  <TableCell className="text-xs py-1.5">{venue.country}</TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {venue.country}
+                  </TableCell>
                   <TableCell className="text-xs py-1.5">
                     {venue.latitude}, {venue.longitude}
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
                     {venue.venue_info ? (
-                      <div className="max-w-[200px] truncate" title={venue.venue_info}>
+                      <div
+                        className="max-w-[200px] truncate"
+                        title={venue.venue_info}
+                      >
                         {venue.venue_info}
                       </div>
                     ) : (
@@ -466,20 +498,24 @@ export function VenuesTable({
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
                   disabled={currentPage === 1}
                 />
               </PaginationItem>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <PaginationItem key={page}>
-                  <PaginationLink
-                    onClick={() => setCurrentPage(page)}
-                    isActive={currentPage === page}
-                  >
-                    {page}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page)}
+                      isActive={currentPage === page}
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
               <PaginationItem>
                 <PaginationNext
                   onClick={() =>
@@ -494,12 +530,15 @@ export function VenuesTable({
       )}
 
       {/* Add Venue Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-        setIsAddDialogOpen(open);
-        if (!open) {
-          setNewVenue(initialVenueState);
-        }
-      }}>
+      <Dialog
+        open={isAddDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) {
+            setNewVenue(initialVenueState);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Venue</DialogTitle>
@@ -514,14 +553,75 @@ export function VenuesTable({
               <div className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="venue_name">Venue Name</Label>
-                  <Input
-                    id="venue_name"
-                    value={newVenue?.venue_name || ""}
-                    onChange={(e) =>
-                      setNewVenue(prev => ({ ...prev, venue_name: e.target.value }))
-                    }
-                    placeholder="e.g., Albert Park Circuit"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="venue_name"
+                      value={newVenue?.venue_name || ""}
+                      onChange={(e) =>
+                        setNewVenue((prev) => ({
+                          ...prev,
+                          venue_name: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Albert Park Circuit"
+                    />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              if (!newVenue?.venue_name) {
+                                toast.error("Please enter a venue name first");
+                                return;
+                              }
+                              setIsFetchingAI(true);
+                              try {
+                                const venueInfo = await fetchVenueInfo(newVenue.venue_name);
+                                setNewVenue((prev) => ({
+                                  ...prev,
+                                  venue_info: venueInfo.venue_info || prev.venue_info,
+                                  latitude: venueInfo.latitude || prev.latitude,
+                                  longitude: venueInfo.longitude || prev.longitude,
+                                  city: venueInfo.city || prev.city,
+                                  country: venueInfo.country || prev.country,
+                                }));
+                                toast.success("Venue information fetched successfully");
+                              } catch (error) {
+                                console.error("Failed to fetch venue info:", error);
+                                toast.error("Failed to fetch venue information");
+                              } finally {
+                                setIsFetchingAI(false);
+                              }
+                            }}
+                            disabled={!newVenue?.venue_name || isFetchingAI}
+                            id="add-venue-search-button"
+                            className="
+                              bg-gradient-to-br from-purple-500 via-blue-400 to-pink-400
+                              shadow-[0_0_24px_4px_rgba(168,85,247,0.4)]
+                              flex items-center justify-center
+                              transition-all duration-200
+                              hover:scale-105 hover:shadow-[0_0_32px_8px_rgba(168,85,247,0.5)]
+                              text-white
+                              cursor-pointer
+                              hover:text-white
+                            "
+                          >
+                            {isFetchingAI ? (
+                              <Loader2 className="h-6 w-6 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-6 w-6" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" align="center">
+                          Generate content with AI
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
@@ -530,9 +630,13 @@ export function VenuesTable({
                       id="city"
                       value={newVenue?.city || ""}
                       onChange={(e) =>
-                        setNewVenue(prev => ({ ...prev, city: e.target.value }))
+                        setNewVenue((prev) => ({
+                          ...prev,
+                          city: e.target.value,
+                        }))
                       }
                       placeholder="e.g., Melbourne"
+                      readOnly={!!newVenue?.city}
                     />
                   </div>
                   <div className="grid gap-2">
@@ -541,9 +645,13 @@ export function VenuesTable({
                       id="country"
                       value={newVenue?.country || ""}
                       onChange={(e) =>
-                        setNewVenue(prev => ({ ...prev, country: e.target.value }))
+                        setNewVenue((prev) => ({
+                          ...prev,
+                          country: e.target.value,
+                        }))
                       }
                       placeholder="e.g., Australia"
+                      readOnly={!!newVenue?.country}
                     />
                   </div>
                 </div>
@@ -562,7 +670,10 @@ export function VenuesTable({
                     step="any"
                     value={newVenue?.latitude || ""}
                     onChange={(e) =>
-                      setNewVenue(prev => ({ ...prev, latitude: e.target.value }))
+                      setNewVenue((prev) => ({
+                        ...prev,
+                        latitude: e.target.value,
+                      }))
                     }
                     placeholder="e.g., -37.8497"
                     readOnly={!!newVenue?.latitude}
@@ -576,7 +687,10 @@ export function VenuesTable({
                     step="any"
                     value={newVenue?.longitude || ""}
                     onChange={(e) =>
-                      setNewVenue(prev => ({ ...prev, longitude: e.target.value }))
+                      setNewVenue((prev) => ({
+                        ...prev,
+                        longitude: e.target.value,
+                      }))
                     }
                     placeholder="e.g., 144.968"
                     readOnly={!!newVenue?.longitude}
@@ -594,7 +708,10 @@ export function VenuesTable({
                   id="venue_info"
                   value={newVenue?.venue_info || ""}
                   onChange={(e) =>
-                    setNewVenue(prev => ({ ...prev, venue_info: e.target.value }))
+                    setNewVenue((prev) => ({
+                      ...prev,
+                      venue_info: e.target.value,
+                    }))
                   }
                   placeholder="Enter any additional information about the venue..."
                   className="min-h-[100px]"
@@ -632,9 +749,7 @@ export function VenuesTable({
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Venue</DialogTitle>
-            <DialogDescription>
-              Update the venue details.
-            </DialogDescription>
+            <DialogDescription>Update the venue details.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             {/* Basic Information Section */}
@@ -643,17 +758,73 @@ export function VenuesTable({
               <div className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit_venue_name">Venue Name</Label>
-                  <Input
-                    id="edit_venue_name"
-                    value={editingVenue?.venue_name || ""}
-                    onChange={(e) =>
-                      setEditingVenue({
-                        ...editingVenue,
-                        venue_name: e.target.value,
-                      })
-                    }
-                    placeholder="e.g., Albert Park Circuit"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="edit_venue_name"
+                      value={editingVenue?.venue_name || ""}
+                      onChange={(e) =>
+                        setEditingVenue({
+                          ...editingVenue,
+                          venue_name: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., Albert Park Circuit"
+                    />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              if (!editingVenue?.venue_name) {
+                                toast.error("Please enter a venue name first");
+                                return;
+                              }
+                              setIsFetchingEditAI(true);
+                              try {
+                                const venueInfo = await fetchVenueInfo(editingVenue.venue_name);
+                                setEditingVenue((prev) => ({
+                                  ...prev,
+                                  venue_info: venueInfo.venue_info || prev.venue_info,
+                                  latitude: venueInfo.latitude || prev.latitude,
+                                  longitude: venueInfo.longitude || prev.longitude,
+                                  city: venueInfo.city || prev.city,
+                                  country: venueInfo.country || prev.country,
+                                }));
+                                toast.success("Venue information fetched successfully");
+                              } catch (error) {
+                                console.error("Failed to fetch venue info:", error);
+                                toast.error("Failed to fetch venue information");
+                              } finally {
+                                setIsFetchingEditAI(false);
+                              }
+                            }}
+                            disabled={!editingVenue?.venue_name || isFetchingEditAI}
+                            id="edit-venue-search-button"
+                            className="
+                              bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-lg transform scale-100 transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300
+                              flex items-center justify-center
+                              transition-all duration-200
+                              hover:scale-105 hover:shadow-[0_0_15px_3px_rgba(32, 216, 195, 0.5)]
+                              text-white cursor-pointer
+                              hover:text-white
+                            "
+                          >
+                            {isFetchingEditAI ? (
+                              <Loader2 className="h-6 w-6 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-6 w-6" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" align="center">
+                          Generate content with AI
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
@@ -668,6 +839,7 @@ export function VenuesTable({
                         })
                       }
                       placeholder="e.g., Melbourne"
+                      readOnly={!!editingVenue?.city}
                     />
                   </div>
                   <div className="grid gap-2">
@@ -682,6 +854,7 @@ export function VenuesTable({
                         })
                       }
                       placeholder="e.g., Australia"
+                      readOnly={!!editingVenue?.country}
                     />
                   </div>
                 </div>
@@ -755,7 +928,10 @@ export function VenuesTable({
             >
               Cancel
             </Button>
-            <Button onClick={() => onEditVenue(editingVenue)} disabled={isEditing}>
+            <Button
+              onClick={() => onEditVenue(editingVenue)}
+              disabled={isEditing}
+            >
               {isEditing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -775,8 +951,8 @@ export function VenuesTable({
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the venue
-              and remove it from our servers.
+              This action cannot be undone. This will permanently delete the
+              venue and remove it from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -801,4 +977,3 @@ export function VenuesTable({
     </div>
   );
 }
-

@@ -200,4 +200,229 @@ export const storeItinerary = async (bookingId, itinerary) => {
   }
 };
 
+// Function to fetch hotel information using Gemini
+export const fetchHotelInfo = async (hotelName) => {
+  try {
+    if (!GEMINI_API_KEY) {
+      throw new Error('Gemini API key is not configured');
+    }
+
+    const prompt = `
+You are a hotel information expert. For the hotel "${hotelName}", provide the following information in JSON format:
+{
+  "hotel_info": "A brief description of the hotel (2-3 sentences)",
+  "latitude": "The hotel's exact latitude coordinate (must be a number between -90 and 90, with 6 decimal places precision)",
+  "longitude": "The hotel's exact longitude coordinate (must be a number between -180 and 180, with 6 decimal places precision)",
+  "city_tax_info": {
+    "type": "One of: per_room, per_night, per_person, per_room_per_night, per_person_per_night, per_person_per_room, per_person_per_room_per_night",
+    "value_type": "One of: percentage, fixed, included",
+    "amount": "The typical city tax amount (as a number, not a string)"
+  },
+  "vat_info": {
+    "type": "One of: percentage, fixed, included",
+    "amount": "The typical VAT amount (as a number, not a string)"
+  },
+  "resort_fee": "The typical resort fee per night (as a number, not a string)",
+  "commission": "The typical commission percentage (as a number, not a string)"
+}
+
+Important:
+1. For coordinates, you must provide the exact location with 6 decimal places precision
+2. Latitude must be between -90 and 90 degrees
+3. Longitude must be between -180 and 180 degrees
+4. If you cannot find the exact coordinates, return null for both latitude and longitude
+5. Do not make up or approximate coordinates - accuracy is crucial
+
+Only include the JSON object in your response, nothing else. If you cannot find accurate information for any field, return null for that field. For numeric values, return them as numbers, not strings.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+    });
+
+    if (!response.text) {
+      throw new Error('No response generated from Gemini API');
+    }
+
+    // Clean up the response text by removing markdown code block formatting
+    let cleanedResponse = response.text
+      .replace(/```json\s*/g, '') // Remove ```json prefix
+      .replace(/```\s*$/g, '')    // Remove ``` suffix
+      .trim();                    // Remove any extra whitespace
+
+    // Parse the JSON response
+    try {
+      const hotelInfo = JSON.parse(cleanedResponse);
+      
+      // Validate coordinates
+      const validateCoordinate = (coord, min, max) => {
+        if (coord === null) return null;
+        const num = parseFloat(coord);
+        if (isNaN(num) || num < min || num > max) return null;
+        return Number(num.toFixed(6)); // Ensure 6 decimal places
+      };
+
+      const validatedLatitude = validateCoordinate(hotelInfo.latitude, -90, 90);
+      const validatedLongitude = validateCoordinate(hotelInfo.longitude, -180, 180);
+      
+      // Transform the response to match our form structure
+      return {
+        hotel_info: hotelInfo.hotel_info,
+        latitude: validatedLatitude,
+        longitude: validatedLongitude,
+        city_tax_type: hotelInfo.city_tax_info?.type || null,
+        city_tax_value: hotelInfo.city_tax_info?.value_type || null,
+        city_tax_amount: hotelInfo.city_tax_info?.amount || null,
+        vat_type: hotelInfo.vat_info?.type || null,
+        vat_amount: hotelInfo.vat_info?.amount || null,
+        resort_fee: hotelInfo.resort_fee || null,
+        commission: hotelInfo.commission || null
+      };
+    } catch (parseError) {
+      console.error('Error parsing hotel info:', parseError);
+      console.error('Raw response:', response.text);
+      console.error('Cleaned response:', cleanedResponse);
+      throw new Error('Failed to parse hotel information');
+    }
+  } catch (error) {
+    console.error('Error fetching hotel info:', error);
+    throw error;
+  }
+};
+
+// Function to fetch venue information using Gemini
+export const fetchVenueInfo = async (venueName) => {
+  try {
+    if (!GEMINI_API_KEY) {
+      throw new Error('Gemini API key is not configured');
+    }
+
+    const prompt = `
+You are a sports venue information expert, specializing in Formula 1 circuits and major sports venues. For the venue "${venueName}", provide the following information in JSON format:
+{
+  "venue_info": "A brief description of the venue (2-3 sentences), focusing on its role in Formula 1 or other major sports",
+  "latitude": "The venue's EXACT latitude coordinate (must be a number between -90 and 90, with 8 decimal places precision)",
+  "longitude": "The venue's EXACT longitude coordinate (must be a number between -180 and 180, with 8 decimal places precision)",
+  "city": "The city where the venue is located",
+  "country": "The country where the venue is located"
+}
+
+CRITICAL REQUIREMENTS FOR COORDINATES:
+1. For Formula 1 circuits and Monaco venues:
+   - Circuit de Monaco (Monaco GP): (43.73944444, 7.42722222)
+   - Example: Circuit Paul Ricard: (43.25083333, 5.84500000)
+   - Example: Silverstone Circuit: (52.07888889, -1.01694444)
+   - Example: Monza Circuit: (45.61888889, 9.29111111)
+
+2. For tennis venues and other sports venues:
+   - Roland Garros (Paris, France): (48.84694444, 2.24777778)
+   - Wimbledon (London, UK): (51.43416667, -0.21416667)
+   - Wembley Stadium (London, UK): (51.55611111, -0.27944444)
+   - Madison Square Garden (New York, USA): (40.75055556, -73.99361111)
+
+3. Coordinate Requirements:
+   - MUST be extremely precise - use 8 decimal places
+   - Latitude must be between -90 and 90 degrees
+   - Longitude must be between -180 and 180 degrees
+   - DO NOT approximate or round coordinates
+   - If you cannot find the exact coordinates with 8 decimal places precision, return null for both latitude and longitude
+   - For venues near borders (like Monte-Carlo Country Club), be especially careful with city and country information
+
+VENUE INFORMATION GUIDELINES:
+1. For Formula 1 circuits:
+   - Include Formula 1 specific details
+   - Mention circuit length and notable features
+   - Include information about the Grand Prix event
+   - Focus on racing history and significance
+
+2. For tennis venues:
+   - Monte-Carlo Country Club (Roquebrune-Cap-Martin, France): (43.752219361313024, 7.441130608503272)
+   - Focus on tennis-specific details
+   - Mention the tournaments hosted (e.g., Monte-Carlo Masters for Monte-Carlo Country Club)
+   - Include information about the venue's history and significance in tennis
+   - For venues near Formula 1 circuits (like Monte-Carlo Country Club), mention their proximity but focus on their primary sport
+
+3. For other sports venues:
+   - Focus on the primary sport(s) hosted
+   - Include capacity and main features
+   - Mention notable events and history
+   - Include any Formula 1 or motorsport events if applicable
+
+4. For city and country:
+   - Use official names
+   - Be consistent with local naming conventions
+   - If you cannot find accurate information, return null
+   - For venues near borders, specify the exact city and country (e.g., Roquebrune-Cap-Martin, France for Monte-Carlo Country Club)
+
+Only include the JSON object in your response, nothing else.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+    });
+
+    if (!response.text) {
+      throw new Error('No response generated from Gemini API');
+    }
+
+    // Clean up the response text by removing markdown code block formatting
+    let cleanedResponse = response.text
+      .replace(/```json\s*/g, '') // Remove ```json prefix
+      .replace(/```\s*$/g, '')    // Remove ``` suffix
+      .trim();                    // Remove any extra whitespace
+
+    // Parse the JSON response
+    try {
+      const venueInfo = JSON.parse(cleanedResponse);
+      
+      // Enhanced coordinate validation
+      const validateCoordinate = (coord, min, max) => {
+        if (coord === null) return null;
+        const num = parseFloat(coord);
+        if (isNaN(num) || num < min || num > max) return null;
+        
+        // Ensure 8 decimal places precision
+        const preciseCoord = Number(num.toFixed(8));
+        
+        // Additional validation for Formula 1 circuits and border venues
+        const isF1Circuit = venueName.toLowerCase().includes('circuit') && 
+                          (venueName.toLowerCase().includes('formula') || 
+                           venueName.toLowerCase().includes('grand prix') ||
+                           venueName.toLowerCase().includes('f1'));
+        
+        const isBorderVenue = venueName.toLowerCase().includes('monte carlo') ||
+                            venueName.toLowerCase().includes('monaco');
+        
+        if (isF1Circuit || isBorderVenue) {
+          // For F1 circuits and border venues, we want even more precise coordinates
+          if (preciseCoord.toString().split('.')[1]?.length < 8) {
+            console.warn('Coordinates may not be precise enough for F1 circuit or border venue');
+          }
+        }
+        
+        return preciseCoord;
+      };
+
+      const validatedLatitude = validateCoordinate(venueInfo.latitude, -90, 90);
+      const validatedLongitude = validateCoordinate(venueInfo.longitude, -180, 180);
+      
+      return {
+        venue_info: venueInfo.venue_info,
+        latitude: validatedLatitude,
+        longitude: validatedLongitude,
+        city: venueInfo.city,
+        country: venueInfo.country
+      };
+    } catch (parseError) {
+      console.error('Error parsing venue info:', parseError);
+      console.error('Raw response:', response.text);
+      console.error('Cleaned response:', cleanedResponse);
+      throw new Error('Failed to parse venue information');
+    }
+  } catch (error) {
+    console.error('Error fetching venue info:', error);
+    throw error;
+  }
+};
+
 export default api;

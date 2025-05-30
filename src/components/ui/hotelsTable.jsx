@@ -160,7 +160,7 @@ function HotelsTable() {
   const fetchInitialData = async () => {
     try {
       const [hotelsRes, packagesRes, eventsRes] = await Promise.all([
-        api.get("copy of hotels"),
+        api.get("hotels"),
         api.get("packages"),
         api.get("event"),
       ]);
@@ -302,7 +302,7 @@ function HotelsTable() {
         images: formData.images
       };
 
-      await api.post("copy of hotels", hotelData);
+      await api.post("hotels", hotelData);
       toast.success("Hotel added successfully!");
       fetchInitialData();
     } catch (error) {

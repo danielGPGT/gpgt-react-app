@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, memo } from "react";
 import api from "@/lib/api";
 import {
   Table,
@@ -24,6 +24,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
 import {
   Command,
@@ -61,6 +63,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { fetchHotelInfo } from "@/lib/api";
 
 function HotelsWithRooms() {
   const [hotels, setHotels] = useState([]);
@@ -71,7 +74,7 @@ function HotelsWithRooms() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: "hotel_name", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({ key: "event_name", direction: "asc" });
   const [isAddHotelDialogOpen, setIsAddHotelDialogOpen] = useState(false);
   const [isEditHotelDialogOpen, setIsEditHotelDialogOpen] = useState(false);
   const [editingHotel, setEditingHotel] = useState(null);
@@ -134,6 +137,7 @@ function HotelsWithRooms() {
     longitude: "Longitude",
     hotel_info: "Hotel Info",
     images: "Images",
+    currency: "currency"
   };
 
   // Add this function near the top of the component, after the state declarations
@@ -152,13 +156,10 @@ function HotelsWithRooms() {
     return currencyMap[currency] || currency;
   };
 
-  // Add this function to get the currency for a hotel
+  // Update the getHotelCurrency function to use the hotel's currency
   const getHotelCurrency = (hotelId) => {
-    const hotelRooms = rooms.filter(room => room.hotel_id === hotelId);
-    if (hotelRooms.length > 0) {
-      return hotelRooms[0]["currency_(local)"] || 'USD';
-    }
-    return 'USD'; // Default to USD if no rooms found
+    const hotel = hotels.find(h => h.hotel_id === hotelId);
+    return hotel?.currency || 'USD'; // Default to USD if no currency found
   };
 
   // Fetch data
@@ -170,7 +171,7 @@ function HotelsWithRooms() {
     setLoading(true);
     try {
       const [hotelsRes, roomsRes] = await Promise.all([
-        api.get("copy of hotels"),
+        api.get("hotels"),
         api.get("copy of Stock - rooms"),
       ]);
       console.log('Fetched rooms data:', roomsRes.data);
@@ -240,8 +241,32 @@ function HotelsWithRooms() {
   }, [hotels, searchQuery, sortConfig, selectedEvent]);
 
   // Room management functions
-  const handleAddRoom = async (roomData) => {
+  const handleAddRoom = useCallback(async (roomData) => {
     try {
+      // Validate all mandatory fields
+      const requiredFields = {
+        room_category: "Room Category",
+        room_type: "Room Type",
+        source: "Source",
+        room_flexibility: "Room Flexibility",
+        max_guests: "Max Guests",
+        booked: "Booked",
+        check_in_date: "Check In Date",
+        check_out_date: "Check Out Date",
+        "currency_(local)": "Currency",
+        breakfast_included: "Breakfast Included",
+        breakfast_cost_pp: "Breakfast Cost PP",
+        core_per_night_price_local: "Core Price per Night",
+        room_margin: "Room Margin"
+      };
+
+      for (const [field, label] of Object.entries(requiredFields)) {
+        if (!roomData[field] && roomData[field] !== 0) {
+          toast.error(`${label} is required`);
+          return;
+        }
+      }
+
       console.log('Adding room with data:', roomData);
       
       // Generate a unique room ID
@@ -255,9 +280,9 @@ function HotelsWithRooms() {
         selectedHotel.hotel_id,                    // Hotel ID
         roomId,                                    // Room ID (generated)
         "",                                         // Hotel Name (empty)
-        roomData.room_category,                    // Room Category
-        roomData.room_type,                        // Room Type
-        roomData.source,                           // Source
+        roomData.room_category.trim(),             // Room Category
+        roomData.room_type.trim(),                 // Room Type
+        roomData.source.trim(),                    // Source
         roomData.room_flexibility,                 // Room Flexibility
         roomData.max_guests,                       // Max Guests
         roomData.booked,                           // Booked
@@ -289,10 +314,41 @@ function HotelsWithRooms() {
       console.error("Error details:", error.response?.data);
       toast.error("Failed to add room");
     }
-  };
+  }, [selectedHotel]);
 
-  const handleEditRoom = async (roomData) => {
+  const handleEditRoom = useCallback(async (roomData) => {
     try {
+      // Get the field and value from the form data
+      const { field, value } = roomData;
+      
+      // Skip if no field is specified
+      if (!field) {
+        throw new Error("No field specified for update");
+      }
+
+      // Validate only the field being changed
+      const requiredFields = {
+        room_category: "Room Category",
+        room_type: "Room Type",
+        source: "Source",
+        room_flexibility: "Room Flexibility",
+        max_guests: "Max Guests",
+        booked: "Booked",
+        check_in_date: "Check In Date",
+        check_out_date: "Check Out Date",
+        "currency_(local)": "Currency",
+        breakfast_included: "Breakfast Included",
+        breakfast_cost_pp: "Breakfast Cost PP",
+        core_per_night_price_local: "Core Price per Night",
+        room_margin: "Room Margin"
+      };
+
+      // Only validate the field being changed
+      if (!value && value !== 0) {
+        toast.error(`${requiredFields[field]} is required`);
+        return;
+      }
+
       // Create an object with the column mappings
       const columnMappings = {
         hotel_id: "Hotel ID",
@@ -310,14 +366,6 @@ function HotelsWithRooms() {
         core_per_night_price_local: "Core per night price Local",
         room_margin: "Room Margin"
       };
-
-      // Get the field and value from the form data
-      const { field, value } = roomData;
-      
-      // Skip if no field is specified
-      if (!field) {
-        throw new Error("No field specified for update");
-      }
 
       // Get the column name from the mapping
       const columnName = columnMappings[field];
@@ -354,9 +402,9 @@ function HotelsWithRooms() {
       console.error("Error details:", error.response?.data);
       toast.error(error.response?.data?.error || "Failed to update room");
     }
-  };
+  }, [selectedHotel]);
 
-  const handleDeleteRoom = async (roomId) => {
+  const handleDeleteRoom = useCallback(async (roomId) => {
     try {
       setIsDeletingRoom(true);
       setDeletingRoomId(roomId);
@@ -371,11 +419,21 @@ function HotelsWithRooms() {
       setIsDeletingRoom(false);
       setDeletingRoomId(null);
     }
-  };
+  }, []);
 
   // Add hotel management functions
   const handleAddHotel = async (hotelData) => {
     try {
+      // Validate mandatory fields
+      if (!hotelData.hotel_name?.trim()) {
+        toast.error("Hotel name is required");
+        return;
+      }
+      if (!hotelData.event_name?.trim()) {
+        toast.error("Event is required");
+        return;
+      }
+
       setIsAddingHotel(true);
       // Generate a unique hotel ID
       const hotelId = crypto.randomUUID();
@@ -383,8 +441,8 @@ function HotelsWithRooms() {
       // Create an object with all the fields
       const newHotel = {
         hotel_id: hotelId,
-        hotel_name: hotelData.hotel_name,
-        event_name: hotelData.event_name,
+        hotel_name: hotelData.hotel_name.trim(),
+        event_name: hotelData.event_name.trim(),
         stars: parseInt(hotelData.stars),
         package_type: hotelData.package_type,
         city_tax_type: hotelData.city_tax_type,
@@ -398,13 +456,14 @@ function HotelsWithRooms() {
         latitude: hotelData.latitude || "",
         longitude: hotelData.longitude || "",
         hotel_info: hotelData.hotel_info || "",
-        images: hotelData.images || "[]"
+        images: hotelData.images || "[]",
+        currency: hotelData.currency || "USD"
       };
 
       // Convert to array format using the mappings
       const hotelArray = Object.keys(hotelFieldMappings).map(key => newHotel[key]);
 
-      await api.post("copy of hotels", hotelArray);
+      await api.post("hotels", hotelArray);
       toast.success("Hotel added successfully");
       setIsAddHotelDialogOpen(false);
       fetchData();
@@ -419,6 +478,16 @@ function HotelsWithRooms() {
 
   const handleEditHotel = async (hotelData) => {
     try {
+      // Validate mandatory fields
+      if (!hotelData.hotel_name?.trim()) {
+        toast.error("Hotel name is required");
+        return;
+      }
+      if (!hotelData.event_name?.trim()) {
+        toast.error("Event is required");
+        return;
+      }
+
       setIsEditingHotel(true);
       console.log("Starting hotel edit process...");
 
@@ -475,7 +544,7 @@ function HotelsWithRooms() {
         }
 
         console.log(`Updating ${column} to ${formattedValue}`);
-        await api.put(`copy of hotels/Hotel ID/${editingHotel.hotel_id}`, {
+        await api.put(`hotels/Hotel ID/${editingHotel.hotel_id}`, {
           column,
           value: formattedValue
         });
@@ -499,7 +568,7 @@ function HotelsWithRooms() {
     try {
       setIsDeletingHotel(true);
       setDeletingHotelId(hotelId);
-      await api.delete(`copy of hotels/Hotel ID/${hotelId}`);
+      await api.delete(`hotels/Hotel ID/${hotelId}`);
       toast.success("Hotel deleted successfully");
       fetchData();
     } catch (error) {
@@ -557,7 +626,8 @@ function HotelsWithRooms() {
         latitude: "",
         longitude: "",
         hotel_info: "",
-        images: "[]"
+        images: "[]",
+        currency: "USD"
       };
     });
 
@@ -619,7 +689,7 @@ function HotelsWithRooms() {
               )}
 
               {/* Currency Note */}
-              <div className="rounded-md bg-destructive/5 p-2 text-xs text-destructive flex items-center gap-1.5 border border-destructive/10">
+              <div className="rounded-md bg-destructive/10 p-2 text-xs text-destructive flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Ensure all monetary amounts are entered in the currency specified in the hotel contract
               </div>
@@ -630,31 +700,61 @@ function HotelsWithRooms() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Hotel Name</Label>
-                      <Input
-                        value={formData.hotel_name}
-                        onChange={(e) => setFormData({ ...formData, hotel_name: e.target.value })}
-                      />
+                      <Label className="text-xs">Hotel Name <span className="text-destructive">*</span></Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={formData.hotel_name}
+                          onChange={(e) => setFormData({ ...formData, hotel_name: e.target.value })}
+                          className="flex-1"
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={async () => {
+                            if (!formData.hotel_name) {
+                              toast.error("Please enter a hotel name first");
+                              return;
+                            }
+                            try {
+                              const hotelInfo = await fetchHotelInfo(formData.hotel_name);
+                              setFormData(prev => ({
+                                ...prev,
+                                hotel_info: hotelInfo.hotel_info || prev.hotel_info,
+                                latitude: hotelInfo.latitude || prev.latitude,
+                                longitude: hotelInfo.longitude || prev.longitude
+                              }));
+                              toast.success("Hotel information fetched successfully");
+                            } catch (error) {
+                              console.error("Failed to fetch hotel info:", error);
+                              toast.error("Failed to fetch hotel information");
+                            }
+                          }}
+                          disabled={!formData.hotel_name}
+                        >
+                          <Search className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Event</Label>
+                      <Label className="text-xs">Event <span className="text-destructive">*</span></Label>
                       <Popover open={open} onOpenChange={setOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             role="combobox"
-                            aria-expanded={open}
-                            className="w-full justify-between h-9"
-                            disabled={loading}
+                            className="w-[250px] justify-between"
+                            required
                           >
                             {formData.event_name
                               ? events.find((event) => event.event === formData.event_name)?.event
                               : "Select event..."}
-                            <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-full p-0">
+                        <PopoverContent className="w-[250px] p-0">
                           <Command>
                             <CommandInput placeholder="Search event..." />
                             <CommandEmpty>No event found.</CommandEmpty>
@@ -721,21 +821,179 @@ function HotelsWithRooms() {
                         </Select>
                       </div>
                     </div>
+                  </div>
+                </div>
 
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Hotel Information</Label>
+                  <Textarea
+                    value={formData.hotel_info}
+                    onChange={(e) => setFormData({ ...formData, hotel_info: e.target.value })}
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Financial Information */}
+              <div className="space-y-3 bg-card rounded-lg border p-4">
+                <h3 className="text-sm font-medium text-muted-foreground">Financial Information</h3>
+                
+                {/* Currency Selection */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Currency <span className="text-destructive">*</span></Label>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                    required
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="SGD">SGD</SelectItem>
+                      <SelectItem value="AED">AED</SelectItem>
+                      <SelectItem value="BHD">BHD</SelectItem>
+                      <SelectItem value="CAD">CAD</SelectItem>
+                      <SelectItem value="AUD">AUD</SelectItem>
+                      <SelectItem value="NZD">NZD</SelectItem>
+                      <SelectItem value="QAR">QAR</SelectItem>
+                      <SelectItem value="SAR">SAR</SelectItem>
+                      <SelectItem value="MYR">MYR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* City Tax Section */}
+                <div className="space-y-3 border-b pb-4">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-sm font-medium whitespace-nowrap">City Tax</Label>
+                    <Select
+                      value={formData.city_tax_value}
+                      onValueChange={(value) => {
+                        setFormData({ 
+                          ...formData, 
+                          city_tax_value: value,
+                          city_tax_amount: value === "included" ? 0 : formData.city_tax_amount
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-[120px] h-8">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">Percentage</SelectItem>
+                        <SelectItem value="fixed">Fixed Amount</SelectItem>
+                        <SelectItem value="included">Included</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {formData.city_tax_value !== "included" && (
+                      <>
+                        <Select
+                          value={formData.city_tax_type}
+                          onValueChange={(value) => setFormData({ ...formData, city_tax_type: value })}
+                        >
+                          <SelectTrigger className="w-[180px] h-8">
+                            <SelectValue placeholder="Select tax type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="per_room">Per Room</SelectItem>
+                            <SelectItem value="per_night">Per Night</SelectItem>
+                            <SelectItem value="per_person">Per Person</SelectItem>
+                            <SelectItem value="per_room_per_night">Per Room Per Night</SelectItem>
+                            <SelectItem value="per_person_per_night">Per Person Per Night</SelectItem>
+                            <SelectItem value="per_person_per_room">Per Person Per Room</SelectItem>
+                            <SelectItem value="per_person_per_room_per_night">Per Person Per Room Per Night</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={formData.city_tax_amount}
+                            onChange={(e) => setFormData({ ...formData, city_tax_amount: parseFloat(e.target.value) })}
+                            className="w-[100px] h-8"
+                            placeholder={formData.city_tax_value === "percentage" ? "Amount %" : "Amount"}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* VAT Section */}
+                <div className="space-y-3 border-b pb-4">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-sm font-medium whitespace-nowrap">VAT</Label>
+                    <Select
+                      value={formData.vat_type}
+                      onValueChange={(value) => {
+                        setFormData({ 
+                          ...formData, 
+                          vat_type: value,
+                          vat_amount: value === "included" ? 0 : formData.vat_amount
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-[120px] h-8">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">Percentage</SelectItem>
+                        <SelectItem value="fixed">Fixed Amount</SelectItem>
+                        <SelectItem value="included">Included</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {formData.vat_type !== "included" && (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={formData.vat_amount}
+                          onChange={(e) => setFormData({ ...formData, vat_amount: parseFloat(e.target.value) })}
+                          className="w-[100px] h-8"
+                          placeholder={formData.vat_type === "percentage" ? "Amount %" : "Amount"}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Fees Section */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Additional Fees</Label>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Hotel Information</Label>
-                      <Textarea
-                        value={formData.hotel_info}
-                        onChange={(e) => setFormData({ ...formData, hotel_info: e.target.value })}
-                        rows={3}
-                        className="resize-none"
+                      <Label className="text-xs text-muted-foreground">Commission (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.commission}
+                        onChange={(e) => setFormData({ ...formData, commission: parseFloat(e.target.value) })}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Resort Fee (per night)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.resort_fee}
+                        onChange={(e) => setFormData({ ...formData, resort_fee: parseFloat(e.target.value) })}
+                        className="h-9"
                       />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Location and Images */}
+              {/* Location and Media */}
               <div className="space-y-3 bg-card rounded-lg border p-4">
                 <h3 className="text-sm font-medium text-muted-foreground">Location & Media</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -746,9 +1004,17 @@ function HotelsWithRooms() {
                         <Input
                           type="number"
                           step="0.000001"
+                          min="-90"
+                          max="90"
                           value={formData.latitude}
-                          onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value) && value >= -90 && value <= 90) {
+                              setFormData({ ...formData, latitude: Number(value.toFixed(6)) });
+                            }
+                          }}
                           className="h-9"
+                          placeholder="e.g. 51.507222"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -756,9 +1022,17 @@ function HotelsWithRooms() {
                         <Input
                           type="number"
                           step="0.000001"
+                          min="-180"
+                          max="180"
                           value={formData.longitude}
-                          onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value) && value >= -180 && value <= 180) {
+                              setFormData({ ...formData, longitude: Number(value.toFixed(6)) });
+                            }
+                          }}
                           className="h-9"
+                          placeholder="e.g. -0.127500"
                         />
                       </div>
                     </div>
@@ -783,123 +1057,6 @@ function HotelsWithRooms() {
                       rows={3}
                       className="resize-none"
                     />
-                  </div>
-                </div>
-              </div>
-
-              {/* Financial Information */}
-              <div className="space-y-3 bg-card rounded-lg border p-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Financial Information</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* City Tax Section */}
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">City Tax</Label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">Type</Label>
-                          <Select
-                            value={formData.city_tax_type}
-                            onValueChange={(value) => setFormData({ ...formData, city_tax_type: value })}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue placeholder="Select tax type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="per_room">Per Room</SelectItem>
-                              <SelectItem value="per_night">Per Night</SelectItem>
-                              <SelectItem value="per_person">Per Person</SelectItem>
-                              <SelectItem value="per_room_per_night">Per Room Per Night</SelectItem>
-                              <SelectItem value="per_person_per_night">Per Person Per Night</SelectItem>
-                              <SelectItem value="per_person_per_room">Per Person Per Room</SelectItem>
-                              <SelectItem value="per_person_per_room_per_night">Per Person Per Room Per Night</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">Value Type</Label>
-                          <Select
-                            value={formData.city_tax_value}
-                            onValueChange={(value) => setFormData({ ...formData, city_tax_value: value })}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue placeholder="Select value type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="percentage">Percentage</SelectItem>
-                              <SelectItem value="fixed">Fixed Amount</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Amount</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={formData.city_tax_amount}
-                          onChange={(e) => setFormData({ ...formData, city_tax_amount: parseFloat(e.target.value) })}
-                          className="h-9"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* VAT & Fees Section */}
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">VAT & Fees</Label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">VAT Type</Label>
-                          <Select
-                            value={formData.vat_type}
-                            onValueChange={(value) => setFormData({ ...formData, vat_type: value })}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue placeholder="Select VAT type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="percentage">Percentage</SelectItem>
-                              <SelectItem value="fixed">Fixed Amount</SelectItem>
-                              <SelectItem value="included">Included</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">VAT Amount</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={formData.vat_amount}
-                            onChange={(e) => setFormData({ ...formData, vat_amount: parseFloat(e.target.value) })}
-                            className="h-9"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">Commission</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={formData.commission}
-                            onChange={(e) => setFormData({ ...formData, commission: parseFloat(e.target.value) })}
-                            className="h-9"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">Resort Fee (per night)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={formData.resort_fee}
-                            onChange={(e) => setFormData({ ...formData, resort_fee: parseFloat(e.target.value) })}
-                            className="h-9"
-                          />
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -939,7 +1096,7 @@ function HotelsWithRooms() {
   };
 
   // Update the RoomDialog component
-  const RoomDialog = ({ isOpen, onOpenChange, mode = "add", room = null }) => {
+  const RoomDialog = memo(({ isOpen, onOpenChange, mode = "add", room = null }) => {
     const [formData, setFormData] = useState(() => {
       if (mode === "edit" && room) {
         return {
@@ -976,11 +1133,49 @@ function HotelsWithRooms() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleFieldChange = (field, value) => {
-      setFormData(prev => ({ ...prev, [field]: value }));
-    };
+    // Reset form when dialog opens/closes
+    useEffect(() => {
+      if (isOpen) {
+        if (mode === "edit" && room) {
+          setFormData({
+            ...room,
+            check_in_date: room.check_in_date || "",
+            check_out_date: room.check_out_date || "",
+            hotel_id: selectedHotel?.hotel_id || room.hotel_id,
+            breakfast_included: room.breakfast_included ? "true" : "false",
+            room_flexibility: room.room_flexibility || "non_flex"
+          });
+          setDateRange({
+            from: room.check_in_date ? new Date(room.check_in_date.split("/").reverse().join("-")) : null,
+            to: room.check_out_date ? new Date(room.check_out_date.split("/").reverse().join("-")) : null,
+          });
+        } else {
+          setFormData({
+            hotel_id: selectedHotel?.hotel_id || "",
+            room_category: "",
+            room_type: "",
+            source: "",
+            room_flexibility: "non_flex",
+            max_guests: 2,
+            booked: 0,
+            check_in_date: "",
+            check_out_date: "",
+            "currency_(local)": "",
+            breakfast_included: "false",
+            breakfast_cost_pp: 0,
+            core_per_night_price_local: 0,
+            room_margin: "60"
+          });
+          setDateRange({ from: null, to: null });
+        }
+      }
+    }, [isOpen, mode, room, selectedHotel]);
 
-    const handleSubmit = async () => {
+    const handleFieldChange = useCallback((field, value) => {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }, []);
+
+    const handleSubmit = useCallback(async () => {
       try {
         setIsSubmitting(true);
         if (mode === "edit") {
@@ -999,10 +1194,14 @@ function HotelsWithRooms() {
       } finally {
         setIsSubmitting(false);
       }
-    };
+    }, [formData, mode, room, handleEditRoom, handleAddRoom]);
+
+    const handleClose = useCallback(() => {
+      onOpenChange(false);
+    }, [onOpenChange]);
 
     return (
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{mode === "edit" ? "Edit Room" : "Add New Room"}</DialogTitle>
@@ -1039,17 +1238,19 @@ function HotelsWithRooms() {
               {/* Room Details */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Room Category</Label>
+                  <Label>Room Category <span className="text-destructive">*</span></Label>
                   <Input
                     value={formData.room_category}
                     onChange={(e) => handleFieldChange('room_category', e.target.value)}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Room Type</Label>
+                  <Label>Room Type <span className="text-destructive">*</span></Label>
                   <Input
                     value={formData.room_type}
                     onChange={(e) => handleFieldChange('room_type', e.target.value)}
+                    required
                   />
                 </div>
               </div>
@@ -1057,17 +1258,19 @@ function HotelsWithRooms() {
               {/* Source and Flexibility */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Source</Label>
+                  <Label>Source <span className="text-destructive">*</span></Label>
                   <Input
                     value={formData.source}
                     onChange={(e) => handleFieldChange('source', e.target.value)}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Room Flexibility</Label>
+                  <Label>Room Flexibility <span className="text-destructive">*</span></Label>
                   <Select
                     value={formData.room_flexibility}
                     onValueChange={(value) => handleFieldChange('room_flexibility', value)}
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select flexibility" />
@@ -1083,26 +1286,28 @@ function HotelsWithRooms() {
               {/* Guests and Booking */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Max Guests</Label>
+                  <Label>Max Guests <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     value={formData.max_guests}
                     onChange={(e) => handleFieldChange('max_guests', parseInt(e.target.value))}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Booked</Label>
+                  <Label>Booked <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     value={formData.booked}
                     onChange={(e) => handleFieldChange('booked', parseInt(e.target.value))}
+                    required
                   />
                 </div>
               </div>
 
               {/* Dates */}
               <div className="space-y-2">
-                <Label>Check-in/out Dates</Label>
+                <Label>Check-in/out Dates <span className="text-destructive">*</span></Label>
                 <DatePickerWithRange
                   date={dateRange}
                   setDate={(range) => {
@@ -1114,16 +1319,18 @@ function HotelsWithRooms() {
                       }
                     }
                   }}
+                  required
                 />
               </div>
 
               {/* Currency and Pricing */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Currency (Local)</Label>
+                  <Label>Currency (Local) <span className="text-destructive">*</span></Label>
                   <Select
                     value={formData["currency_(local)"]}
                     onValueChange={(value) => handleFieldChange('currency_(local)', value)}
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select currency" />
@@ -1145,12 +1352,13 @@ function HotelsWithRooms() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Core Price per Night (Local)</Label>
+                  <Label>Core Price per Night (Local) <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={formData.core_per_night_price_local}
                     onChange={(e) => handleFieldChange('core_per_night_price_local', parseFloat(e.target.value))}
+                    required
                   />
                 </div>
               </div>
@@ -1158,10 +1366,11 @@ function HotelsWithRooms() {
               {/* Breakfast Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Breakfast Included</Label>
+                  <Label>Breakfast Included <span className="text-destructive">*</span></Label>
                   <Select
                     value={formData.breakfast_included}
                     onValueChange={(value) => handleFieldChange('breakfast_included', value)}
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select breakfast option" />
@@ -1173,7 +1382,7 @@ function HotelsWithRooms() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Breakfast Cost per Person</Label>
+                  <Label>Breakfast Cost per Person <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -1181,22 +1390,24 @@ function HotelsWithRooms() {
                     onChange={(e) => handleFieldChange('breakfast_cost_pp', parseFloat(e.target.value))}
                     disabled={formData.breakfast_included === "true"}
                     className={formData.breakfast_included === "true" ? "bg-muted" : ""}
+                    required
                   />
                 </div>
               </div>
 
               {/* Room Margin */}
               <div className="space-y-2">
-                <Label>Room Margin</Label>
+                <Label>Room Margin <span className="text-destructive">*</span></Label>
                 <Input
                   value={formData.room_margin}
                   onChange={(e) => handleFieldChange('room_margin', e.target.value)}
+                  required
                 />
               </div>
             </div>
           </ScrollArea>
           <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={isSubmitting}>
@@ -1213,7 +1424,222 @@ function HotelsWithRooms() {
         </DialogContent>
       </Dialog>
     );
-  };
+  });
+
+  // Add a new component for the rooms table view
+  const RoomsTableView = memo(({ isOpen, onOpenChange, onAddRoom }) => {
+    const [searchTerm, setSearchTerm] = useState("");
+    const [sortBy, setSortBy] = useState("category");
+    const [sortDirection, setSortDirection] = useState("asc");
+
+    // Reset search and sort when dialog opens/closes
+    useEffect(() => {
+      if (!isOpen) {
+        setSearchTerm("");
+        setSortBy("category");
+        setSortDirection("asc");
+      }
+    }, [isOpen]);
+
+    // Memoize filtered and sorted rooms
+    const filteredAndSortedRooms = useMemo(() => {
+      let result = hotelRooms;
+
+      // Apply search filter
+      if (searchTerm) {
+        const query = searchTerm.toLowerCase();
+        result = result.filter(room => 
+          room.room_category?.toLowerCase().includes(query) ||
+          room.room_type?.toLowerCase().includes(query) ||
+          room.source?.toLowerCase().includes(query)
+        );
+      }
+
+      // Apply sorting
+      result = [...result].sort((a, b) => {
+        let comparison = 0;
+        switch (sortBy) {
+          case 'category':
+            comparison = a.room_category.localeCompare(b.room_category);
+            break;
+          case 'type':
+            comparison = a.room_type.localeCompare(b.room_type);
+            break;
+          case 'remaining':
+            comparison = (b.remaining || 0) - (a.remaining || 0);
+            break;
+          case 'cost':
+            comparison = (b["price_per_night_(gbp)"] || 0) - (a["price_per_night_(gbp)"] || 0);
+            break;
+          default:
+            comparison = 0;
+        }
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+
+      return result;
+    }, [hotelRooms, searchTerm, sortBy, sortDirection]);
+
+    const handleSort = useCallback((newSortBy) => {
+      if (sortBy === newSortBy) {
+        setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+      } else {
+        setSortBy(newSortBy);
+        setSortDirection("asc");
+      }
+    }, [sortBy]);
+
+    const handleSearch = useCallback((e) => {
+      setSearchTerm(e.target.value);
+    }, []);
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-[90vw]">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-semibold">
+              Rooms for {selectedHotel?.hotel_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Filters */}
+            <div className="flex gap-4 items-center">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search rooms..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={handleSearch}
+                  />
+                </div>
+              </div>
+              <Select
+                value={sortBy}
+                onValueChange={handleSort}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="category">Room Category</SelectItem>
+                  <SelectItem value="type">Room Type</SelectItem>
+                  <SelectItem value="remaining">Remaining Rooms</SelectItem>
+                  <SelectItem value="cost">Cost per Night</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={onAddRoom}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Room
+              </Button>
+            </div>
+
+            <Table className="rounded-md border">
+              <TableHeader>
+                <TableRow className="bg-primary hover:bg-primary">
+                  <TableHead className="text-primary-foreground">Category</TableHead>
+                  <TableHead className="text-primary-foreground">Type</TableHead>
+                  <TableHead className="text-primary-foreground">Source</TableHead>
+                  <TableHead className="text-primary-foreground">Max Guests</TableHead>
+                  <TableHead className="text-primary-foreground">Check-in</TableHead>
+                  <TableHead className="text-primary-foreground">Check-out</TableHead>
+                  <TableHead className="text-primary-foreground">Booked</TableHead>
+                  <TableHead className="text-primary-foreground">Used</TableHead>
+                  <TableHead className="text-primary-foreground">Remaining</TableHead>
+                  <TableHead className="text-primary-foreground">Cost/Night</TableHead>
+                  <TableHead className="text-primary-foreground">Cost/Room</TableHead>
+                  <TableHead className="text-primary-foreground">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAndSortedRooms.map((room) => (
+                  <TableRow key={room.room_id}>
+                    <TableCell className="font-medium">{room.room_category}</TableCell>
+                    <TableCell>{room.room_type}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-normal bg-background hover:bg-background/80">
+                        {room.source}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-medium bg-secondary/10 hover:bg-secondary/20 text-secondary-foreground border-secondary/20">
+                        {room.max_guests}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{room.check_in_date}</TableCell>
+                    <TableCell>{room.check_out_date}</TableCell>
+                    <TableCell>{room.booked}</TableCell>
+                    <TableCell>{room.used}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={room.remaining > 0 ? "default" : "destructive"}
+                        className="font-medium bg-primary/90 hover:bg-primary"
+                      >
+                        {room.remaining}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      £{room["price_per_night_(gbp)"]}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      £{room["total_room_cost_(gbp)"]}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditingRoom(room);
+                            setIsEditDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteRoom(room.room_id)}
+                          disabled={isDeletingRoom && deletingRoomId === room.room_id}
+                        >
+                          {isDeletingRoom && deletingRoomId === room.room_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  });
+
+  // Update the main component's dialog state management
+  const handleAddRoomClick = useCallback(() => {
+    setIsRoomDialogOpen(true);
+  }, []);
+
+  const handleEditRoomClick = useCallback((room) => {
+    setEditingRoom(room);
+    setIsEditDialogOpen(true);
+  }, []);
+
+  const handleCloseRoomDialog = useCallback(() => {
+    setIsRoomDialogOpen(false);
+    setEditingRoom(null);
+  }, []);
+
+  const handleCloseEditDialog = useCallback(() => {
+    setIsEditDialogOpen(false);
+    setEditingRoom(null);
+  }, []);
 
   if (loading) {
     return (
@@ -1261,22 +1687,53 @@ function HotelsWithRooms() {
             />
           </div>
         </div>
-        <Select
-          value={selectedEvent}
-          onValueChange={setSelectedEvent}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by event" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Events</SelectItem>
-            {uniqueEvents.map((event) => (
-              <SelectItem key={event} value={event}>
-                {event}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              className="w-[350px] justify-between"
+            >
+              {selectedEvent === "all" ? "All Events" : selectedEvent}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[250px] p-0">
+            <Command>
+              <CommandInput placeholder="Search events..." />
+              <CommandEmpty>No event found.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="all"
+                  onSelect={() => setSelectedEvent("all")}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selectedEvent === "all" ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  All Events
+                </CommandItem>
+                {uniqueEvents.map((event) => (
+                  <CommandItem
+                    key={event}
+                    value={event}
+                    onSelect={() => setSelectedEvent(event)}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedEvent === event ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {event}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="flex items-center gap-2">
@@ -1314,45 +1771,38 @@ function HotelsWithRooms() {
       </div>
 
       {/* Hotels Table */}
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="w-[250px]">Hotel Name</TableHead>
-              <TableHead className="w-[150px]">Event</TableHead>
-              <TableHead className="w-[100px]">Rating</TableHead>
-              <TableHead className="w-[150px]">Package Type</TableHead>
-              <TableHead className="w-[150px]">City Tax</TableHead>
-              <TableHead className="w-[150px]">VAT</TableHead>
-              <TableHead className="w-[150px]">Resort Fee</TableHead>
-              <TableHead className="w-[120px] text-right">Actions</TableHead>
+            <TableRow className="bg-primary hover:bg-primary">
+              <TableHead className="w-[250px] text-primary-foreground font-bold">Hotel Name</TableHead>
+              <TableHead className="w-[150px] text-primary-foreground font-bold">Event</TableHead>
+              <TableHead className="w-[150px] text-primary-foreground font-bold">Package Type</TableHead>
+              <TableHead className="w-[150px] text-primary-foreground font-bold">City Tax</TableHead>
+              <TableHead className="w-[150px] text-primary-foreground font-bold">VAT</TableHead>
+              <TableHead className="w-[150px] text-primary-foreground font-bold">Resort Fee</TableHead>
+              <TableHead className="w-[120px] text-primary-foreground font-bold">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredHotels.map((hotel) => (
               <TableRow key={hotel.hotel_id} className="hover:bg-muted/50">
                 <TableCell className="font-medium">
-                  <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
                     <span className="font-semibold">{hotel.hotel_name}</span>
+                    <Badge variant="secondary" className="font-medium bg-primary/10 hover:bg-primary/20 text-primary border-primary/20 flex items-center text-center align-middle gap-1 px-2 py-0.5">
+                      {hotel.stars}
+                      <Star className="fill-primary text-primary" />
+                    </Badge>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="font-normal">
+                  <Badge variant="outline" className="font-semibold bg-background">
                     {hotel.event_name}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground font-bold flex justify-center items-center gap-1">
-                      {hotel.stars}
-                      <Star className="h-4 w-4 fill-primary text-primary" />
-                    </span>
-                    
-
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className="font-normal">
+                  <Badge variant="secondary" className="font-normal bg-secondary/80 hover:bg-secondary">
                     {hotel.package_type}
                   </Badge>
                 </TableCell>
@@ -1360,7 +1810,7 @@ function HotelsWithRooms() {
                   <div className="flex flex-col">
                     <span className="font-medium">
                       {hotel.city_tax_value === 'included' ? (
-                        <Badge variant="secondary" className="font-normal">Included</Badge>
+                        <Badge variant="secondary" className="font-normal bg-secondary/80 hover:bg-secondary">Included</Badge>
                       ) : hotel.city_tax_value === 'percentage' ? (
                         `${hotel.city_tax_amount}%`
                       ) : (
@@ -1378,7 +1828,7 @@ function HotelsWithRooms() {
                   <div className="flex flex-col">
                     <span className="font-medium">
                       {hotel.vat_type === 'included' ? (
-                        <Badge variant="secondary" className="font-normal">Included</Badge>
+                        <Badge variant="secondary" className="font-normal bg-secondary/80 hover:bg-secondary">Included</Badge>
                       ) : hotel.vat_type === 'percentage' ? (
                         `${hotel.vat_amount}%`
                       ) : (
@@ -1409,7 +1859,7 @@ function HotelsWithRooms() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-start gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -1457,86 +1907,11 @@ function HotelsWithRooms() {
 
       {/* Rooms Dialog */}
       {selectedHotel && (
-        <Dialog open={!!selectedHotel} onOpenChange={() => setSelectedHotel(null)}>
-          <DialogContent className="max-w-[90vw]">
-            <DialogHeader>
-              <DialogTitle>
-                Rooms for {selectedHotel.hotel_name}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex justify-end">
-                <Button onClick={() => setIsRoomDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Room
-                </Button>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Check-in</TableHead>
-                    <TableHead>Check-out</TableHead>
-                    <TableHead>Booked</TableHead>
-                    <TableHead>Used</TableHead>
-                    <TableHead>Remaining</TableHead>
-                    <TableHead>Cost/Night</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {hotelRooms.map((room) => (
-                    <TableRow key={room.room_id}>
-                      <TableCell>{room.room_category}</TableCell>
-                      <TableCell>{room.room_type}</TableCell>
-                      <TableCell>{room.source}</TableCell>
-                      <TableCell>{room.check_in_date}</TableCell>
-                      <TableCell>{room.check_out_date}</TableCell>
-                      <TableCell>{room.booked}</TableCell>
-                      <TableCell>{room.used}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={room.remaining > 0 ? "default" : "destructive"}
-                        >
-                          {room.remaining}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>£{room["price_per_night_(gbp)"]}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEditingRoom(room);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteRoom(room.room_id)}
-                            disabled={isDeletingRoom && deletingRoomId === room.room_id}
-                          >
-                            {isDeletingRoom && deletingRoomId === room.room_id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            )}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <RoomsTableView
+          isOpen={!!selectedHotel}
+          onOpenChange={() => setSelectedHotel(null)}
+          onAddRoom={handleAddRoomClick}
+        />
       )}
 
       {/* Add Hotel Dialog */}
@@ -1557,14 +1932,14 @@ function HotelsWithRooms() {
       {/* Add/Edit Room Dialog */}
       <RoomDialog
         isOpen={isRoomDialogOpen}
-        onOpenChange={setIsRoomDialogOpen}
+        onOpenChange={handleCloseRoomDialog}
         mode="add"
       />
 
       {/* Edit Room Dialog */}
       <RoomDialog
         isOpen={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
+        onOpenChange={handleCloseEditDialog}
         mode="edit"
         room={editingRoom}
       />

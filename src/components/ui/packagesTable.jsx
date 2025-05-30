@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
-import { Plus, Trash2, Pencil, Loader2, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, CheckCircle2, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,6 +63,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format, parse } from "date-fns";
+import { TiersTableView } from "@/components/ui/tiers-table-view";
 
 function PackagesTable() {
   const [packages, setPackages] = useState([]);
@@ -89,6 +90,8 @@ function PackagesTable() {
   const [selectedPackages, setSelectedPackages] = useState([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [isTiersDialogOpen, setIsTiersDialogOpen] = useState(false);
 
   // Sorting options
   const sortColumns = [
@@ -441,6 +444,11 @@ function PackagesTable() {
     }
   };
 
+  const handleViewTiers = (pkg) => {
+    setSelectedPackage(pkg);
+    setIsTiersDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="text-center text-muted-foreground p-8">
@@ -638,24 +646,24 @@ function PackagesTable() {
                   <TableCell className="text-xs py-1.5">{pkg.package_name}</TableCell>
                   <TableCell className="text-xs py-1.5">{pkg.package_type}</TableCell>
                   <TableCell className="text-xs py-1.5">
-                    <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
                       {pkg.payment_date_1 && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">1st:</span>
-                          <span>{pkg.payment_date_1}</span>
-                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          1st: {pkg.payment_date_1}
+                        </Badge>
                       )}
                       {pkg.payment_date_2 && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">2nd:</span>
-                          <span>{pkg.payment_date_2}</span>
-                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          2nd: {pkg.payment_date_2}
+                        </Badge>
                       )}
                       {pkg.payment_date_3 && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">3rd:</span>
-                          <span>{pkg.payment_date_3}</span>
-                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          3rd: {pkg.payment_date_3}
+                        </Badge>
+                      )}
+                      {!pkg.payment_date_1 && !pkg.payment_date_2 && !pkg.payment_date_3 && (
+                        <span className="text-muted-foreground text-xs">No payment schedule</span>
                       )}
                     </div>
                   </TableCell>
@@ -689,6 +697,13 @@ function PackagesTable() {
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
                     <div className="flex gap-1">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleViewTiers(pkg)}
+                      >
+                        View Tiers
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -1075,6 +1090,20 @@ function PackagesTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {selectedPackage && (
+        <TiersTableView
+          isOpen={isTiersDialogOpen}
+          onOpenChange={() => {
+            setIsTiersDialogOpen(false);
+            setSelectedPackage(null);
+          }}
+          selectedPackage={selectedPackage}
+          onSuccess={async () => {
+            const res = await api.get("/packages");
+            setPackages(res.data);
+          }}
+        />
+      )}
     </div>
   );
 }

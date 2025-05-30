@@ -21,7 +21,7 @@ function HotelRoomCombinedTable() {
     setLoading(true);
     try {
       const [hotelsRes, roomsRes] = await Promise.all([
-        api.get("copy of hotels"),
+        api.get("hotels"),
         api.get("copy of stock - rooms"),
       ]);
       setHotels(Array.isArray(hotelsRes.data) ? hotelsRes.data : []);
