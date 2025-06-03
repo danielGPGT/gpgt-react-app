@@ -127,14 +127,9 @@ const menuItems = [
         icon: Ticket,
       },
       {
-        title: "Hotels",
+        title: "Hotels & Rooms",
         url: "/inventory?tab=hotels",
         icon: Hotel,
-      },
-      {
-        title: "Rooms",
-        url: "/inventory?tab=rooms",
-        icon: Bed,
       },
       {
         title: "Circuit Transfers",
