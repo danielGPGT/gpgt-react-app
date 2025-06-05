@@ -67,6 +67,8 @@ import QuotePDF from "./QuotePDF";
 import { FileText } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { BookingConfirmationPDF } from "./BookingConfirmationPDF";
 
 function InternalPricing({
   numberOfAdults,
@@ -169,10 +171,8 @@ function InternalPricing({
     CAD: "C$",
   };
 
-  const ASK_SPREAD = 0.5 * 0.1; // 0.5% ask added to every exchange rate
-
-  // Inside your Events component
   const [exchangeRate, setExchangeRate] = useState(1);
+  const [spread, setSpread] = useState(0);
 
   const [transferDirection, setTransferDirection] = useState("both");
 
@@ -236,18 +236,32 @@ function InternalPricing({
   ]);
 
   useEffect(() => {
+    const fetchSpread = async () => {
+      try {
+        const res = await api.get('/fx-spread');
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setSpread(Number(res.data[0].spread) || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch spread:', error);
+      }
+    };
+    fetchSpread();
+  }, []);
+
+  useEffect(() => {
     async function updateExchangeRate() {
       if (selectedCurrency === "GBP") {
         setExchangeRate(1);
         return;
       }
       const rate = await fetchExchangeRate("GBP", selectedCurrency);
-      const adjustedRate = rate + ASK_SPREAD; // add 0.5
+      const adjustedRate = rate + spread;
       setExchangeRate(adjustedRate);
     }
 
     updateExchangeRate();
-  }, [selectedCurrency]);
+  }, [selectedCurrency, spread]);
 
   const handleDateChange = (range) => {
     if (!range?.from || !range?.to) {
@@ -611,16 +625,37 @@ function InternalPricing({
                   params: { hotelId: hotel.hotel_id },
                 }),
                 api.get("/circuit-transfers", {
-                  params: { hotelId: hotel.hotel_id },
+                  params: { 
+                    hotelId: hotel.hotel_id,
+                    packageId: selectedPackage?.package_id 
+                  },
                 }),
                 api.get("/airport-transfers", {
-                  params: { hotelId: hotel.hotel_id },
+                  params: { 
+                    hotelId: hotel.hotel_id,
+                    packageId: selectedPackage?.package_id 
+                  },
                 }),
               ]);
 
               setRooms(roomsRes.data);
-              setCircuitTransfers(circuitRes.data);
-              setAirportTransfers(airportRes.data);
+              
+              // Filter circuit transfers by package ID and hotel ID
+              const filteredCircuitTransfers = circuitRes.data.filter(transfer => {
+                const packageIds = transfer.package_id.split(',').map(id => id.trim());
+                return packageIds.includes(selectedPackage?.package_id) && 
+                       transfer.hotel_id === hotel.hotel_id;
+              });
+              
+              // Filter airport transfers by package ID and hotel ID
+              const filteredAirportTransfers = airportRes.data.filter(transfer => {
+                const packageIds = transfer.package_id.split(',').map(id => id.trim());
+                return packageIds.includes(selectedPackage?.package_id) && 
+                       transfer.hotel_id === hotel.hotel_id;
+              });
+              
+              setCircuitTransfers(filteredCircuitTransfers);
+              setAirportTransfers(filteredAirportTransfers);
 
               // Set the room if specified in tier
               if (selectedTierData.room_id) {
@@ -655,9 +690,9 @@ function InternalPricing({
                 }
               }
 
-              // Set transfers if specified in tier
+              // Set circuit transfer if specified in tier
               if (selectedTierData.circuit_transfer_id) {
-                const circuitTransfer = circuitRes.data.find(
+                const circuitTransfer = filteredCircuitTransfers.find(
                   (t) => t.circuit_transfer_id === selectedTierData.circuit_transfer_id
                 );
                 if (circuitTransfer) {
@@ -666,8 +701,9 @@ function InternalPricing({
                 }
               }
 
+              // Set airport transfer if specified in tier
               if (selectedTierData.airport_transfer_id) {
-                const airportTransfer = airportRes.data.find(
+                const airportTransfer = filteredAirportTransfers.find(
                   (t) => t.airport_transfer_id === selectedTierData.airport_transfer_id
                 );
                 if (airportTransfer) {
@@ -734,19 +770,40 @@ function InternalPricing({
             params: { hotelId: foundHotel.hotel_id },
           }),
           api.get("/circuit-transfers", {
-            params: { hotelId: foundHotel.hotel_id },
+            params: { 
+              hotelId: foundHotel.hotel_id,
+              packageId: selectedPackage?.package_id 
+            },
           }),
           api.get("/airport-transfers", {
-            params: { hotelId: foundHotel.hotel_id },
+            params: { 
+              hotelId: foundHotel.hotel_id,
+              packageId: selectedPackage?.package_id 
+            },
           }),
         ]);
 
         setRooms(roomsRes.data);
-        setCircuitTransfers(circuitRes.data);
-        setAirportTransfers(airportRes.data);
+        
+        // Filter circuit transfers by package ID and hotel ID
+        const filteredCircuitTransfers = circuitRes.data.filter(transfer => {
+          const packageIds = transfer.package_id.split(',').map(id => id.trim());
+          return packageIds.includes(selectedPackage?.package_id) && 
+                 transfer.hotel_id === foundHotel.hotel_id;
+        });
+        
+        // Filter airport transfers by package ID and hotel ID
+        const filteredAirportTransfers = airportRes.data.filter(transfer => {
+          const packageIds = transfer.package_id.split(',').map(id => id.trim());
+          return packageIds.includes(selectedPackage?.package_id) && 
+                 transfer.hotel_id === foundHotel.hotel_id;
+        });
+        
+        setCircuitTransfers(filteredCircuitTransfers);
+        setAirportTransfers(filteredAirportTransfers);
 
-        console.log('Fetched circuit transfers:', circuitRes.data);
-        console.log('Fetched airport transfers:', airportRes.data);
+        console.log('Fetched circuit transfers:', filteredCircuitTransfers);
+        console.log('Fetched airport transfers:', filteredAirportTransfers);
 
       } catch (error) {
         console.error("Failed to fetch hotel data:", error.message);
@@ -1811,6 +1868,40 @@ function InternalPricing({
                 <FileText className="mr-2 h-4 w-4 text-primary" />
                 Generate Quote
               </Button>
+              {/* Booking Confirmation PDF Download */}
+              <PDFDownloadLink
+                document={
+                  <BookingConfirmationPDF
+                    selectedEvent={selectedEvent}
+                    selectedPackage={selectedPackage}
+                    selectedHotel={selectedHotel}
+                    selectedRoom={selectedRoom}
+                    selectedTicket={selectedTicket}
+                    selectedFlight={selectedFlight}
+                    selectedLoungePass={selectedLoungePass}
+                    selectedCircuitTransfer={selectedCircuitTransfer}
+                    selectedAirportTransfer={selectedAirportTransfer}
+                    numberOfAdults={numberOfAdults}
+                    dateRange={dateRange}
+                    roomQuantity={roomQuantity}
+                    ticketQuantity={ticketQuantity}
+                    loungePassQuantity={loungePassQuantity}
+                    circuitTransferQuantity={circuitTransferQuantity}
+                    airportTransferQuantity={airportTransferQuantity}
+                    flightQuantity={flightQuantity}
+                    totalPrice={totalPrice}
+                    selectedCurrency={selectedCurrency}
+                  />
+                }
+                fileName={`BookingConfirmation_${selectedEvent?.event_id || 'Booking'}.pdf`}
+                className="w-full mt-2"
+              >
+                {({ loading }) =>
+                  loading ? "Generating PDF..." : (
+                    <Button type="button" variant="outline" className="w-full">Download Booking Confirmation PDF</Button>
+                  )
+                }
+              </PDFDownloadLink>
             </div>
           </div>
         )}

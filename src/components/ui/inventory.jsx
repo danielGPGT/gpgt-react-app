@@ -3,6 +3,7 @@ import { TicketTable } from "@/components/ui/ticketTable";
 import HotelsWithRooms from "@/components/ui/HotelsWithRooms";
 import { LoungePassTable } from "@/components/ui/LoungePassTable";
 import { AirportTransferTable } from "@/components/ui/airportTransferTable";
+import CircuitTransferTable from "@/components/ui/circuitTransferTable";
 import {
   Card,
   CardContent,
@@ -48,19 +49,7 @@ function Inventory({ defaultTab = "tickets", onTabChange }) {
         </TabsContent>
 
         <TabsContent value="circuits" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Circuit Transfer Inventory</CardTitle>
-              <CardDescription>
-                Manage circuit transfer inventory
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center text-muted-foreground py-8">
-                Circuit transfer inventory management coming soon...
-              </div>
-            </CardContent>
-          </Card>
+          <CircuitTransferTable />
         </TabsContent>
 
         <TabsContent value="airport" className="mt-6">

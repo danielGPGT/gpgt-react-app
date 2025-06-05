@@ -240,19 +240,6 @@ export default function Instructions() {
                         <li>Add VIP package details if applicable</li>
                       </ul>
                     </li>
-                    <li>Create package tiers:
-                      <ul className="list-disc list-inside ml-4 mt-2">
-                        <li>Go to "Package Tiers" section</li>
-                        <li>Create Bronze, Silver, and Gold tiers</li>
-                        <li>For each tier, assign:
-                          <ul className="list-disc list-inside ml-4 mt-2">
-                            <li>Selected tickets from the event</li>
-                            <li>Room options (when available)</li>
-                            <li>Transfer options (when available)</li>
-                          </ul>
-                        </li>
-                      </ul>
-                    </li>
                     <li>Review and save the package configuration</li>
                     <li>The package will now appear in the Sales Pricing section for booking</li>
                   </ol>

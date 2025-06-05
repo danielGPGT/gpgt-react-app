@@ -22,6 +22,7 @@ import { UsersTable } from "@/components/ui/user-table";
 import { Inventory } from "@/components/ui/inventory";
 import { useTheme } from "@/components/theme-provider";
 import { BookingsChart } from "@/components/ui/bookingsChart";
+import FxTable from "./fxTable";
 
 function AdminDashboard() {
   const { theme } = useTheme();
@@ -48,6 +49,7 @@ function AdminDashboard() {
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="sales">Sales</TabsTrigger>
           <TabsTrigger value="operations">Operations</TabsTrigger>
+          <TabsTrigger value="fx">FX Rates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-2">
@@ -95,6 +97,22 @@ function AdminDashboard() {
             <CardContent>
               <div className="space-y-6">
                 {/* Operations content will go here */}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="fx" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">FX Rates Table</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                View and manage current foreign exchange rates
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <FxTable />
               </div>
             </CardContent>
           </Card>

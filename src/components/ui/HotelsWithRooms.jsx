@@ -64,6 +64,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fetchHotelInfo } from "@/lib/api";
+import {
+  Checkbox,
+} from "@/components/ui/checkbox";
 
 function HotelsWithRooms() {
   const [hotels, setHotels] = useState([]);
@@ -73,8 +76,6 @@ function HotelsWithRooms() {
   const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: "event_name", direction: "asc" });
   const [isAddHotelDialogOpen, setIsAddHotelDialogOpen] = useState(false);
   const [isEditHotelDialogOpen, setIsEditHotelDialogOpen] = useState(false);
   const [editingHotel, setEditingHotel] = useState(null);
@@ -89,6 +90,20 @@ function HotelsWithRooms() {
   const [isAddingHotel, setIsAddingHotel] = useState(false);
   const [isEditingHotel, setIsEditingHotel] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState("all");
+  const [filters, setFilters] = useState({
+    search: "",
+    event: "all",
+    packageType: "all",
+    city: "all"
+  });
+  const [sortColumn, setSortColumn] = useState("hotel_name");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+  const [selectedHotels, setSelectedHotels] = useState([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   const roomFieldMappings = {
     hotel_id: "Hotel ID",
@@ -187,10 +202,10 @@ function HotelsWithRooms() {
     }
   };
 
-  // Update the uniqueEvents useMemo to use event_name
+  // Get unique events for filter
   const uniqueEvents = useMemo(() => {
-    const events = new Set(hotels.map(hotel => hotel.event_name).filter(Boolean));
-    return Array.from(events).sort();
+    const events = new Set(hotels.map(hotel => hotel.event_name));
+    return Array.from(events).filter(Boolean);
   }, [hotels]);
 
   // Get rooms for selected hotel
@@ -202,43 +217,6 @@ function HotelsWithRooms() {
     console.log('Filtered rooms for hotel:', filteredRooms);
     return filteredRooms;
   }, [selectedHotel, rooms]);
-
-  // Update the filteredHotels useMemo to use event_name
-  const filteredHotels = useMemo(() => {
-    let result = hotels;
-    
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(hotel => 
-        hotel.hotel_name?.toLowerCase().includes(query) ||
-        hotel.event_name?.toLowerCase().includes(query) ||
-        hotel.package_type?.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply event filter
-    if (selectedEvent !== "all") {
-      result = result.filter(hotel => hotel.event_name === selectedEvent);
-    }
-
-    // Apply sorting
-    result = [...result].sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
-
-      if (sortConfig.key === "stars") {
-        return sortConfig.direction === "asc" 
-          ? (aValue || 0) - (bValue || 0)
-          : (bValue || 0) - (aValue || 0);
-      }
-
-      const comparison = String(aValue || "").localeCompare(String(bValue || ""));
-      return sortConfig.direction === "asc" ? comparison : -comparison;
-    });
-
-    return result;
-  }, [hotels, searchQuery, sortConfig, selectedEvent]);
 
   // Room management functions
   const handleAddRoom = useCallback(async (roomData) => {
@@ -1641,6 +1619,94 @@ function HotelsWithRooms() {
     setEditingRoom(null);
   }, []);
 
+  // Unique filter options
+  const getUnique = (arr, key) => [...new Set(arr.map(item => item[key]).filter(Boolean))];
+
+  // Filtering logic
+  const filterHotels = (items) => {
+    return items.filter((item) => {
+      // Search filter
+      const searchMatch =
+        filters.search === "" ||
+        Object.values(item).some((val) =>
+          String(val).toLowerCase().includes(filters.search.toLowerCase())
+        );
+      // Event filter
+      const eventMatch =
+        filters.event === "all" || item.event_name === filters.event;
+      // Package type filter
+      const packageTypeMatch =
+        filters.packageType === "all" || item.package_type === filters.packageType;
+      // City filter
+      const cityMatch =
+        filters.city === "all" || (item.city && item.city === filters.city);
+      return searchMatch && eventMatch && packageTypeMatch && cityMatch;
+    });
+  };
+
+  // Sorting logic
+  const filteredHotels = useMemo(() => {
+    let result = filterHotels(hotels);
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+        if (["stars"].includes(sortColumn)) {
+          aVal = Number(aVal) || 0;
+          bVal = Number(bVal) || 0;
+        } else {
+          aVal = (aVal || "").toString().toLowerCase();
+          bVal = (bVal || "").toString().toLowerCase();
+          if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+          if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+          return 0;
+        }
+        return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+      });
+    }
+    return result;
+  }, [hotels, filters, sortColumn, sortDirection]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredHotels.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredHotels.slice(startIndex, endIndex);
+
+  // Bulk selection handlers
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedHotels(currentItems.map((hotel) => hotel.hotel_id));
+    } else {
+      setSelectedHotels([]);
+    }
+  };
+  const handleSelectHotel = (hotelId, checked) => {
+    if (checked) {
+      setSelectedHotels((prev) => [...prev, hotelId]);
+    } else {
+      setSelectedHotels((prev) => prev.filter((id) => id !== hotelId));
+    }
+  };
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedHotels([]);
+  };
+  const handleBulkDelete = async () => {
+    if (selectedHotels.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      for (const hotelId of selectedHotels) {
+        await handleDeleteHotel(hotelId);
+      }
+      setSelectedHotels([]);
+    } catch (error) {
+      // error already handled in handleDeleteHotel
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1650,144 +1716,196 @@ function HotelsWithRooms() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Hotels & Rooms</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage hotels and their associated rooms
-          </p>
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex-1 min-w-[200px]">
+          <Input
+            placeholder="Search hotels..."
+            value={filters.search}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            className="pl-8"
+          />
         </div>
-        <Button onClick={() => setIsAddHotelDialogOpen(true)} disabled={isAddingHotel}>
-          {isAddingHotel ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adding...
-            </>
-          ) : (
-            <>
+        <Select
+          value={filters.event}
+          onValueChange={(value) => setFilters({ ...filters, event: value })}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by Event" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Events</SelectItem>
+            {getUnique(hotels, "event_name").map((event) => (
+              <SelectItem key={event} value={event}>{event}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.packageType}
+          onValueChange={(value) => setFilters({ ...filters, packageType: value })}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by Package Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Package Types</SelectItem>
+            {getUnique(hotels, "package_type").map((type) => (
+              <SelectItem key={type} value={type}>{type}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.city}
+          onValueChange={(value) => setFilters({ ...filters, city: value })}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by City" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Cities</SelectItem>
+            {getUnique(hotels, "city").map((city) => (
+              <SelectItem key={city} value={city}>{city}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table and Add Button */}
+      <div className="rounded-md border">
+        <div className="flex items-center gap-2 p-2 justify-between">
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm" className="flex items-center gap-2">
+                  Sort <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  onClick={() => setSortColumn("hotel_name")}
+                  className={sortColumn === "hotel_name" ? "font-semibold text-primary" : ""}
+                >
+                  Hotel {sortColumn === "hotel_name" && "✓"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortColumn("event_name")}
+                  className={sortColumn === "event_name" ? "font-semibold text-primary" : ""}
+                >
+                  Event {sortColumn === "event_name" && "✓"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortColumn("package_type")}
+                  className={sortColumn === "package_type" ? "font-semibold text-primary" : ""}
+                >
+                  Package Type {sortColumn === "package_type" && "✓"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortColumn("stars")}
+                  className={sortColumn === "stars" ? "font-semibold text-primary" : ""}
+                >
+                  Stars {sortColumn === "stars" && "✓"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Direction</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("asc")}
+                  className={sortDirection === "asc" ? "font-semibold text-primary" : ""}
+                >
+                  Ascending {sortDirection === "asc" && "▲"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSortDirection("desc")}
+                  className={sortDirection === "desc" ? "font-semibold text-primary" : ""}
+                >
+                  Descending {sortDirection === "desc" && "▼"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="text-sm text-muted-foreground">Sorted by <span className="font-medium">{(() => {
+              switch (sortColumn) {
+                case "hotel_name": return "Hotel";
+                case "event_name": return "Event";
+                case "package_type": return "Package Type";
+                case "stars": return "Stars";
+                default: return sortColumn;
+              }
+            })()}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})</span>
+          </div>
+          <div className="flex gap-4 items-center">
+            {isSelectionMode && selectedHotels.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+                disabled={isBulkDeleting}
+              >
+                {isBulkDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Selected ({selectedHotels.length})
+                  </>
+                )}
+              </Button>
+            )}
+            <Button
+              variant={isSelectionMode ? "secondary" : "outline"}
+              size="sm"
+              onClick={toggleSelectionMode}
+            >
+              {isSelectionMode ? "Cancel Selection" : "Bulk Actions"}
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsAddHotelDialogOpen(true)}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Add Hotel
-            </>
-          )}
-        </Button>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search hotels..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8"
-            />
+            </Button>
           </div>
         </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              className="w-[350px] justify-between"
-            >
-              {selectedEvent === "all" ? "All Events" : selectedEvent}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[250px] p-0">
-            <Command>
-              <CommandInput placeholder="Search events..." />
-              <CommandEmpty>No event found.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem
-                  value="all"
-                  onSelect={() => setSelectedEvent("all")}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedEvent === "all" ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  All Events
-                </CommandItem>
-                {uniqueEvents.map((event) => (
-                  <CommandItem
-                    key={event}
-                    value={event}
-                    onSelect={() => setSelectedEvent(event)}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedEvent === event ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {event}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="flex items-center gap-2">
-              Sort by {sortConfig.key.replace(/_/g, " ")} {sortConfig.direction === "asc" ? "↑" : "↓"}
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {["hotel_name", "event_name", "package_type", "stars"].map((key) => (
-              <DropdownMenuItem
-                key={key}
-                onClick={() => setSortConfig({ key, direction: "asc" })}
-                className={sortConfig.key === key ? "bg-accent" : ""}
-              >
-                {key.replace(/_/g, " ")}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => setSortConfig(prev => ({ ...prev, direction: "desc" }))}
-              className={sortConfig.direction === "desc" ? "bg-accent" : ""}
-            >
-              Descending
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setSortConfig(prev => ({ ...prev, direction: "asc" }))}
-              className={sortConfig.direction === "asc" ? "bg-accent" : ""}
-            >
-              Ascending
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Hotels Table */}
-      <div className="rounded-md border overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow className="bg-primary hover:bg-primary">
-              <TableHead className="w-[250px] text-primary-foreground font-bold">Hotel Name</TableHead>
-              <TableHead className="w-[150px] text-primary-foreground font-bold">Event</TableHead>
-              <TableHead className="w-[150px] text-primary-foreground font-bold">Package Type</TableHead>
-              <TableHead className="w-[150px] text-primary-foreground font-bold">City Tax</TableHead>
-              <TableHead className="w-[150px] text-primary-foreground font-bold">VAT</TableHead>
-              <TableHead className="w-[150px] text-primary-foreground font-bold">Resort Fee</TableHead>
-              <TableHead className="w-[120px] text-primary-foreground font-bold">Actions</TableHead>
+          <TableHeader className="bg-muted">
+            <TableRow className="hover:bg-muted">
+              {isSelectionMode && (
+                <TableHead className="w-[50px] text-xs py-2">
+                  <Checkbox
+                    checked={selectedHotels.length === currentItems.length}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                    className="h-4 w-4"
+                  />
+                </TableHead>
+              )}
+              <TableHead className="w-[250px] text-xs py-2 font-bold">Hotel Name</TableHead>
+              <TableHead className="w-[150px] text-xs py-2 font-bold">Event</TableHead>
+              <TableHead className="w-[150px] text-xs py-2 font-bold">Package Type</TableHead>
+              <TableHead className="w-[150px] text-xs py-2 font-bold">City Tax</TableHead>
+              <TableHead className="w-[150px] text-xs py-2 font-bold">VAT</TableHead>
+              <TableHead className="w-[150px] text-xs py-2 font-bold">Resort Fee</TableHead>
+              <TableHead className="w-[120px] text-xs py-2 font-bold">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredHotels.map((hotel) => (
+            {currentItems.map((hotel) => (
               <TableRow key={hotel.hotel_id} className="hover:bg-muted/50">
-                <TableCell className="font-medium">
+                {isSelectionMode && (
+                  <TableCell className="text-xs py-1.5">
+                    <Checkbox
+                      checked={selectedHotels.includes(hotel.hotel_id)}
+                      onCheckedChange={(checked) => handleSelectHotel(hotel.hotel_id, checked)}
+                      aria-label={`Select ${hotel.hotel_name}`}
+                      className="h-4 w-4"
+                    />
+                  </TableCell>
+                )}
+                <TableCell className="font-medium text-xs py-1.5">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{hotel.hotel_name}</span>
                     <Badge variant="secondary" className="font-medium bg-primary/10 hover:bg-primary/20 text-primary border-primary/20 flex items-center text-center align-middle gap-1 px-2 py-0.5">
@@ -1796,17 +1914,17 @@ function HotelsWithRooms() {
                     </Badge>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs py-1.5">
                   <Badge variant="outline" className="font-semibold bg-background">
                     {hotel.event_name}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs py-1.5">
                   <Badge variant="secondary" className="font-normal bg-secondary/80 hover:bg-secondary">
                     {hotel.package_type}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs py-1.5">
                   <div className="flex flex-col">
                     <span className="font-medium">
                       {hotel.city_tax_value === 'included' ? (
@@ -1819,12 +1937,12 @@ function HotelsWithRooms() {
                     </span>
                     {hotel.city_tax_value !== 'included' && (
                       <span className="text-xs text-muted-foreground">
-                        {hotel.city_tax_type.replace(/_/g, ' ')}
+                        {hotel.city_tax_type?.replace(/_/g, ' ')}
                       </span>
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs py-1.5">
                   <div className="flex flex-col">
                     <span className="font-medium">
                       {hotel.vat_type === 'included' ? (
@@ -1842,7 +1960,7 @@ function HotelsWithRooms() {
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs py-1.5">
                   <div className="flex flex-col">
                     <span className="font-medium">
                       {hotel["resort_fee_(per_night)"] === 0 ? (
@@ -1858,13 +1976,13 @@ function HotelsWithRooms() {
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="flex justify-start gap-2">
+                <TableCell className="text-xs py-1.5">
+                  <div className="flex justify-start gap-1">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setSelectedHotel(hotel)}
-                      className="h-8"
+                      className="h-7"
                     >
                       View Rooms
                     </Button>
@@ -1876,12 +1994,12 @@ function HotelsWithRooms() {
                         setIsEditHotelDialogOpen(true);
                       }}
                       disabled={isEditingHotel}
-                      className="h-8 w-8"
+                      className="h-7 w-7"
                     >
                       {isEditingHotel ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       )}
                     </Button>
                     <Button
@@ -1889,12 +2007,12 @@ function HotelsWithRooms() {
                       size="icon"
                       onClick={() => handleDeleteClick(hotel)}
                       disabled={isDeletingHotel && deletingHotelId === hotel.hotel_id}
-                      className="h-8 w-8"
+                      className="h-7 w-7"
                     >
                       {isDeletingHotel && deletingHotelId === hotel.hotel_id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       )}
                     </Button>
                   </div>
@@ -1944,35 +2062,65 @@ function HotelsWithRooms() {
         room={editingRoom}
       />
 
-      {/* Delete Hotel Confirmation Dialog */}
-      <AlertDialog open={showDeleteHotelDialog} onOpenChange={setShowDeleteHotelDialog}>
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Showing {startIndex + 1} to {Math.min(endIndex, filteredHotels.length)} of {filteredHotels.length} hotels
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm">Page {currentPage} of {totalPages}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the hotel "{hotelToDelete?.hotel_name}".
+              This action cannot be undone. This will permanently delete {selectedHotels.length} selected hotel(s).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowDeleteHotelDialog(false)}
-              disabled={isDeletingHotel}
+              onClick={() => setShowBulkDeleteDialog(false)}
+              disabled={isBulkDeleting}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={confirmDeleteHotel}
-              disabled={isDeletingHotel}
+              onClick={() => {
+                handleBulkDelete();
+                setShowBulkDeleteDialog(false);
+                setIsSelectionMode(false);
+              }}
+              disabled={isBulkDeleting}
             >
-              {isDeletingHotel ? (
+              {isBulkDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...
                 </>
               ) : (
-                "Delete"
+                "Delete Selected"
               )}
             </Button>
           </AlertDialogFooter>

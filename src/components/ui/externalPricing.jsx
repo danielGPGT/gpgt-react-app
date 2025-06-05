@@ -143,6 +143,7 @@ function ExternalPricing({
 
   const [originalNights, setOriginalNights] = useState(0);
   const [exchangeRate, setExchangeRate] = useState(1);
+  const [spread, setSpread] = useState(0); // Will be set from /fx-spread
 
   const [packageTiers, setPackageTiers] = useState([]);
   const [loadingTiers, setLoadingTiers] = useState(false);
@@ -161,8 +162,6 @@ function ExternalPricing({
     CAD: "C$",
   };
 
-  const ASK_SPREAD = 0.5 * 0.1; // 0.5% ask added to every exchange rate
-
   const [showFlightDialog, setShowFlightDialog] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState("none");
 
@@ -175,6 +174,21 @@ function ExternalPricing({
     const data = await res.json();
     return data.data[target];
   }
+
+  // Fetch spread from /fx-spread
+  useEffect(() => {
+    const fetchSpread = async () => {
+      try {
+        const res = await api.get('/fx-spread');
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setSpread(Number(res.data[0].spread) || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch spread:', error);
+      }
+    };
+    fetchSpread();
+  }, []);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -266,12 +280,12 @@ function ExternalPricing({
         return;
       }
       const rate = await fetchExchangeRate("GBP", selectedCurrency);
-      const adjustedRate = rate + ASK_SPREAD; // add 0.5
+      const adjustedRate = rate + spread; // Use spread as absolute value
       setExchangeRate(adjustedRate);
     }
 
     updateExchangeRate();
-  }, [selectedCurrency]);
+  }, [selectedCurrency, spread]);
 
   useEffect(() => {
     async function fetchUser() {

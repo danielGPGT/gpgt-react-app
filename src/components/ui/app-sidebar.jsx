@@ -99,21 +99,9 @@ const menuItems = [
   // Package Management
   {
     title: "Package Builder",
-    url: "/packages?tab=packages",
+    url: "/packages",
     icon: HardHat,
     allowedRoles: ["Admin"],
-    subItems: [
-      {
-        title: "Packages",
-        url: "/packages?tab=packages",
-        icon: Package,
-      },
-      {
-        title: "Package Tiers",
-        url: "/packages?tab=tiers",
-        icon: Layers,
-      },
-    ],
   },
   {
     title: "Inventory",
