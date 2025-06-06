@@ -57,6 +57,9 @@ import {
 } from "@/components/ui/dialog";
 import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { BookingConfirmationPDF } from "@/components/ui/BookingConfirmationPDF";
+import ReactDOM from "react-dom/client";
 
 function BookingForm({ 
   numberOfAdults, 
@@ -101,6 +104,7 @@ function BookingForm({
   const [paymentAmounts, setPaymentAmounts] = useState([0, 0, 0]);
   const [currentUser, setCurrentUser] = useState(null);
   const navigate = useNavigate();
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   const currencySymbols = {
     GBP: "£",
@@ -608,36 +612,97 @@ function BookingForm({
           console.log('Response status:', response.status);
           console.log('Response headers:', response.headers);
           
-          // Set booking details for confirmation dialog
-          setBookingDetails({
-            bookingRef: response.data.booking_ref || `${values.booking_reference_prefix}${values.booking_reference}`,
-            bookerName: values.booker_name,
-            event: selectedEvent?.event || 'N/A',
-            package: selectedPackage?.package_name || 'N/A',
-            totalPrice: `${currencySymbols[selectedCurrency]}${totalPrice.toFixed(2)}`,
-            paymentSchedule: [
-              { amount: paymentAmounts[0], date: payment1Date },
-              { amount: paymentAmounts[1], date: payment2Date },
-              { amount: paymentAmounts[2], date: payment3Date }
-            ]
-          });
-          
           // Show success message
           toast.success('Booking created successfully!');
           
-          // Show confirmation dialog
-          setShowConfirmation(true);
-          
+          // Create booking details object
+          const bookingDetails = {
+            booking_ref: bookingData.booking_ref,
+            booker_name: bookingData.booker_name,
+            booker_email: bookingData.booker_email,
+            booker_phone: bookingData.booker_phone,
+            booker_address: bookingData.booker_address,
+            lead_traveller_name: bookingData.lead_traveller_name,
+            lead_traveller_email: bookingData.lead_traveller_email,
+            lead_traveller_phone: bookingData.lead_traveller_phone,
+            booking_date: bookingData.booking_date,
+            total_paid: bookingData.payment_1,
+            payment_status: 'Partially Paid',
+            payment_1: bookingData.payment_1,
+            payment_1_date: bookingData.payment_1_date,
+            payment_1_status: 'Paid',
+            payment_2: bookingData.payment_2,
+            payment_2_date: bookingData.payment_2_date,
+            payment_2_status: 'Pending',
+            payment_3: bookingData.payment_3,
+            payment_3_date: bookingData.payment_3_date,
+            payment_3_status: 'Pending',
+            guest_traveller_names: bookingData.guest_traveller_names
+          };
+
+          // Update booking details state
+          setBookingDetails(bookingDetails);
+
+          // Show success dialog
+          setShowSuccessDialog(true);
+
           // Reset form
           form.reset();
+
+          // Close booking form dialog
+          onOpenChange?.(false);
+
+          // Call onBookingComplete callback
+          onBookingComplete?.(bookingDetails);
+
+          // Create a temporary PDFDownloadLink for automatic download
+          const tempContainer = document.createElement('div');
+          document.body.appendChild(tempContainer);
           
-          // Close the booking form dialog
-          onOpenChange(false);
-          
-          // Call the refresh callback if provided
-          if (onBookingComplete) {
-            onBookingComplete();
-          }
+          const pdfLink = (
+            <PDFDownloadLink
+              document={
+                <BookingConfirmationPDF
+                  selectedEvent={selectedEvent}
+                  selectedPackage={selectedPackage}
+                  selectedHotel={selectedHotel}
+                  selectedRoom={selectedRoom}
+                  selectedTicket={selectedTicket}
+                  selectedFlight={selectedFlight}
+                  selectedLoungePass={selectedLoungePass}
+                  selectedCircuitTransfer={selectedCircuitTransfer}
+                  selectedAirportTransfer={selectedAirportTransfer}
+                  numberOfAdults={numberOfAdults}
+                  dateRange={dateRange}
+                  roomQuantity={roomQuantity}
+                  ticketQuantity={ticketQuantity}
+                  loungePassQuantity={loungePassQuantity}
+                  circuitTransferQuantity={circuitTransferQuantity}
+                  airportTransferQuantity={airportTransferQuantity}
+                  flightQuantity={flightQuantity}
+                  totalPrice={totalPrice}
+                  selectedCurrency={selectedCurrency}
+                  bookingData={bookingDetails}
+                />
+              }
+              fileName={`${bookingDetails.booker_name} - ${bookingDetails.booking_ref} - Booking Confirmation.pdf`}
+            >
+              {({ url }) => {
+                if (url) {
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `${bookingDetails.booker_name} - ${bookingDetails.booking_ref} - Booking Confirmation.pdf`;
+                  link.click();
+                  document.body.removeChild(tempContainer);
+                }
+                return null;
+              }}
+            </PDFDownloadLink>
+          );
+
+          // Render the temporary PDFDownloadLink
+          const root = ReactDOM.createRoot(tempContainer);
+          root.render(pdfLink);
         }
         
       } catch (error) {
@@ -1302,28 +1367,28 @@ function BookingForm({
                     </div>
                   </div>
 
-                  <div className="pt-4">
-                    <Button 
-                      type="submit" 
-                      size="default" 
-                      className="w-full"
-                      disabled={isSubmitting}
+                  <div className="flex justify-end gap-4">
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => {
-                        console.log('Submit button clicked');
-                        console.log('isSubmitting state:', isSubmitting);
-                        console.log('Form state:', form.formState);
-                        console.log('Form errors:', form.formState.errors);
-                        console.log('Guest traveller names:', form.getValues('guest_traveller_names'));
+                        onOpenChange(false);
                       }}
                     >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        "Submit Booking"
-                      )}
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        onOpenChange(false);
+                        setShowQuoteDialog(true);
+                      }}
+                    >
+                      Generate Quote
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? "Creating Booking..." : "Create Booking"}
                     </Button>
                   </div>
                 </form>
@@ -1333,63 +1398,103 @@ function BookingForm({
         </DialogContent>
       </Dialog>
 
-      {/* Confirmation Dialog */}
-      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent className="sm:max-w-md">
+      {/* Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Booking Confirmed!</DialogTitle>
             <DialogDescription>
-              Your booking has been successfully created.
+              Your booking has been successfully created. Here are your booking details:
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Booking Reference:</span>
-                <span className="text-sm font-mono">{bookingDetails?.bookingRef}</span>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium">Booking Reference</p>
+                <p className="text-sm">{bookingDetails?.booking_ref}</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Booker:</span>
-                <span className="text-sm">{bookingDetails?.bookerName}</span>
+              <div>
+                <p className="text-sm font-medium">Booker Name</p>
+                <p className="text-sm">{bookingDetails?.booker_name}</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Event:</span>
-                <span className="text-sm">{bookingDetails?.event}</span>
+              <div>
+                <p className="text-sm font-medium">Event</p>
+                <p className="text-sm">{selectedEvent?.event}</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Package:</span>
-                <span className="text-sm">{bookingDetails?.package}</span>
+              <div>
+                <p className="text-sm font-medium">Package</p>
+                <p className="text-sm">{selectedPackage?.package_name}</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Total Price:</span>
-                <span className="text-sm font-semibold">{bookingDetails?.totalPrice}</span>
+              <div>
+                <p className="text-sm font-medium">Total Price</p>
+                <p className="text-sm">{selectedCurrency} {totalPrice?.toFixed(2)}</p>
               </div>
             </div>
             <div className="space-y-2">
               <h4 className="text-sm font-medium">Payment Schedule:</h4>
-              {bookingDetails?.paymentSchedule.map((payment, index) => (
-                <div key={index} className="flex justify-between text-sm">
-                  <span>Payment {index + 1}:</span>
-                  <span>{payment.date} - {currencySymbols[selectedCurrency]}{payment.amount.toFixed(2)}</span>
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>Payment 1:</span>
+                  <span>{bookingDetails?.payment_1_date} - {selectedCurrency} {bookingDetails?.payment_1?.toFixed(2)} ({bookingDetails?.payment_1_status})</span>
                 </div>
-              ))}
+                <div className="flex justify-between text-sm">
+                  <span>Payment 2:</span>
+                  <span>{bookingDetails?.payment_2_date} - {selectedCurrency} {bookingDetails?.payment_2?.toFixed(2)} ({bookingDetails?.payment_2_status})</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Payment 3:</span>
+                  <span>{bookingDetails?.payment_3_date} - {selectedCurrency} {bookingDetails?.payment_3?.toFixed(2)} ({bookingDetails?.payment_3_status})</span>
+                </div>
+              </div>
+            </div>
+            <div className="pt-4">
+              <PDFDownloadLink
+                document={
+                  <BookingConfirmationPDF
+                    selectedEvent={selectedEvent}
+                    selectedPackage={selectedPackage}
+                    selectedHotel={selectedHotel}
+                    selectedRoom={selectedRoom}
+                    selectedTicket={selectedTicket}
+                    selectedFlight={selectedFlight}
+                    selectedLoungePass={selectedLoungePass}
+                    selectedCircuitTransfer={selectedCircuitTransfer}
+                    selectedAirportTransfer={selectedAirportTransfer}
+                    numberOfAdults={numberOfAdults}
+                    dateRange={dateRange}
+                    roomQuantity={roomQuantity}
+                    ticketQuantity={ticketQuantity}
+                    loungePassQuantity={loungePassQuantity}
+                    circuitTransferQuantity={circuitTransferQuantity}
+                    airportTransferQuantity={airportTransferQuantity}
+                    flightQuantity={flightQuantity}
+                    totalPrice={totalPrice}
+                    selectedCurrency={selectedCurrency}
+                    bookingData={bookingDetails}
+                  />
+                }
+                fileName={`${bookingDetails?.booker_name} - ${bookingDetails?.booking_ref} - Booking Confirmation.pdf`}
+                className="w-full"
+              >
+                {({ loading }) =>
+                  loading ? (
+                    <Button type="button" variant="outline" className="w-full" disabled>
+                      Generating PDF...
+                    </Button>
+                  ) : (
+                    <Button type="button" className="w-full">
+                      Download Booking Confirmation
+                    </Button>
+                  )
+                }
+              </PDFDownloadLink>
+            </div>
+            <div className="flex justify-end gap-4">
+              <Button variant="outline" onClick={() => setShowSuccessDialog(false)}>
+                Close
+              </Button>
             </div>
           </div>
-          <DialogFooter className="sm:justify-start">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setShowConfirmation(false);
-                // Call the refresh callback if provided
-                if (onBookingComplete) {
-                  onBookingComplete();
-                }
-              }}
-            >
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

@@ -18,6 +18,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { BookingConfirmationPDF } from "@/components/ui/BookingConfirmationPDF";
 
 // Add currency symbol mapping
 const currencySymbols = {
@@ -80,6 +82,7 @@ function PricingSheet() {
   const [loadingHotels, setLoadingHotels] = useState(false);
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [loadingTiers, setLoadingTiers] = useState(false);
+  const [bookingDetails, setBookingDetails] = useState(null);
 
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -327,6 +330,7 @@ function PricingSheet() {
       // Reset form and selections
       // You might want to add reset functions for your form and selections here
       
+      setBookingDetails(bookingData);
     } catch (error) {
       console.error('Failed to create booking:', error);
       
@@ -339,6 +343,10 @@ function PricingSheet() {
       const errorMessage = error.response?.data?.message || 'Failed to create booking. Please try again.';
       toast.error(errorMessage);
     }
+  };
+
+  const handleBookingComplete = (details) => {
+    setBookingDetails(details);
   };
 
   return (

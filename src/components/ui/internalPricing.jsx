@@ -367,16 +367,12 @@ function InternalPricing({
       try {
         setLoadingPackages(true);
         setLoadingCategories(true);
-        const [packagesRes, categoriesRes] = await Promise.all([
+        const [packagesRes] = await Promise.all([
           api.get("/packages", {
             params: { eventId: foundEvent.event_id },
           }),
-          api.get("/categories", {
-            params: { eventId: foundEvent.event_id },
-          })
         ]);
         setPackages(packagesRes.data);
-        setCategories(categoriesRes.data);
 
         // Fetch flights and lounge passes for this event
         setLoadingFlights(true);
@@ -396,7 +392,6 @@ function InternalPricing({
         setLoadingPackages(false);
         setLoadingFlights(false);
         setLoadingLoungePasses(false);
-        setLoadingCategories(false);
       }
     }
   };
@@ -1868,40 +1863,6 @@ function InternalPricing({
                 <FileText className="mr-2 h-4 w-4 text-primary" />
                 Generate Quote
               </Button>
-              {/* Booking Confirmation PDF Download */}
-              <PDFDownloadLink
-                document={
-                  <BookingConfirmationPDF
-                    selectedEvent={selectedEvent}
-                    selectedPackage={selectedPackage}
-                    selectedHotel={selectedHotel}
-                    selectedRoom={selectedRoom}
-                    selectedTicket={selectedTicket}
-                    selectedFlight={selectedFlight}
-                    selectedLoungePass={selectedLoungePass}
-                    selectedCircuitTransfer={selectedCircuitTransfer}
-                    selectedAirportTransfer={selectedAirportTransfer}
-                    numberOfAdults={numberOfAdults}
-                    dateRange={dateRange}
-                    roomQuantity={roomQuantity}
-                    ticketQuantity={ticketQuantity}
-                    loungePassQuantity={loungePassQuantity}
-                    circuitTransferQuantity={circuitTransferQuantity}
-                    airportTransferQuantity={airportTransferQuantity}
-                    flightQuantity={flightQuantity}
-                    totalPrice={totalPrice}
-                    selectedCurrency={selectedCurrency}
-                  />
-                }
-                fileName={`BookingConfirmation_${selectedEvent?.event_id || 'Booking'}.pdf`}
-                className="w-full mt-2"
-              >
-                {({ loading }) =>
-                  loading ? "Generating PDF..." : (
-                    <Button type="button" variant="outline" className="w-full">Download Booking Confirmation PDF</Button>
-                  )
-                }
-              </PDFDownloadLink>
             </div>
           </div>
         )}

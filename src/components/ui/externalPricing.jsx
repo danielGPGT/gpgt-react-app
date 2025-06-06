@@ -379,7 +379,6 @@ function ExternalPricing({
     setFlights([]);
     setLoungePasses([]);
     setSalesTeams([]);
-    setCategories([]);
 
     if (foundEvent) {
       try {
@@ -389,7 +388,7 @@ function ExternalPricing({
         setLoadingSalesTeams(true);
         setLoadingCategories(true);
 
-        const [packagesRes, flightsRes, loungePassesRes, usersRes, categoriesRes] =
+        const [packagesRes, flightsRes, loungePassesRes, usersRes] =
           await Promise.all([
             api.get("/packages", { params: { eventId: foundEvent.event_id } }),
             api.get("/flights", { params: { eventId: foundEvent.event_id } }),
@@ -397,15 +396,11 @@ function ExternalPricing({
               params: { eventId: foundEvent.event_id },
             }),
             api.get("/users"),
-            api.get("/categories", {
-              params: { eventId: foundEvent.event_id },
-            })
           ]);
 
         setPackages(packagesRes.data);
         setFlights(flightsRes.data);
         setLoungePasses(loungePassesRes.data);
-        setCategories(categoriesRes.data);
         
         // Find consultant from users data using consultant_id from event
         if (foundEvent.consultant_id) {
@@ -421,13 +416,11 @@ function ExternalPricing({
         setFlights([]);
         setLoungePasses([]);
         setSalesTeams([]);
-        setCategories([]);
       } finally {
         setLoadingPackages(false);
         setLoadingFlights(false);
         setLoadingLoungePasses(false);
         setLoadingSalesTeams(false);
-        setLoadingCategories(false);
       }
     }
   };
@@ -443,16 +436,14 @@ function ExternalPricing({
     setSelectedTicket(null);
     setPackageTiers([]);
     setSelectedTier(null);
-    setCategories([]);
 
     if (foundPackage) {
       try {
         setLoadingHotels(true);
         setLoadingTickets(true);
         setLoadingTiers(true);
-        setLoadingCategories(true);
 
-        const [hotelsRes, ticketsRes, tiersRes, categoriesRes] = await Promise.all([
+        const [hotelsRes, ticketsRes, tiersRes] = await Promise.all([
           api.get("/hotels", {
             params: { packageId: foundPackage.package_id },
           }),
@@ -462,15 +453,11 @@ function ExternalPricing({
           api.get("/package-tiers", {
             params: { packageId: foundPackage.package_id },
           }),
-          api.get("/categories", {
-            params: { eventId: selectedEvent.event_id },
-          })
         ]);
 
         setHotels(hotelsRes.data);
         setTickets(ticketsRes.data);
         setPackageTiers(tiersRes.data);
-        setCategories(categoriesRes.data);
       } catch (error) {
         console.error(
           "Failed to fetch hotels, tickets, or tiers:",
@@ -479,12 +466,10 @@ function ExternalPricing({
         setHotels([]);
         setTickets([]);
         setPackageTiers([]);
-        setCategories([]);
       } finally {
         setLoadingHotels(false);
         setLoadingTickets(false);
         setLoadingTiers(false);
-        setLoadingCategories(false);
       }
     }
   };

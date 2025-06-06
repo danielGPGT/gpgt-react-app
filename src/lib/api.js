@@ -245,7 +245,7 @@ Only include the JSON object in your response, nothing else. If you cannot find 
     }
 
     // Clean up the response text by removing markdown code block formatting
-    let cleanedResponse = response.text
+    let cleanedRespone = response.text
       .replace(/```json\s*/g, '') // Remove ```json prefix
       .replace(/```\s*$/g, '')    // Remove ``` suffix
       .trim();                    // Remove any extra whitespace
@@ -425,6 +425,101 @@ Only include the JSON object in your response, nothing else.`;
     }
   } catch (error) {
     console.error('Error fetching venue info:', error);
+    throw error;
+  }
+};
+
+// Function to fetch category information using Gemini
+export const fetchCategoryInfo = async (venueName, categoryName, packageType) => {
+  try {
+    if (!GEMINI_API_KEY) {
+      throw new Error('Gemini API key is not configured');
+    }
+
+    const prompt = `
+You are a motorsport venue seating expert, specializing in Formula 1 and MotoGP circuits worldwide. Your task is to provide detailed information about seating categories and hospitality areas at motorsport venues.
+
+For the category "${categoryName}" at "${venueName}" (${packageType} package), provide the following information in JSON format:
+{
+  "category_info": "A detailed description of the category (2-3 sentences), including its location, view, and key features",
+  "features": {
+    "video_wall": boolean, // Whether this category has a video wall for race action
+    "covered_seat": boolean, // Whether the seats are covered/protected from weather
+    "numbered_seat": boolean // Whether the seats are individually numbered
+  },
+  "ticket_delivery_days": number, // Typical number of days before the event when tickets are delivered (usually 14)
+  "recommended_gpgt_name": "A suggested name for this category in GPGT's system (should be clear and descriptive)"
+}
+
+IMPORTANT GUIDELINES:
+1. For Formula 1 and MotoGP circuits:
+   - Focus on the category's location relative to the track
+   - Mention view quality and key features
+   - Include information about amenities and facilities
+   - Be specific about seating arrangements and comfort
+
+2. For VIP and Hospitality areas:
+   - Detail the level of service and exclusivity
+   - Mention included amenities and services
+   - Describe the viewing experience
+   - Include information about food and beverage offerings
+
+3. For Grandstand categories:
+   - Specify the grandstand's location on the circuit
+   - Describe the view of the track
+   - Mention any notable features or landmarks visible
+   - Include information about facilities and amenities
+
+4. For features:
+   - video_wall: Set to true if the category has screens showing race action
+   - covered_seat: Set to true if seats are protected from weather
+   - numbered_seat: Set to true if seats have assigned numbers
+
+5. For GPGT category names:
+   - Use clear, descriptive names
+   - Include the type (VIP/Grandstand)
+   - Add location information if relevant
+   - Keep it concise but informative
+
+Only include the JSON object in your response, nothing else. If you cannot find accurate information for any field, return null for that field.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+    });
+
+    if (!response.text) {
+      throw new Error('No response generated from Gemini API');
+    }
+
+    // Clean up the response text by removing markdown code block formatting
+    let cleanedResponse = response.text
+      .replace(/```json\s*/g, '') // Remove ```json prefix
+      .replace(/```\s*$/g, '')    // Remove ``` suffix
+      .trim();                    // Remove any extra whitespace
+
+    // Parse the JSON response
+    try {
+      const categoryInfo = JSON.parse(cleanedResponse);
+      
+      return {
+        category_info: categoryInfo.category_info,
+        video_wall: categoryInfo.features?.video_wall || false,
+        covered_seat: categoryInfo.features?.covered_seat || false,
+        numbered_seat: categoryInfo.features?.numbered_seat || false,
+        ticket_delivery_days: categoryInfo.ticket_delivery_days || 14,
+        gpgt_category_name: categoryInfo.recommended_gpgt_name || categoryName,
+        ticket_image_1: "", // Skip image URLs
+        ticket_image_2: ""  // Skip image URLs
+      };
+    } catch (parseError) {
+      console.error('Error parsing category info:', parseError);
+      console.error('Raw response:', response.text);
+      console.error('Cleaned response:', cleanedResponse);
+      throw new Error('Failed to parse category information');
+    }
+  } catch (error) {
+    console.error('Error fetching category info:', error);
     throw error;
   }
 };

@@ -26,8 +26,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Loader2, ChevronDown } from "lucide-react";
-import api from "@/lib/api";
+import { Plus, Pencil, Trash2, Loader2, ChevronDown, Sparkles } from "lucide-react";
+import api, { fetchCategoryInfo } from "@/lib/api";
 import { toast } from "sonner";
 import { Combobox } from "@/components/ui/combobox";
 import {
@@ -57,6 +57,12 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Field mappings
 const categoryFieldMappings = {
@@ -109,6 +115,7 @@ export function CategoriesTable() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [formErrors, setFormErrors] = useState({});
+  const [isGeneratingInfo, setIsGeneratingInfo] = useState(false);
 
   // Sorting options
   const sortColumns = [
@@ -393,8 +400,15 @@ export function CategoriesTable() {
 
         // Special handling for ticket image fields
         if (key === 'ticket_image_1' || key === 'ticket_image_2') {
+          // Only update if the value has changed and is a valid URL or empty string
           if (newValue !== originalValue) {
-            changedFields[key] = newValue || ""; // Use empty string if null/undefined
+            // Validate URL format
+            if (newValue === "" || isValidImageUrl(newValue)) {
+              changedFields[key] = newValue;
+            } else {
+              console.warn(`Invalid image URL for ${key}:`, newValue);
+              // Don't include invalid URLs in the update
+            }
           }
         } else if (originalValue !== newValue) {
           // Format the value based on its type
@@ -437,7 +451,7 @@ export function CategoriesTable() {
         try {
           const response = await api.put(`/n-categories/Category ID/${selectedCategory.category_id}`, {
             column: columnName,
-            value
+            value: value || "" // Ensure we always send a string value
           });
           console.log('Update response:', response.data);
         } catch (error) {
@@ -481,6 +495,45 @@ export function CategoriesTable() {
       });
     } finally {
       setIsEditing(false);
+    }
+  };
+
+  // Helper function to validate image URLs
+  const isValidImageUrl = (url) => {
+    if (!url) return false;
+    
+    try {
+      const urlObj = new URL(url);
+      // Check if URL is from allowed domains
+      const allowedDomains = [
+        'formula1.com',
+        'motogp.com',
+        'motorsport.com',
+        'autosport.com',
+        'f1.com',
+        'circuit',
+        'grandprix',
+        'racing',
+        'motorsport'
+      ];
+      
+      const isAllowedDomain = allowedDomains.some(domain => urlObj.hostname.toLowerCase().includes(domain));
+      if (!isAllowedDomain) {
+        console.warn(`Image URL from unauthorized domain: ${url}`);
+        return false;
+      }
+      
+      // Check if URL is a direct image link
+      const isImageUrl = /\.(jpg|jpeg|png|gif)(\?.*)?$/i.test(url);
+      if (!isImageUrl) {
+        console.warn(`URL is not a direct image link: ${url}`);
+        return false;
+      }
+      
+      return true;
+    } catch (e) {
+      console.warn(`Invalid URL format: ${url}`);
+      return false;
     }
   };
 
@@ -528,6 +581,45 @@ export function CategoriesTable() {
       ticket_image_2: category.ticket_image_2,
     });
     setShowEditDialog(true);
+  };
+
+  // Add function to generate category info
+  const handleGenerateInfo = async () => {
+    if (!formData.venue_id || !formData.category_name || !formData.package_type) {
+      toast.error("Please fill in venue, category name, and package type first");
+      return;
+    }
+
+    setIsGeneratingInfo(true);
+    try {
+      const venue = allVenues.find(v => v.venue_id === formData.venue_id);
+      if (!venue) {
+        throw new Error("Venue not found");
+      }
+
+      const categoryInfo = await fetchCategoryInfo(
+        venue.venue_name,
+        formData.category_name,
+        formData.package_type
+      );
+
+      // Only update category_info and ticket images
+      setFormData(prev => ({
+        ...prev,
+        category_info: categoryInfo.category_info,
+        ticket_image_1: categoryInfo.ticket_image_1,
+        ticket_image_2: categoryInfo.ticket_image_2
+      }));
+
+      toast.success("Category information and images generated successfully!");
+    } catch (error) {
+      console.error("Failed to generate category info:", error);
+      toast.error("Failed to generate category information", {
+        description: error.message
+      });
+    } finally {
+      setIsGeneratingInfo(false);
+    }
   };
 
   if (loading) {
@@ -790,7 +882,7 @@ export function CategoriesTable() {
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-6 py-4 relative max-h-[calc(90vh-200px)] overflow-y-auto">
-            {(isAdding || isEditing) && (
+            {(isAdding || isEditing || isGeneratingInfo) && (
               <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
                 <div className="flex flex-col items-center gap-2">
                   <div className="relative">
@@ -798,7 +890,9 @@ export function CategoriesTable() {
                     <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
                   </div>
                   <p className="text-lg font-medium text-primary">
-                    {showEditDialog
+                    {isGeneratingInfo
+                      ? "Generating Category Info..."
+                      : showEditDialog
                       ? "Updating Category..."
                       : "Adding Category..."}
                   </p>
@@ -810,7 +904,7 @@ export function CategoriesTable() {
             )}
             <div
               className={
-                isAdding || isEditing
+                isAdding || isEditing || isGeneratingInfo
                   ? "opacity-50 pointer-events-none"
                   : "space-y-4"
               }
@@ -847,14 +941,40 @@ export function CategoriesTable() {
               )}
               <div className="space-y-2">
                 <Label>Category Name</Label>
-                <Input
-                  value={formData.category_name}
-                  onChange={(e) => handleFieldChange("category_name", e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={formData.category_name}
+                    onChange={(e) => handleFieldChange("category_name", e.target.value)}
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleGenerateInfo}
+                          disabled={!formData.venue_id || !formData.category_name || !formData.package_type || isGeneratingInfo}
+                          className="shrink-0"
+                        >
+                          {isGeneratingInfo ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Generate category information using AI</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 {formErrors.category_name && (
                   <p className="text-sm text-destructive">{formErrors.category_name}</p>
                 )}
               </div>
+            
               <div className="space-y-2">
                 <Label>GPGT Category Name</Label>
                 <Input
@@ -888,6 +1008,7 @@ export function CategoriesTable() {
                   onChange={(e) => handleFieldChange("ticket_delivery_days", parseInt(e.target.value))}
                 />
               </div>
+              
               <div className="space-y-2">
                 <Label>Category Info</Label>
                 <Textarea
@@ -941,13 +1062,13 @@ export function CategoriesTable() {
                 setSelectedCategory(null);
                 resetFormData();
               }}
-              disabled={isAdding || isEditing}
+              disabled={isAdding || isEditing || isGeneratingInfo}
             >
               Cancel
             </Button>
             <Button
               onClick={showEditDialog ? handleEditCategory : handleAddCategory}
-              disabled={isAdding || isEditing}
+              disabled={isAdding || isEditing || isGeneratingInfo}
               className="min-w-[100px]"
             >
               {isAdding || isEditing ? (

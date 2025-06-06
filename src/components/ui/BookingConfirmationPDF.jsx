@@ -22,21 +22,21 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
     borderBottom: '2px solid #d3d3d3',
     paddingBottom: 8,
   },
   logo: {
-    width: 80,
-    height: 32,
+    width: 'auto',
+    height: 24,
     marginRight: 16,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    textAlign: 'center',
+    textAlign: 'right',
     marginVertical: 12,
-    letterSpacing: 1,
   },
   section: {
     marginVertical: 8,
@@ -99,89 +99,250 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     textAlign: 'center',
   },
+  companyInfo: {
+    marginBottom: 12,
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 4,
+  },
+  companyName: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#1f1f1f',
+    marginBottom: 4,
+  },
+  companyContact: {
+    color: '#666',
+    marginBottom: 2,
+  },
+  bookingInfo: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTop: '1px solid #eee',
+  },
+  bookingRef: {
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 4,
+  },
+  bookingDate: {
+    color: '#666',
+  },
+  bookerInfo: {
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 4,
+  },
+  bookerName: {
+    fontSize: 10,
+    color: '#666',
+    marginBottom: 4,
+  },
+  bookerDetail: {
+    fontSize: 10,
+    color: '#666',
+    marginBottom: 2,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+    marginTop: 4,
+  },
+  headerColLeft: {
+    width: '60%',
+  },
+  headerColRight: {
+    width: '38%',
+    alignItems: 'flex-start',
+  },
+  companyDetail: {
+    fontSize: 10,
+    marginBottom: 1,
+  },
+  companyLink: {
+    fontSize: 10,
+    color: '#BE222A',
+    textDecoration: 'underline',
+    marginBottom: 1,
+  },
+  labelBold: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  label: {
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  value: {
+    fontSize: 10,
+    marginBottom: 2,
+  },
 });
 
-export function BookingConfirmationPDF({ booking }) {
+export function BookingConfirmationPDF({ 
+  selectedEvent,
+  selectedPackage,
+  selectedHotel,
+  selectedRoom,
+  selectedTicket,
+  selectedFlight,
+  selectedLoungePass,
+  selectedCircuitTransfer,
+  selectedAirportTransfer,
+  numberOfAdults,
+  dateRange,
+  roomQuantity,
+  ticketQuantity,
+  loungePassQuantity,
+  circuitTransferQuantity,
+  airportTransferQuantity,
+  flightQuantity,
+  totalPrice,
+  selectedCurrency,
+  bookingData // This will contain the form data
+}) {
   // Fallbacks for missing data
   const safe = (val, fallback = '') => val || fallback;
-  const currency = booking?.payment_currency || 'GBP';
+  const currency = selectedCurrency || 'GBP';
   const currencySymbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '£';
+
+  // Format dates
+  const formatDate = (date) => {
+    if (!date) return '';
+    if (typeof date === 'string') return date;
+    try {
+      return new Date(date).toLocaleDateString();
+    } catch (error) {
+      return '';
+    }
+  };
+
+  // Format date range
+  const formatDateRange = (range) => {
+    if (!range?.from || !range?.to) return '';
+    return `${formatDate(range.from)} to ${formatDate(range.to)}`;
+  };
+
+  // Calculate nights
+  const calculateNights = (range) => {
+    if (!range?.from || !range?.to) return 0;
+    try {
+      const from = new Date(range.from);
+      const to = new Date(range.to);
+      return Math.ceil((to - from) / (1000 * 60 * 60 * 24));
+    } catch (error) {
+      return 0;
+    }
+  };
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          {/* Replace with your logo path if needed */}
           <Image style={styles.logo} src="/imgs/Grand_Prix_Logo_Vector_new.png" />
+          <Text style={styles.title}>Booking Confirmation</Text>
         </View>
-        <Text style={styles.title}>BOOKING CONFIRMATION</Text>
-
-        {/* Company & Booking Info */}
-        <View style={styles.section}>
-          <Text>Grand Prix Grand Tours</Text>
-          <Text>Tel: 0203 966 5680</Text>
-          <Text>Email: sales@grandprixgrandtours.com</Text>
-          <Text>Booking Ref: {safe(booking?.booking_ref)}</Text>
-          <Text>Date: {safe(booking?.booking_date)}</Text>
-          <Text>Event: {safe(booking?.event_name)}</Text>
-          <Text>Package: {safe(booking?.package_type)}</Text>
+        <Text style={styles.companyName}>Grand Prix Grand Tours</Text>
+        {/* Two-column header: company/booker left, ref/date right */}
+        <View style={styles.headerRow}>
+          {/* Left column: company and booker info */}
+          <View style={styles.headerColLeft}>
+          
+            <Text style={styles.companyDetail}>Tel: 0203 966 5680</Text>
+            <Text style={styles.companyDetail}>
+              Email: <Text style={styles.companyLink}>sales@grandprixgrandtours.com</Text>
+            </Text>
+          </View>
+          {/* Right column: ref and date */}
+          <View style={styles.headerColRight}>
+            <Text style={styles.labelBold}>GPGT Ref: <Text style={styles.value}>{safe(bookingData?.booking_ref)}</Text></Text>
+            <Text style={styles.labelBold}>Date: <Text style={styles.value}>{formatDate(bookingData?.booking_date)}</Text></Text>
+          </View>
         </View>
-
-        {/* Booker Info */}
-        <View style={styles.section}>
-          <Text>Booker: {safe(booking?.booker_name)}</Text>
-          <Text>Email: {safe(booking?.booker_email)}</Text>
-          <Text>Phone: {safe(booking?.booker_phone)}</Text>
-          <Text>Address: {safe(booking?.booker_address)}</Text>
+        <View style={styles.headerRow}>
+          {/* Left column: company and booker info */}
+          <View style={styles.headerColLeft}>
+            <Text style={styles.bookerName}>Name: {safe(bookingData?.booker_name)}</Text>
+            {bookingData?.booker_phone && (
+              <Text style={styles.bookerDetail}>Tel: {safe(bookingData?.booker_phone)}</Text>
+            )}
+            {bookingData?.booker_email && (
+              <Text style={styles.bookerDetail}>Email: {safe(bookingData?.booker_email)}</Text>
+            )}
+            <Text style={styles.bookerDetail}>{safe(bookingData?.booker_address)}</Text>
+          </View>
         </View>
 
         {/* Main Table */}
         <View style={styles.table}>
           <View style={styles.tableRow}>
             <Text style={styles.tableColHeader}>Hotel</Text>
-            <Text style={styles.tableCol}>{safe(booking?.hotel_name)}{booking?.room_type ? `, ${booking.room_type}` : ''}\nRoom Qty: {safe(booking?.room_quantity)}\n{safe(booking?.check_in_date)} to {safe(booking?.check_out_date)}\n{safe(booking?.nights)} Nights</Text>
+            <Text style={styles.tableCol}>
+              {safe(selectedHotel?.hotel_name)}
+              {selectedRoom ? `, ${selectedRoom.room_category} - ${selectedRoom.room_type}` : ''}
+              {`\nRoom Qty: ${roomQuantity}`}
+              {`\n${formatDateRange(dateRange)}`}
+              {`\n${calculateNights(dateRange)} Nights`}
+            </Text>
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableColHeader}>Guests</Text>
-            <Text style={styles.tableCol}>{safe(booking?.adults)} Adults\nLead: {safe(booking?.lead_traveller_name)}{booking?.guest_traveller_names ? `, ${booking.guest_traveller_names}` : ''}</Text>
+            <Text style={styles.tableCol}>
+              {`${numberOfAdults} Adults`}
+              {`\nLead: ${safe(bookingData?.lead_traveller_name)}`}
+              {bookingData?.guest_traveller_names ? `\nGuests: ${bookingData.guest_traveller_names}` : ''}
+            </Text>
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableColHeader}>Tickets</Text>
-            <Text style={styles.tableCol}>{safe(booking?.ticket_name)} x {safe(booking?.ticket_quantity)}</Text>
+            <Text style={styles.tableCol}>
+              {selectedTicket ? `${selectedTicket.ticket_name} x ${ticketQuantity}` : 'N/A'}
+            </Text>
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableColHeader}>Airport Transfer</Text>
-            <Text style={styles.tableCol}>{safe(booking?.airport_transfer_type)}{booking?.airport_transfer_quantity ? ` x${booking.airport_transfer_quantity}` : ''}</Text>
+            <Text style={styles.tableCol}>
+              {selectedAirportTransfer ? `${selectedAirportTransfer.transport_type} x ${airportTransferQuantity}` : 'N/A'}
+            </Text>
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableColHeader}>Circuit Transfers</Text>
-            <Text style={styles.tableCol}>{safe(booking?.circuit_transfer_type)}{booking?.circuit_transfer_quantity ? ` x${booking.circuit_transfer_quantity}` : ''}</Text>
+            <Text style={styles.tableCol}>
+              {selectedCircuitTransfer ? `${selectedCircuitTransfer.transport_type} x ${circuitTransferQuantity}` : 'N/A'}
+            </Text>
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableColHeader}>Extras</Text>
-            <Text style={styles.tableCol}>{booking?.lounge_pass_variant ? `Lounge Pass: ${booking.lounge_pass_variant} x${booking.lounge_pass_quantity}` : 'N/A'}</Text>
+            <Text style={styles.tableCol}>
+              {selectedLoungePass ? `Lounge Pass: ${selectedLoungePass.variant} x ${loungePassQuantity}` : 'N/A'}
+            </Text>
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableColHeader}>Flight</Text>
-            <Text style={styles.tableCol}>{booking?.flight_carrier ? `${booking.flight_carrier}, ${booking.flight_class || ''}\nOutbound: ${booking.flight_outbound}\nInbound: ${booking.flight_inbound}\nQty: ${booking.flight_quantity}` : 'N/A'}</Text>
+            <Text style={styles.tableCol}>
+              {selectedFlight ? 
+                `${selectedFlight.airline}, ${selectedFlight.class}\nOutbound: ${selectedFlight.outbound_flight}\nInbound: ${selectedFlight.inbound_flight}\nQty: ${flightQuantity}` 
+                : 'N/A'}
+            </Text>
           </View>
         </View>
 
         {/* Payment Summary */}
         <View style={styles.section}>
           <Text>Invoice CCY: {currency}</Text>
-          <Text>Total: {currencySymbol}{safe(booking?.total_cost)}</Text>
-          <Text>Paid: {currencySymbol}{safe(booking?.total_cost)}</Text>
-          <Text>Payment Status: {safe(booking?.payment_status)}</Text>
+          <Text>Total: {currencySymbol}{totalPrice?.toFixed(2)}</Text>
         </View>
 
         {/* Payment Schedule */}
         <View style={styles.section}>
           <Text>Payment Schedule:</Text>
-          <Text>1. {currencySymbol}{safe(booking?.payment_1)} - {safe(booking?.payment_1_date)} ({safe(booking?.payment_1_status)})</Text>
-          <Text>2. {currencySymbol}{safe(booking?.payment_2)} - {safe(booking?.payment_2_date)} ({safe(booking?.payment_2_status)})</Text>
-          <Text>3. {currencySymbol}{safe(booking?.payment_3)} - {safe(booking?.payment_3_date)} ({safe(booking?.payment_3_status)})</Text>
+          <Text>Deposit: {currencySymbol}{safe(bookingData?.payment_1?.toFixed(2))} - {formatDate(bookingData?.payment_1_date)} ({safe(bookingData?.payment_1_status)})</Text>
+          <Text>Payment 2: {currencySymbol}{safe(bookingData?.payment_2?.toFixed(2))} - {formatDate(bookingData?.payment_2_date)} ({safe(bookingData?.payment_2_status)})</Text>
+          <Text>Payement 3: {currencySymbol}{safe(bookingData?.payment_3?.toFixed(2))} - {formatDate(bookingData?.payment_3_date)} ({safe(bookingData?.payment_3_status)})</Text>
         </View>
 
         {/* Notes */}

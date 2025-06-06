@@ -68,32 +68,76 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 
 function AirportTransferTable() {
   const [transfers, setTransfers] = useState([]);
   const [events, setEvents] = useState([]);
+  const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingTransfer, setEditingTransfer] = useState(null);
+
+  // Generate a unique ID for new transfers
+  const generateAirportTransferId = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
+  // Form state
+  const initialTransferState = {
+    event_id: "",
+    event_name: "",
+    package_id: "",
+    package_type: "Both",
+    hotel_id: "",
+    airport_transfer_id: "",
+    hotel_name: "",
+    transport_type: "",
+    max_capacity: "",
+    used: "",
+    total_budget: "",
+    budget_per_car: "",
+    supplier: "",
+    quote_currency: "",
+    supplier_quote_per_car_local: "",
+    supplier_quote_per_car_gbp: "",
+    diff: "",
+    total_diff: "",
+    total_owing_to_supplier: "",
+    paid_to_supplier: false,
+    outstanding: false,
+    markup: "55"
+  };
+
+  const [editingTransfer, setEditingTransfer] = useState(initialTransferState);
+  const [newTransfer, setNewTransfer] = useState(initialTransferState);
   const itemsPerPage = 15;
 
   // Column mappings for API operations
   const columnMappings = {
+    event_id: "Event ID",
     event_name: "Event Name",
+    package_id: "Package ID",
+    package_type: "Package Type",
+    hotel_id: "Hotel ID",
+    airport_transfer_id: "Airport Transfer ID",
     hotel_name: "Hotel Name",
     transport_type: "Transport Type",
     max_capacity: "Max Capacity",
     used: "Used",
     total_budget: "Total Budget",
-    budget_per_car: "Budget Per Car",
+    budget_per_car: "Budget per car",
     supplier: "Supplier",
-    supplier_quote_per_car_local: "Supplier Quote (Local)",
     quote_currency: "Quote Currency",
-    supplier_quote_per_car_gbp: "Supplier Quote (GBP)",
-    diff: "Difference",
-    total_diff: "Total Difference",
+    supplier_quote_per_car_local: "Supplier quote per car local",
+    supplier_quote_per_car_gbp: "Supplier quote per car GBP",
+    diff: "diff",
+    total_diff: "Total diff",
     total_owing_to_supplier: "Total Owing to Supplier",
     paid_to_supplier: "Paid to Supplier",
     outstanding: "Outstanding",
@@ -106,29 +150,8 @@ function AirportTransferTable() {
     event: "all",
     transport_type: "all",
     supplier: "all",
+    package_type: "all",
   });
-
-  // Form state
-  const initialTransferState = {
-    event_name: "",
-    hotel_name: "",
-    transport_type: "",
-    max_capacity: 4,
-    used: 0,
-    total_budget: 0,
-    budget_per_car: 0,
-    supplier: "",
-    supplier_quote_per_car_local: 0,
-    quote_currency: "GBP",
-    supplier_quote_per_car_gbp: 0,
-    diff: 0,
-    total_diff: 0,
-    total_owing_to_supplier: 0,
-    paid_to_supplier: false,
-    outstanding: false,
-    markup: "55%"
-  };
-  const [newTransfer, setNewTransfer] = useState(initialTransferState);
 
   const [editingCell, setEditingCell] = useState({ rowId: null, field: null });
   const [cellValue, setCellValue] = useState("");
@@ -165,7 +188,7 @@ function AirportTransferTable() {
         api.get("event"),
       ]);
 
-      setTransfers(transfersRes.data);
+      setTransfers(transfersRes.data.map(transformDataFromAPI));
       setEvents(eventsRes.data);
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -177,6 +200,18 @@ function AirportTransferTable() {
     }
   };
 
+  const fetchHotelsForEvent = async (eventName) => {
+    try {
+      const response = await api.get("hotels");
+      const filteredHotels = response.data.filter(hotel => hotel.event_name === eventName);
+      setHotels(filteredHotels);
+    } catch (error) {
+      console.error("Failed to fetch hotels:", error);
+      toast.error("Failed to load hotels");
+      setHotels([]);
+    }
+  };
+
   // Get unique events from transfers data
   const getUniqueEvents = () => {
     const uniqueEvents = [...new Set(transfers.map((item) => item.event_name))];
@@ -185,13 +220,17 @@ function AirportTransferTable() {
 
   // Get unique transport types for filter
   const getUniqueTransportTypes = () => {
-    const uniqueTypes = [...new Set(transfers.map((item) => item.transport_type))];
+    const uniqueTypes = [
+      ...new Set(transfers.map((item) => item.transport_type)),
+    ];
     return uniqueTypes.filter((type) => type);
   };
 
   // Get unique suppliers for filter
   const getUniqueSuppliers = () => {
-    const uniqueSuppliers = [...new Set(transfers.map((item) => item.supplier))];
+    const uniqueSuppliers = [
+      ...new Set(transfers.map((item) => item.supplier)),
+    ];
     return uniqueSuppliers.filter((supplier) => supplier);
   };
 
@@ -206,15 +245,30 @@ function AirportTransferTable() {
         );
 
       // Event filter
-      const eventMatch = filters.event === "all" || item.event_name === filters.event;
+      const eventMatch =
+        filters.event === "all" || item.event_name === filters.event;
+
+      // Package type filter
+      const packageTypeMatch =
+        filters.package_type === "all" ||
+        item.package_type === filters.package_type;
 
       // Transport type filter
-      const typeMatch = filters.transport_type === "all" || item.transport_type === filters.transport_type;
+      const typeMatch =
+        filters.transport_type === "all" ||
+        item.transport_type === filters.transport_type;
 
       // Supplier filter
-      const supplierMatch = filters.supplier === "all" || item.supplier === filters.supplier;
+      const supplierMatch =
+        filters.supplier === "all" || item.supplier === filters.supplier;
 
-      return searchMatch && eventMatch && typeMatch && supplierMatch;
+      return (
+        searchMatch &&
+        eventMatch &&
+        packageTypeMatch &&
+        typeMatch &&
+        supplierMatch
+      );
     });
   };
 
@@ -227,7 +281,19 @@ function AirportTransferTable() {
         let aVal = a[sortColumn];
         let bVal = b[sortColumn];
         // For numbers, sort numerically
-        if (["max_capacity", "used", "total_budget", "budget_per_car", "supplier_quote_per_car_local", "supplier_quote_per_car_gbp", "diff", "total_diff", "total_owing_to_supplier"].includes(sortColumn)) {
+        if (
+          [
+            "max_capacity",
+            "used",
+            "total_budget",
+            "budget_per_car",
+            "supplier_quote_per_car_local",
+            "supplier_quote_per_car_gbp",
+            "diff",
+            "total_diff",
+            "total_owing_to_supplier",
+          ].includes(sortColumn)
+        ) {
           aVal = Number(aVal) || 0;
           bVal = Number(bVal) || 0;
           return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
@@ -243,74 +309,35 @@ function AirportTransferTable() {
     return result;
   }, [transfers, filters, sortColumn, sortDirection]);
 
-  // Handle cell save
-  const handleCellSave = async (rowId, field) => {
+  // Handle field update
+  const handleFieldUpdate = async (transferId, field, value) => {
     try {
-      if (columnMappings[field]) {
-        const updateData = {
-          column: columnMappings[field],
-          value: cellValue
-        };
-
-        const encodedSheetName = encodeURIComponent("Stock - Airport Transfers");
-        await api.put(
-          `${encodedSheetName}/airport_transfer_id/${rowId}`,
-          updateData
-        );
-
-        toast.success("Field updated successfully");
-        fetchInitialData();
-      }
-    } catch (error) {
-      console.error("Failed to update field:", error);
-      toast.error(error.response?.data?.error || "Failed to update field");
-    } finally {
-      setEditingCell({ rowId: null, field: null });
-      setCellValue("");
-    }
-  };
-
-  // Add transfer
-  const handleAddTransfer = async (formData) => {
-    try {
-      setIsAdding(true);
-
-      // Check if transfer already exists for this event and hotel
-      const existingTransfer = transfers.find(
-        transfer => 
-          transfer.event_name === formData.event_name && 
-          transfer.hotel_name === formData.hotel_name &&
-          transfer.transport_type === formData.transport_type
-      );
-
-      if (existingTransfer) {
-        toast.error("This transfer already exists for the selected event and hotel");
-        return;
-      }
-
-      const transferData = {
-        ...formData,
-        airport_transfer_id: crypto.randomUUID(),
-        used: 0,
-        diff: 0,
-        total_diff: 0,
-        total_owing_to_supplier: 0,
-        paid_to_supplier: false,
-        outstanding: false
+      const updateData = {
+        column: columnMappings[field],
+        value: value,
       };
 
       const encodedSheetName = encodeURIComponent("Stock - Airport Transfers");
-      await api.post(encodedSheetName, transferData);
+      await api.put(
+        `${encodedSheetName}/Airport Transfer ID/${transferId}`,
+        updateData
+      );
 
-      setSuccessMessage("Airport transfer added successfully!");
-      setShowSuccessDialog(true);
-      setIsAddDialogOpen(false);
+      toast.success("Field updated successfully");
       fetchInitialData();
     } catch (error) {
-      console.error("Failed to add airport transfer:", error);
-      toast.error(error.response?.data?.error || "Failed to add airport transfer");
+      console.error("Failed to update field:", error);
+      toast.error(error.response?.data?.error || "Failed to update field");
+    }
+  };
+
+  // Handle cell save
+  const handleCellSave = async (rowId, field) => {
+    try {
+      await handleFieldUpdate(rowId, field, cellValue);
     } finally {
-      setIsAdding(false);
+      setEditingCell({ rowId: null, field: null });
+      setCellValue("");
     }
   };
 
@@ -318,56 +345,92 @@ function AirportTransferTable() {
   const handleEditTransfer = async (changedFields) => {
     try {
       setIsEditing(true);
+      const loadingToast = toast.loading("Updating transfer...");
 
       if (Object.keys(changedFields).length === 0) {
+        toast.dismiss(loadingToast);
         toast.info("No changes were made");
         setIsEditDialogOpen(false);
         setEditingTransfer(null);
         return;
       }
 
-      // If event, hotel, or transport type is being changed, check for duplicates
-      if (changedFields.event_name || changedFields.hotel_name || changedFields.transport_type) {
-        const newEvent = changedFields.event_name || editingTransfer.event_name;
-        const newHotel = changedFields.hotel_name || editingTransfer.hotel_name;
-        const newType = changedFields.transport_type || editingTransfer.transport_type;
-
-        const existingTransfer = transfers.find(
-          transfer => 
-            transfer.event_name === newEvent && 
-            transfer.hotel_name === newHotel &&
-            transfer.transport_type === newType &&
-            transfer.airport_transfer_id !== editingTransfer.airport_transfer_id
-        );
-
-        if (existingTransfer) {
-          toast.error("This transfer already exists for the selected event and hotel");
-          return;
-        }
-      }
-
       const transferId = editingTransfer.airport_transfer_id;
-      const encodedSheetName = encodeURIComponent("Stock - Airport Transfers");
 
-      for (const [field, value] of Object.entries(changedFields)) {
-        if (columnMappings[field]) {
-          await api.put(`${encodedSheetName}/airport_transfer_id/${transferId}`, {
-            column: columnMappings[field],
-            value: value,
-          });
-        }
+      // Get the first (and should be only) changed field
+      const [field, value] = Object.entries(changedFields)[0];
+
+      // Format the value based on field type
+      let processedValue = value;
+      if (field === 'paid_to_supplier' || field === 'outstanding') {
+        processedValue = value ? "true" : "false";
+      } else if (field === 'markup') {
+        processedValue = value.toString();
       }
 
-      setSuccessMessage("Airport transfer updated successfully!");
-      setShowSuccessDialog(true);
+      const updateData = {
+        column: columnMappings[field],
+        value: processedValue
+      };
+
+      console.log("Updating single field:", { field, value: processedValue, updateData });
+      await api.put(`/Stock - Airport Transfers/Airport Transfer ID/${transferId}`, updateData);
+
+      await fetchInitialData();
+      toast.dismiss(loadingToast);
+      toast.success("Transfer updated successfully!");
       setIsEditDialogOpen(false);
       setEditingTransfer(null);
-      fetchInitialData();
+      return true;
     } catch (error) {
-      console.error("Failed to update airport transfer:", error);
-      toast.error("Failed to update airport transfer");
+      console.error("Failed to update transfer:", error);
+      console.error("Error details:", error.response?.data || error.message);
+      toast.dismiss();
+      toast.error("Failed to update transfer. Please try again.");
+      return false;
     } finally {
       setIsEditing(false);
+    }
+  };
+
+  // When opening edit dialog
+  const handleEditClick = (transfer) => {
+    console.log('Opening edit for transfer:', transfer);
+    // Format boolean values and markup for the form
+    const formattedTransfer = {
+      ...transfer,
+      paid_to_supplier: transfer.paid_to_supplier === "true",
+      outstanding: transfer.outstanding === "true",
+      markup: transfer.markup?.toString().replace('%', '') || '55'
+    };
+    setEditingTransfer(formattedTransfer);
+    setIsEditDialogOpen(true);
+    // Fetch hotels for the event when opening edit dialog
+    if (transfer.event_name) {
+      fetchHotelsForEvent(transfer.event_name);
+    }
+  };
+
+  // Add transfer
+  const handleAddTransfer = async (formData) => {
+    try {
+      setIsAdding(true);
+      const apiData = transformDataForAPI({
+        ...formData,
+        airport_transfer_id: generateAirportTransferId()
+      });
+      await api.post("Stock%20-%20airport%20transfers", apiData);
+      setSuccessMessage("Airport transfer added successfully!");
+      setShowSuccessDialog(true);
+      setIsAddDialogOpen(false);
+      fetchInitialData();
+    } catch (error) {
+      console.error("Failed to add airport transfer:", error);
+      toast.error(
+        error.response?.data?.error || "Failed to add airport transfer"
+      );
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -382,7 +445,7 @@ function AirportTransferTable() {
       setIsDeleting(true);
       const encodedSheetName = encodeURIComponent("Stock - Airport Transfers");
       await api.delete(
-        `${encodedSheetName}/airport_transfer_id/${transferToDelete}`
+        `${encodedSheetName}/Airport Transfer ID/${transferToDelete}`
       );
       setSuccessMessage("Airport transfer deleted successfully!");
       setShowSuccessDialog(true);
@@ -390,7 +453,9 @@ function AirportTransferTable() {
       fetchInitialData();
     } catch (error) {
       console.error("Failed to delete airport transfer:", error);
-      toast.error(error.response?.data?.error || "Failed to delete airport transfer");
+      toast.error(
+        error.response?.data?.error || "Failed to delete airport transfer"
+      );
     } finally {
       setIsDeleting(false);
       setTransferToDelete(null);
@@ -451,6 +516,57 @@ function AirportTransferTable() {
     setCellValue("");
   };
 
+  // Helper function to transform data for API
+  const transformDataForAPI = (data) => {
+    return {
+      "event_id": data.event_id || "",
+      "package_type": data.package_type || "",
+      "hotel_id": data.hotel_id || "",
+      "airport_transfer_id": data.airport_transfer_id || "",
+      "transport_type": data.transport_type || "",
+      "max_capacity": data.max_capacity || "",
+      "budget_per_car": "", // Always send empty string
+      "supplier": data.supplier || "",
+      "quote_currency": data.quote_currency || "",
+      "supplier_quote_per_car_local": data.supplier_quote_per_car_local || "",
+      "supplier_quote_per_car_gbp": "", // Always send empty string
+      "paid_to_supplier": data.paid_to_supplier === true ? "true" : "false",
+      "outstanding": data.outstanding === true ? "true" : "false",
+      "markup": data.markup ? `${data.markup}%` : "",
+    };
+  };
+
+  // Helper function to transform data from API
+  const transformDataFromAPI = (data) => {
+    return {
+      ...data,
+      supplier_quote_per_car_local: data["supplier_quote_per_car_local"] || 0,
+      supplier_quote_per_car_gbp: data["supplier_quote_per_car_gbp"] || 0,
+    };
+  };
+
+  // Update the form inputs to handle undefined values
+  const getFormValue = (field) => {
+    if (isEditDialogOpen) {
+      return editingTransfer?.[field] ?? "";
+    }
+    return newTransfer[field] ?? "";
+  };
+
+  const handleFormChange = (field, value) => {
+    if (isEditDialogOpen) {
+      setEditingTransfer(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    } else {
+      setNewTransfer(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center text-muted-foreground">
@@ -493,8 +609,26 @@ function AirportTransferTable() {
           </SelectContent>
         </Select>
         <Select
+          value={filters.package_type}
+          onValueChange={(value) =>
+            setFilters({ ...filters, package_type: value })
+          }
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by Package" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Packages</SelectItem>
+            <SelectItem value="Both">Both</SelectItem>
+            <SelectItem value="Grandstand">Grandstand</SelectItem>
+            <SelectItem value="VIP">VIP</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
           value={filters.transport_type}
-          onValueChange={(value) => setFilters({ ...filters, transport_type: value })}
+          onValueChange={(value) =>
+            setFilters({ ...filters, transport_type: value })
+          }
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by Type" />
@@ -531,17 +665,25 @@ function AirportTransferTable() {
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="default" size="sm" className="flex items-center gap-2">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
                   Sort <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                {sortColumns.map(col => (
+                {sortColumns.map((col) => (
                   <DropdownMenuItem
                     key={col.value}
                     onClick={() => setSortColumn(col.value)}
-                    className={sortColumn === col.value ? "font-semibold text-primary" : ""}
+                    className={
+                      sortColumn === col.value
+                        ? "font-semibold text-primary"
+                        : ""
+                    }
                   >
                     {col.label} {sortColumn === col.value && "✓"}
                   </DropdownMenuItem>
@@ -550,20 +692,28 @@ function AirportTransferTable() {
                 <DropdownMenuLabel>Direction</DropdownMenuLabel>
                 <DropdownMenuItem
                   onClick={() => setSortDirection("asc")}
-                  className={sortDirection === "asc" ? "font-semibold text-primary" : ""}
+                  className={
+                    sortDirection === "asc" ? "font-semibold text-primary" : ""
+                  }
                 >
                   Ascending {sortDirection === "asc" && "▲"}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setSortDirection("desc")}
-                  className={sortDirection === "desc" ? "font-semibold text-primary" : ""}
+                  className={
+                    sortDirection === "desc" ? "font-semibold text-primary" : ""
+                  }
                 >
                   Descending {sortDirection === "desc" && "▼"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <span className="text-sm text-muted-foreground">
-              Sorted by <span className="font-medium">{sortColumns.find(c => c.value === sortColumn)?.label}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+              Sorted by{" "}
+              <span className="font-medium">
+                {sortColumns.find((c) => c.value === sortColumn)?.label}
+              </span>{" "}
+              ({sortDirection === "asc" ? "A-Z" : "Z-A"})
             </span>
           </div>
           <Button onClick={() => setIsAddDialogOpen(true)}>
@@ -575,21 +725,16 @@ function AirportTransferTable() {
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
               <TableHead className="text-xs py-2">Event</TableHead>
+              <TableHead className="text-xs py-2">Package Type</TableHead>
               <TableHead className="text-xs py-2">Hotel</TableHead>
               <TableHead className="text-xs py-2">Transport Type</TableHead>
-              <TableHead className="text-xs py-2">Max Cap</TableHead>
-              <TableHead className="text-xs py-2">Used</TableHead>
-              <TableHead className="text-xs py-2">Total Budget</TableHead>
-              <TableHead className="text-xs py-2">Per Car</TableHead>
+              <TableHead className="text-xs py-2">Max Capacity</TableHead>
+              <TableHead className="text-xs py-2">Budget per car</TableHead>
               <TableHead className="text-xs py-2">Supplier</TableHead>
-              <TableHead className="text-xs py-2">Local Quote</TableHead>
-              <TableHead className="text-xs py-2">Currency</TableHead>
-              <TableHead className="text-xs py-2">GBP Quote</TableHead>
-              <TableHead className="text-xs py-2">Diff</TableHead>
-              <TableHead className="text-xs py-2">Total Diff</TableHead>
-              <TableHead className="text-xs py-2">Owing</TableHead>
+              <TableHead className="text-xs py-2">Quote Currency</TableHead>
+              <TableHead className="text-xs py-2">Local Quote per car</TableHead>
               <TableHead className="text-xs py-2">Paid</TableHead>
-              <TableHead className="text-xs py-2">Out</TableHead>
+              <TableHead className="text-xs py-2">Outstanding</TableHead>
               <TableHead className="text-xs py-2">Markup</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
@@ -598,17 +743,36 @@ function AirportTransferTable() {
             {currentItems.map((item) => {
               const isEditing = editingCell.rowId === item.airport_transfer_id;
               return (
-                <TableRow key={item.airport_transfer_id} className="hover:bg-muted/50">
-                  <TableCell className="text-xs py-1.5 font-medium">{item.event_name}</TableCell>
-                  <TableCell className="text-xs py-1.5">{item.hotel_name}</TableCell>
+                <TableRow
+                  key={item.airport_transfer_id}
+                  className="hover:bg-muted/50"
+                >
+                  <TableCell className="text-xs py-1.5 font-medium">
+                    {item.event_name}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {item.package_type}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {item.hotel_name}
+                  </TableCell>
                   <TableCell className="text-xs py-1.5">
                     {isEditing && editingCell.field === "transport_type" ? (
                       <Input
                         value={cellValue}
                         onChange={(e) => setCellValue(e.target.value)}
-                        onBlur={() => handleCellSave(item.airport_transfer_id, "transport_type")}
+                        onBlur={() =>
+                          handleCellSave(
+                            item.airport_transfer_id,
+                            "transport_type"
+                          )
+                        }
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") handleCellSave(item.airport_transfer_id, "transport_type");
+                          if (e.key === "Enter")
+                            handleCellSave(
+                              item.airport_transfer_id,
+                              "transport_type"
+                            );
                           if (e.key === "Escape") handleCellCancel();
                         }}
                         autoFocus
@@ -616,7 +780,13 @@ function AirportTransferTable() {
                       />
                     ) : (
                       <div
-                        onClick={() => handleCellEdit(item.airport_transfer_id, "transport_type", item.transport_type)}
+                        onClick={() =>
+                          handleCellEdit(
+                            item.airport_transfer_id,
+                            "transport_type",
+                            item.transport_type
+                          )
+                        }
                         className="cursor-pointer hover:bg-muted/50 px-1 rounded"
                       >
                         {item.transport_type}
@@ -629,9 +799,18 @@ function AirportTransferTable() {
                         type="number"
                         value={cellValue}
                         onChange={(e) => setCellValue(e.target.value)}
-                        onBlur={() => handleCellSave(item.airport_transfer_id, "max_capacity")}
+                        onBlur={() =>
+                          handleCellSave(
+                            item.airport_transfer_id,
+                            "max_capacity"
+                          )
+                        }
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") handleCellSave(item.airport_transfer_id, "max_capacity");
+                          if (e.key === "Enter")
+                            handleCellSave(
+                              item.airport_transfer_id,
+                              "max_capacity"
+                            );
                           if (e.key === "Escape") handleCellCancel();
                         }}
                         autoFocus
@@ -639,47 +818,74 @@ function AirportTransferTable() {
                       />
                     ) : (
                       <div
-                        onClick={() => handleCellEdit(item.airport_transfer_id, "max_capacity", item.max_capacity)}
+                        onClick={() =>
+                          handleCellEdit(
+                            item.airport_transfer_id,
+                            "max_capacity",
+                            item.max_capacity
+                          )
+                        }
                         className="cursor-pointer hover:bg-muted/50 px-1 rounded"
                       >
                         {item.max_capacity}
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-xs py-1.5">{item.used}</TableCell>
-                  <TableCell className="text-xs py-1.5">£{item.total_budget}</TableCell>
-                  <TableCell className="text-xs py-1.5">£{item.budget_per_car}</TableCell>
-                  <TableCell className="text-xs py-1.5">{item.supplier}</TableCell>
-                  <TableCell className="text-xs py-1.5">{item.supplier_quote_per_car_local}</TableCell>
-                  <TableCell className="text-xs py-1.5">{item.quote_currency}</TableCell>
-                  <TableCell className="text-xs py-1.5">£{item.supplier_quote_per_car_gbp}</TableCell>
-                  <TableCell className="text-xs py-1.5">£{item.diff}</TableCell>
-                  <TableCell className="text-xs py-1.5">£{item.total_diff}</TableCell>
-                  <TableCell className="text-xs py-1.5">£{item.total_owing_to_supplier}</TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    £{item.budget_per_car}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {item.supplier}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {item.quote_currency}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {isEditing && editingCell.field === "supplier_quote_per_car_local" ? (
+                      <Input
+                        id="supplier_quote_per_car_local"
+                        type="number"
+                        value={getFormValue("supplier_quote_per_car_local")}
+                        onChange={(e) => handleFormChange("supplier_quote_per_car_local", e.target.value)}
+                      />
+                    ) : (
+                      <div
+                        onClick={() =>
+                          handleCellEdit(
+                            item.airport_transfer_id,
+                            "supplier_quote_per_car_local",
+                            item.supplier_quote_per_car_local
+                          )
+                        }
+                        className="cursor-pointer hover:bg-muted/50 px-1 rounded"
+                      >
+                        {item.supplier_quote_per_car_local}
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-xs py-1.5">
                     <Checkbox
-                      checked={item.paid_to_supplier}
+                      checked={item.paid_to_supplier === "true"}
                       disabled
                       className="h-4 w-4"
                     />
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
                     <Checkbox
-                      checked={item.outstanding}
+                      checked={item.outstanding === "true"}
                       disabled
                       className="h-4 w-4"
                     />
                   </TableCell>
-                  <TableCell className="text-xs py-1.5">{item.markup}</TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {item.markup}
+                  </TableCell>
                   <TableCell className="text-xs py-1.5">
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => {
-                          setEditingTransfer(item);
-                          setIsEditDialogOpen(true);
-                        }}
+                        onClick={() => handleEditClick(item)}
                         className="h-7 w-7"
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -687,7 +893,9 @@ function AirportTransferTable() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteTransfer(item.airport_transfer_id)}
+                        onClick={() =>
+                          handleDeleteTransfer(item.airport_transfer_id)
+                        }
                         className="h-7 w-7"
                       >
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -703,8 +911,9 @@ function AirportTransferTable() {
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {startIndex + 1} to {Math.min(endIndex, filteredTransfers.length)}{" "}
-          of {filteredTransfers.length} items
+          Showing {startIndex + 1} to{" "}
+          {Math.min(endIndex, filteredTransfers.length)} of{" "}
+          {filteredTransfers.length} items
         </div>
         <Pagination>
           <PaginationContent>
@@ -759,10 +968,12 @@ function AirportTransferTable() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
             <DialogTitle>
-              {isEditDialogOpen ? "Edit Airport Transfer" : "Add New Airport Transfer"}
+              {isEditDialogOpen
+                ? "Edit Airport Transfer"
+                : "Add New Airport Transfer"}
             </DialogTitle>
             <DialogDescription>
               {isEditDialogOpen
@@ -771,222 +982,202 @@ function AirportTransferTable() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="event_name">Event</Label>
-                <Combobox
-                  options={events.map((event) => ({
-                    value: event.event,
-                    label: event.event,
-                  }))}
-                  value={isEditDialogOpen ? editingTransfer?.event_name : newTransfer.event_name}
-                  onChange={(value) => {
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({ ...prev, event_name: value }));
-                    } else {
-                      setNewTransfer((prev) => ({ ...prev, event_name: value }));
-                    }
-                  }}
-                  placeholder="Select event"
-                  className="w-full"
-                />
+            <div className="grid grid-cols-2 gap-6">
+              {/* Left Column - Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Basic Information</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="event_name">Event</Label>
+                    <Combobox
+                      options={events.map((event) => ({
+                        value: event.event,
+                        label: event.event,
+                        id: event.event_id
+                      }))}
+                      value={getFormValue("event_name")}
+                      onChange={(value) => {
+                        const selectedEvent = events.find(e => e.event === value);
+                        if (isEditDialogOpen) {
+                          setEditingTransfer((prev) => ({
+                            ...prev,
+                            event_name: value,
+                            event_id: selectedEvent?.event_id || "",
+                            hotel_name: "", // Reset hotel when event changes
+                          }));
+                          fetchHotelsForEvent(value);
+                        } else {
+                          setNewTransfer((prev) => ({
+                            ...prev,
+                            event_name: value,
+                            event_id: selectedEvent?.event_id || "",
+                            hotel_name: "", // Reset hotel when event changes
+                          }));
+                          fetchHotelsForEvent(value);
+                        }
+                      }}
+                      placeholder="Select event"
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="package_type">Package Type</Label>
+                    <Select
+                      value={getFormValue("package_type")}
+                      onValueChange={(value) => handleFormChange("package_type", value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select package type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Both">Both</SelectItem>
+                        <SelectItem value="Grandstand">Grandstand</SelectItem>
+                        <SelectItem value="VIP">VIP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="hotel_name">Hotel</Label>
+                    <Select
+                      value={getFormValue("hotel_name")}
+                      onValueChange={(value) => {
+                        const selectedHotel = hotels.find(h => h.hotel_name === value);
+                        if (isEditDialogOpen) {
+                          setEditingTransfer((prev) => ({
+                            ...prev,
+                            hotel_name: value,
+                            hotel_id: selectedHotel?.hotel_id || "",
+                          }));
+                        } else {
+                          setNewTransfer((prev) => ({
+                            ...prev,
+                            hotel_name: value,
+                            hotel_id: selectedHotel?.hotel_id || "",
+                          }));
+                        }
+                      }}
+                      disabled={!hotels.length}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          {isEditDialogOpen 
+                            ? editingTransfer?.hotel_name || "Select hotel"
+                            : newTransfer.hotel_name || "Select hotel"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {hotels.map((hotel) => (
+                          <SelectItem key={hotel.hotel_id} value={hotel.hotel_name}>
+                            {hotel.hotel_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="transport_type">Transport Type</Label>
+                    <Select
+                      value={getFormValue("transport_type")}
+                      onValueChange={(value) => handleFormChange("transport_type", value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={
+                          isEditDialogOpen 
+                            ? `Current: ${editingTransfer?.transport_type || "Select type"}`
+                            : "Select type"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Hotel Chauffeur">
+                          Hotel Chauffeur
+                        </SelectItem>
+                        <SelectItem value="Private Transfer">
+                          Private Transfer
+                        </SelectItem>
+                        <SelectItem value="Shared Transfer">
+                          Shared Transfer
+                        </SelectItem>
+                        <SelectItem value="VIP Transfer">VIP Transfer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max_capacity">Max Capacity</Label>
+                    <Input
+                      id="max_capacity"
+                      type="number"
+                      value={getFormValue("max_capacity")}
+                      onChange={(e) => handleFormChange("max_capacity", e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="hotel_name">Hotel</Label>
-                <Input
-                  id="hotel_name"
-                  value={isEditDialogOpen ? editingTransfer?.hotel_name : newTransfer.hotel_name}
-                  onChange={(e) => {
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({ ...prev, hotel_name: e.target.value }));
-                    } else {
-                      setNewTransfer((prev) => ({ ...prev, hotel_name: e.target.value }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="transport_type">Transport Type</Label>
-                <Select
-                  value={isEditDialogOpen ? editingTransfer?.transport_type : newTransfer.transport_type}
-                  onValueChange={(value) => {
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({ ...prev, transport_type: value }));
-                    } else {
-                      setNewTransfer((prev) => ({ ...prev, transport_type: value }));
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Hotel Chauffeur">Hotel Chauffeur</SelectItem>
-                    <SelectItem value="Private Transfer">Private Transfer</SelectItem>
-                    <SelectItem value="Shared Transfer">Shared Transfer</SelectItem>
-                    <SelectItem value="VIP Transfer">VIP Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="max_capacity">Max Capacity</Label>
-                <Input
-                  id="max_capacity"
-                  type="number"
-                  value={isEditDialogOpen ? editingTransfer?.max_capacity : newTransfer.max_capacity}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({
-                        ...prev,
-                        max_capacity: value
-                      }));
-                    } else {
-                      setNewTransfer((prev) => ({
-                        ...prev,
-                        max_capacity: value
-                      }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="total_budget">Total Budget (£)</Label>
-                <Input
-                  id="total_budget"
-                  type="number"
-                  value={isEditDialogOpen ? editingTransfer?.total_budget : newTransfer.total_budget}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({
-                        ...prev,
-                        total_budget: value
-                      }));
-                    } else {
-                      setNewTransfer((prev) => ({
-                        ...prev,
-                        total_budget: value
-                      }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="budget_per_car">Budget Per Car (£)</Label>
-                <Input
-                  id="budget_per_car"
-                  type="number"
-                  value={isEditDialogOpen ? editingTransfer?.budget_per_car : newTransfer.budget_per_car}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({
-                        ...prev,
-                        budget_per_car: value
-                      }));
-                    } else {
-                      setNewTransfer((prev) => ({
-                        ...prev,
-                        budget_per_car: value
-                      }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplier">Supplier</Label>
-                <Input
-                  id="supplier"
-                  value={isEditDialogOpen ? editingTransfer?.supplier : newTransfer.supplier}
-                  onChange={(e) => {
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({ ...prev, supplier: e.target.value }));
-                    } else {
-                      setNewTransfer((prev) => ({ ...prev, supplier: e.target.value }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplier_quote_per_car_local">Supplier Quote (Local)</Label>
-                <Input
-                  id="supplier_quote_per_car_local"
-                  type="number"
-                  value={isEditDialogOpen ? editingTransfer?.supplier_quote_per_car_local : newTransfer.supplier_quote_per_car_local}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({
-                        ...prev,
-                        supplier_quote_per_car_local: value
-                      }));
-                    } else {
-                      setNewTransfer((prev) => ({
-                        ...prev,
-                        supplier_quote_per_car_local: value
-                      }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="quote_currency">Quote Currency</Label>
-                <Input
-                  id="quote_currency"
-                  value={isEditDialogOpen ? editingTransfer?.quote_currency : newTransfer.quote_currency}
-                  onChange={(e) => {
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({ ...prev, quote_currency: e.target.value }));
-                    } else {
-                      setNewTransfer((prev) => ({ ...prev, quote_currency: e.target.value }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplier_quote_per_car_gbp">Supplier Quote (GBP)</Label>
-                <Input
-                  id="supplier_quote_per_car_gbp"
-                  type="number"
-                  value={isEditDialogOpen ? editingTransfer?.supplier_quote_per_car_gbp : newTransfer.supplier_quote_per_car_gbp}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({
-                        ...prev,
-                        supplier_quote_per_car_gbp: value
-                      }));
-                    } else {
-                      setNewTransfer((prev) => ({
-                        ...prev,
-                        supplier_quote_per_car_gbp: value
-                      }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="markup">Markup (%)</Label>
-                <Input
-                  id="markup"
-                  type="number"
-                  value={isEditDialogOpen ? editingTransfer?.markup?.replace('%', '') : newTransfer.markup?.replace('%', '')}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (isEditDialogOpen) {
-                      setEditingTransfer((prev) => ({
-                        ...prev,
-                        markup: `${value}%`
-                      }));
-                    } else {
-                      setNewTransfer((prev) => ({
-                        ...prev,
-                        markup: `${value}%`
-                      }));
-                    }
-                  }}
-                />
+
+              {/* Right Column - Financial Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Financial Information</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="supplier">Supplier</Label>
+                    <Input
+                      id="supplier"
+                      value={getFormValue("supplier")}
+                      onChange={(e) => handleFormChange("supplier", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quote_currency">Quote Currency</Label>
+                    <Select
+                      value={getFormValue("quote_currency")}
+                      onValueChange={(value) => handleFormChange("quote_currency", value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="GBP">GBP</SelectItem>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="supplier_quote_per_car_local">
+                      Local Quote per car
+                    </Label>
+                    <Input
+                      id="supplier_quote_per_car_local"
+                      type="number"
+                      value={getFormValue("supplier_quote_per_car_local")}
+                      onChange={(e) => handleFormChange("supplier_quote_per_car_local", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="markup">Markup (%)</Label>
+                    <Input
+                      id="markup"
+                      type="number"
+                      value={getFormValue("markup")}
+                      onChange={(e) => handleFormChange("markup", e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="paid_to_supplier">Paid to Supplier</Label>
+                    <Switch
+                      id="paid_to_supplier"
+                      checked={getFormValue("paid_to_supplier") === "true"}
+                      onCheckedChange={(checked) => handleFormChange("paid_to_supplier", checked === true ? "true" : "false")}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="outstanding">Outstanding</Label>
+                    <Switch
+                      id="outstanding"
+                      checked={getFormValue("outstanding") === "true"}
+                      onCheckedChange={(checked) => handleFormChange("outstanding", checked === true ? "true" : "false")}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1004,7 +1195,14 @@ function AirportTransferTable() {
             <Button
               onClick={() => {
                 if (isEditDialogOpen) {
-                  handleEditTransfer(editingTransfer);
+                  // Compare with original transfer to find changed fields
+                  const changedFields = {};
+                  Object.keys(editingTransfer).forEach(key => {
+                    if (editingTransfer[key] !== transfers.find(t => t.airport_transfer_id === editingTransfer.airport_transfer_id)?.[key]) {
+                      changedFields[key] = editingTransfer[key];
+                    }
+                  });
+                  handleEditTransfer(changedFields);
                 } else {
                   handleAddTransfer(newTransfer);
                 }
@@ -1065,10 +1263,7 @@ function AirportTransferTable() {
       </AlertDialog>
 
       {/* Success Dialog */}
-      <AlertDialog
-        open={showSuccessDialog}
-        onOpenChange={setShowSuccessDialog}
-      >
+      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-green-600">
