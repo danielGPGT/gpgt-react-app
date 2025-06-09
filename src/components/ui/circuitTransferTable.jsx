@@ -29,6 +29,43 @@ import api from "@/lib/api";
 import { Pencil, Trash2, ChevronDown, Plus, Loader2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
+// Update the field mapping at the top of the file
+const fieldToColumnMapping = {
+  event_name: "Event Name",
+  package_id: "Package ID",
+  package_type: "Package Type",
+  hotel_id: "Hotel ID",
+  circuit_transfer_id: "Circuit Transfer ID",
+  hotel_name: "Hotel Name",
+  transport_type: "Transport Type",
+  used: "Used",
+  coach_capacity: "Coach capacity",
+  coaches_required: "Coaches required",
+  days: "Days",
+  quote_hours: "Quote hours",
+  expected_hours: "Expected hours",
+  provider_coach: "Provider (coach)",
+  cost_per_day_invoice_ccy: "cost per day (invoice ccy)",
+  cost_per_extra_hour_per_coach_per_day: "Cost per extra hour (per coach per day)",
+  vat_tax_if_not_included_in_price: "VAT/tax (if not included in price)",
+  parking_ticket_per_coach_per_day: "Parking ticket (per coach per day)",
+  currency: "Currency",
+  coach_cost_local: "Coach cost local",
+  coach_cost_gbp: "Coach Cost GBP",
+  guide_included_in_coach_cost: "Guide included in coach cost",
+  guide_cost_per_day: "guide cost per day",
+  cost_per_extra_hour_per_guide_per_day: "Cost per extra hour (per guide per day)",
+  vat_tax_if_not_included_in_price_guide: "VAT/tax (if not included in guide price)",
+  guide_cost_local: "Guide cost local",
+  guide_cost_gbp: "Guide Cost (GBP)",
+  provider_guides: "Provider (Guides)",
+  utilisation_percent: "Utilisation %",
+  utilisation_cost_per_seat_local: "Utilisation cost per seat (Local)",
+  utilisation_cost_per_seat_gbp: "Utilisation cost per seat (GBP)",
+  selling_for_gbp: "Selling for GBP",
+  markup: "markup"
+};
+
 function CircuitTransferTable() {
   const [circuitTransfers, setCircuitTransfers] = useState([]);
   const [events, setEvents] = useState([]);
@@ -44,6 +81,8 @@ function CircuitTransferTable() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Filter and sort state
   const [filters, setFilters] = useState({
@@ -84,7 +123,6 @@ function CircuitTransferTable() {
     guide_cost_gbp: "",
     provider_guides: "TBC",
     utilisation_percent: "70%",
-    selling_for_gbp: 0,
     markup: "60%"
   };
 
@@ -149,7 +187,7 @@ function CircuitTransferTable() {
 
   const handleAddTransfer = async (formData) => {
     try {
-      setIsLoading(true);
+      setIsAdding(true);
       await api.post('/Stock - circuit transfers', formData);
       await fetchInitialData();
       toast.success("Circuit transfer added successfully");
@@ -158,14 +196,109 @@ function CircuitTransferTable() {
       console.error('Error adding transfer:', error);
       toast.error(error.message || "Failed to add circuit transfer");
     } finally {
-      setIsLoading(false);
+      setIsAdding(false);
     }
   };
 
   const handleEditTransfer = async (transferId, updatedData) => {
     try {
-      setIsLoading(true);
-      await api.put(`/Stock - circuit transfers/${transferId}`, updatedData);
+      setIsEditing(true);
+      console.log('handleEditTransfer called with:', { transferId, updatedData });
+      
+      // Get the circuit_transfer_id from the form data
+      const id = typeof transferId === 'object' ? transferId.circuit_transfer_id : transferId;
+      console.log('Extracted ID:', id);
+      
+      if (!id) {
+        throw new Error("No transfer ID provided");
+      }
+
+      // If updatedData is the transferId (object), use it as the data
+      const dataToUpdate = typeof transferId === 'object' ? transferId : updatedData;
+      console.log('Data to update:', dataToUpdate);
+
+      if (!dataToUpdate || typeof dataToUpdate !== 'object') {
+        throw new Error("No update data provided");
+      }
+
+      // Find the original transfer data
+      const originalTransfer = circuitTransfers.find(t => t.circuit_transfer_id === id);
+      if (!originalTransfer) {
+        throw new Error("Original transfer data not found");
+      }
+
+      // Compare and only keep changed fields
+      const changedFields = Object.entries(dataToUpdate)
+        .filter(([key, value]) => {
+          // Skip undefined and null values
+          if (value === undefined || value === null) return false;
+
+          // Get the original value
+          const originalValue = originalTransfer[key];
+          
+          // Handle numeric values
+          if (typeof value === 'number' || !isNaN(Number(value))) {
+            const numValue = Number(value);
+            const numOriginal = Number(originalValue);
+            return numValue !== numOriginal;
+          }
+
+          // Handle string values
+          if (typeof value === 'string') {
+            // Remove any formatting for comparison
+            const cleanValue = value.replace(/[^0-9.]/g, '');
+            const cleanOriginal = String(originalValue).replace(/[^0-9.]/g, '');
+            
+            // If both are numeric strings, compare as numbers
+            if (!isNaN(Number(cleanValue)) && !isNaN(Number(cleanOriginal))) {
+              return Number(cleanValue) !== Number(cleanOriginal);
+            }
+            
+            // Otherwise compare as strings
+            return value !== originalValue;
+          }
+
+          // For other types, do direct comparison
+          return value !== originalValue;
+        })
+        .reduce((acc, [key, value]) => {
+          // Map the form field name to the backend column name
+          const backendColumn = fieldToColumnMapping[key];
+          if (backendColumn) {
+            acc[backendColumn] = value;
+          }
+          return acc;
+        }, {});
+
+      console.log('Changed fields:', changedFields);
+      console.log('Original data:', originalTransfer);
+      console.log('Updated data:', dataToUpdate);
+
+      if (Object.keys(changedFields).length === 0) {
+        toast.info("No changes detected");
+        setIsDialogOpen(false);
+        return;
+      }
+
+      // Get the first (and should be only) changed field
+      const [field, value] = Object.entries(changedFields)[0];
+
+      // Format the value based on field type
+      let processedValue = value;
+      if (typeof value === 'number') {
+        processedValue = value.toString();
+      } else if (value === '') {
+        processedValue = null;
+      }
+
+      const requestBody = {
+        column: field,
+        value: processedValue
+      };
+      console.log('Request body:', requestBody);
+
+      await api.put(`/Stock - circuit transfers/Circuit Transfer ID/${id}`, requestBody);
+
       await fetchInitialData();
       toast.success("Circuit transfer updated successfully");
       setIsDialogOpen(false);
@@ -173,7 +306,7 @@ function CircuitTransferTable() {
       console.error('Error updating transfer:', error);
       toast.error(error.message || "Failed to update circuit transfer");
     } finally {
-      setIsLoading(false);
+      setIsEditing(false);
     }
   };
 
@@ -218,21 +351,120 @@ function CircuitTransferTable() {
     handleSubmit,
     onCancel,
     isLoading = false,
+    isEdit = false,
+    editingTransfer = null,
+    isAdding,
+    isEditing
   }) => {
-    const [formState, setFormState] = useState({
-      ...initialFormData,
-      circuit_transfer_id: initialFormData.circuit_transfer_id || crypto.randomUUID()
+    const [formState, setFormState] = useState(() => {
+      // If editing, use the editingTransfer data, otherwise use initialFormData
+      const baseData = isEdit && editingTransfer ? {
+        // Map backend field names to form field names
+        event_name: editingTransfer.event_name || "",
+        package_id: editingTransfer.package_id || "",
+        package_type: editingTransfer.package_type || "",
+        hotel_id: editingTransfer.hotel_id || "",
+        circuit_transfer_id: editingTransfer.circuit_transfer_id || crypto.randomUUID(),
+        hotel_name: editingTransfer.hotel_name || "",
+        transport_type: editingTransfer.transport_type || "Shared Coach (Sat & Sun)",
+        used: editingTransfer.used || "",
+        coach_capacity: editingTransfer.coach_capacity || 0,
+        days: editingTransfer.days || 1,
+        quote_hours: editingTransfer.quote_hours || 8,
+        expected_hours: editingTransfer.expected_hours || 12,
+        provider_coach: editingTransfer["provider_(coach)"] || "TBC",
+        cost_per_day_invoice_ccy: editingTransfer["cost_per_day_(invoice_ccy)"] || 0,
+        vat_tax_if_not_included_in_price: editingTransfer["vat/tax_(if_not_included_in_price)"] || "0%",
+        parking_ticket_per_coach_per_day: editingTransfer["parking_ticket_(per_coach_per_day)"] || 0,
+        currency: editingTransfer.currency || "USD",
+        guide_included_in_coach_cost: editingTransfer["guide_included_in_coach_cost"] || "No",
+        guide_cost_per_day: editingTransfer["guide_cost_per_day"] || 0,
+        vat_tax_if_not_included_in_price_guide: editingTransfer["vat/tax_(if_not_included_in_guide_price)"] || "0%",
+        provider_guides: editingTransfer["provider_(guides)"] || "TBC",
+        utilisation_percent: editingTransfer["utilisation_%"] || "70%",
+        markup: editingTransfer.markup || "60%"
+      } : initialFormData;
+
+      return {
+        ...initialFormState,
+        ...baseData
+      };
     });
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [filteredHotels, setFilteredHotels] = useState([]);
 
     // Update local state when initial data changes
     useEffect(() => {
-      setFormState({
-        ...initialFormData,
-        circuit_transfer_id: initialFormData.circuit_transfer_id || crypto.randomUUID()
-      });
-    }, [initialFormData]);
+      if (isEdit && editingTransfer) {
+        const updatedState = {
+          // Map backend field names to form field names
+          event_name: editingTransfer.event_name || "",
+          package_id: editingTransfer.package_id || "",
+          package_type: editingTransfer.package_type || "",
+          hotel_id: editingTransfer.hotel_id || "",
+          circuit_transfer_id: editingTransfer.circuit_transfer_id || crypto.randomUUID(),
+          hotel_name: editingTransfer.hotel_name || "",
+          transport_type: editingTransfer.transport_type || "Shared Coach (Sat & Sun)",
+          used: editingTransfer.used || "",
+          coach_capacity: editingTransfer.coach_capacity || 0,
+          days: editingTransfer.days || 1,
+          quote_hours: editingTransfer.quote_hours || 8,
+          expected_hours: editingTransfer.expected_hours || 12,
+          provider_coach: editingTransfer["provider_(coach)"] || "TBC",
+          cost_per_day_invoice_ccy: editingTransfer["cost_per_day_(invoice_ccy)"] || 0,
+          vat_tax_if_not_included_in_price: editingTransfer["vat/tax_(if_not_included_in_price)"] || "0%",
+          parking_ticket_per_coach_per_day: editingTransfer["parking_ticket_(per_coach_per_day)"] || 0,
+          currency: editingTransfer.currency || "USD",
+          guide_included_in_coach_cost: editingTransfer["guide_included_in_coach_cost"] || "No",
+          guide_cost_per_day: editingTransfer["guide_cost_per_day"] || 0,
+          vat_tax_if_not_included_in_price_guide: editingTransfer["vat/tax_(if_not_included_in_guide_price)"] || "0%",
+          provider_guides: editingTransfer["provider_(guides)"] || "TBC",
+          utilisation_percent: editingTransfer["utilisation_%"] || "70%",
+          markup: editingTransfer.markup || "60%"
+        };
+
+        // Only update if the data has actually changed
+        const hasChanges = Object.keys(updatedState).some(key => 
+          updatedState[key] !== formState[key]
+        );
+
+        if (hasChanges) {
+          setFormState(updatedState);
+        }
+      }
+    }, [isEdit, editingTransfer?.circuit_transfer_id]); // Only depend on the ID
+
+    // Filter hotels when event changes
+    useEffect(() => {
+      if (formState.event_name) {
+        const filtered = hotels.filter(hotel => 
+          hotel.event_name === formState.event_name
+        );
+        setFilteredHotels(filtered);
+      } else {
+        setFilteredHotels([]);
+      }
+    }, [formState.event_name, hotels]);
+
+    const handleFieldChange = (field, value) => {
+      setFormState(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    };
+
+    const handleFormSubmit = async (e) => {
+      e?.preventDefault();
+      try {
+        console.log('Form state before submit:', formState);
+        
+        // Pass the form state directly to handleSubmit
+        await handleSubmit(formState.circuit_transfer_id, formState);
+        onCancel();
+      } catch (error) {
+        console.error("Error submitting form:", error);
+        toast.error(error.response?.data?.error || "Failed to submit form");
+      }
+    };
 
     // Auto-set days based on transport type
     useEffect(() => {
@@ -242,50 +474,6 @@ function CircuitTransferTable() {
         if (formState.days !== 3) setFormState(prev => ({ ...prev, days: 3 }));
       }
     }, [formState.transport_type]);
-
-    // Filter hotels when event changes
-    useEffect(() => {
-      console.log('Form event changed:', formState.event_name);
-      console.log('Available hotels:', hotels);
-      if (formState.event_name) {
-        const filtered = hotels.filter(hotel => {
-          console.log('Comparing:', {
-            hotelEvent: hotel.event_name,
-            selectedEvent: formState.event_name,
-            matches: hotel.event_name === formState.event_name
-          });
-          return hotel.event_name === formState.event_name;
-        });
-        console.log('Filtered hotels:', filtered);
-        setFilteredHotels(filtered);
-      } else {
-        setFilteredHotels([]);
-      }
-    }, [formState.event_name, hotels]);
-
-    const handleFieldChange = (field, value) => {
-      console.log('Field changed:', field, value);
-      setFormState(prev => {
-        const newState = { ...prev, [field]: value };
-        console.log('New form state:', newState);
-        return newState;
-      });
-    };
-
-    const handleFormSubmit = async (e) => {
-      e?.preventDefault();
-      try {
-        setIsSubmitting(true);
-        setFormData(formState);
-        await handleSubmit(formState);
-        onCancel();
-      } catch (error) {
-        console.error("Error submitting form:", error);
-        toast.error(error.response?.data?.error || "Failed to submit form");
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
 
     return (
       <form onSubmit={handleFormSubmit} className="space-y-3">
@@ -389,7 +577,6 @@ function CircuitTransferTable() {
                   value={formState.transport_type === "custom" ? "" : formState.transport_type}
                   onChange={(e) => handleFieldChange('transport_type', e.target.value)}
                   placeholder="Enter custom transport type"
-                  disabled={isSubmitting}
                   className="h-8 mt-1"
                 />
               )}
@@ -400,16 +587,15 @@ function CircuitTransferTable() {
 
         {/* Coach Information Section */}
         <div className="space-y-2 pb-2">
-          <h3 className="text-sm font-semibold text-muted-foreground">Coach Information</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground">Vehicle Information</h3>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs font-medium">Coach Capacity</label>
+              <label className="text-xs font-medium">Vehicle Capacity</label>
               <Input
                 type="text"
                 value={formState.coach_capacity}
                 onChange={(e) => handleFieldChange('coach_capacity', e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="Enter coach capacity"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -420,7 +606,6 @@ function CircuitTransferTable() {
                 value={formState.provider_coach}
                 onChange={(e) => handleFieldChange('provider_coach', e.target.value)}
                 placeholder="Enter coach provider"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -432,7 +617,6 @@ function CircuitTransferTable() {
                 value={formState.cost_per_day_invoice_ccy}
                 onChange={(e) => handleFieldChange('cost_per_day_invoice_ccy', e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="Enter cost per day"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -447,7 +631,6 @@ function CircuitTransferTable() {
                   handleFieldChange('vat_tax_if_not_included_in_price', formattedValue);
                 }}
                 placeholder="Enter VAT/tax (e.g. 20%)"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -459,7 +642,6 @@ function CircuitTransferTable() {
                 value={formState.parking_ticket_per_coach_per_day}
                 onChange={(e) => handleFieldChange('parking_ticket_per_coach_per_day', e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="Enter parking ticket cost"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -511,7 +693,7 @@ function CircuitTransferTable() {
                 value={formState.guide_cost_per_day}
                 onChange={(e) => handleFieldChange('guide_cost_per_day', e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="Enter guide cost per day"
-                disabled={isSubmitting || formState.guide_included_in_coach_cost === 'Yes'}
+                disabled={isAdding || isEditing || formState.guide_included_in_coach_cost === 'Yes'}
                 className="h-8"
               />
             </div>
@@ -526,7 +708,7 @@ function CircuitTransferTable() {
                   handleFieldChange('vat_tax_if_not_included_in_price_guide', formattedValue);
                 }}
                 placeholder="Enter VAT/tax (e.g. 20%)"
-                disabled={isSubmitting || formState.guide_included_in_coach_cost === 'Yes'}
+                disabled={isAdding || isEditing || formState.guide_included_in_coach_cost === 'Yes'}
                 className="h-8"
               />
             </div>
@@ -537,7 +719,7 @@ function CircuitTransferTable() {
                 value={formState.provider_guides}
                 onChange={(e) => handleFieldChange('provider_guides', e.target.value)}
                 placeholder="Enter guide provider"
-                disabled={isSubmitting || formState.guide_included_in_coach_cost === 'Yes'}
+                disabled={isAdding || isEditing || formState.guide_included_in_coach_cost === 'Yes'}
                 className="h-8"
               />
             </div>
@@ -556,7 +738,6 @@ function CircuitTransferTable() {
                 value={formState.days}
                 onChange={(e) => handleFieldChange('days', e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="Enter number of days"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -568,7 +749,6 @@ function CircuitTransferTable() {
                 value={formState.quote_hours}
                 onChange={(e) => handleFieldChange('quote_hours', e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="Enter quote hours"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -580,7 +760,6 @@ function CircuitTransferTable() {
                 value={formState.expected_hours}
                 onChange={(e) => handleFieldChange('expected_hours', e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="Enter expected hours"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -591,19 +770,6 @@ function CircuitTransferTable() {
                 value={formState.utilisation_percent}
                 onChange={(e) => handleFieldChange('utilisation_percent', e.target.value)}
                 placeholder="Enter utilisation percentage"
-                disabled={isSubmitting}
-                className="h-8"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium">Selling for GBP</label>
-              <Input
-                type="text"
-                value={formState.selling_for_gbp}
-                onChange={(e) => handleFieldChange('selling_for_gbp', e.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="Enter selling price in GBP"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -614,7 +780,6 @@ function CircuitTransferTable() {
                 value={formState.markup}
                 onChange={(e) => handleFieldChange('markup', e.target.value)}
                 placeholder="Enter markup"
-                disabled={isSubmitting}
                 className="h-8"
               />
             </div>
@@ -622,11 +787,11 @@ function CircuitTransferTable() {
         </div>
 
         <div className="flex justify-end space-x-2 pt-2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting || isLoading} size="sm">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isAdding || isEditing} size="sm">
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting || isLoading} size="sm">
-            {isSubmitting || isLoading ? "Saving..." : "Save"}
+          <Button type="submit" disabled={isAdding || isEditing} size="sm">
+            {isAdding || isEditing ? "Saving..." : "Save"}
           </Button>
         </div>
       </form>
@@ -729,6 +894,21 @@ function CircuitTransferTable() {
       setIsBulkDeleting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="text-center text-muted-foreground p-8">
+        <div className="flex flex-col items-center gap-2">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full border-4 border-primary/20"></div>
+            <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
+          </div>
+          <p className="text-lg font-medium text-primary">Loading circuit transfers...</p>
+          <p className="text-sm text-muted-foreground">Please wait while we fetch the data</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -1061,19 +1241,43 @@ function CircuitTransferTable() {
               {dialogMode === "add" ? "Add Circuit Transfer" : "Edit Circuit Transfer"}
             </DialogTitle>
           </DialogHeader>
-          <CircuitTransferForm
-            formData={formData}
-            setFormData={setFormData}
-            events={events}
-            packages={packages}
-            hotels={hotels}
-            handleSubmit={dialogMode === "add" ? handleAddTransfer : handleEditTransfer}
-            onCancel={() => {
-              setIsDialogOpen(false);
-              setFormData(initialFormState);
-            }}
-            isLoading={isLoading}
-          />
+          <div className="grid gap-6 py-4 relative max-h-[calc(90vh-200px)] overflow-y-auto">
+            {(isAdding || isEditing) && (
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full border-4 border-primary/20"></div>
+                    <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
+                  </div>
+                  <p className="text-lg font-medium text-primary">
+                    {dialogMode === "edit" ? "Updating Transfer..." : "Adding Transfer..."}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Please wait while we process your request
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className={isAdding || isEditing ? "opacity-50 pointer-events-none" : "space-y-4"}>
+              <CircuitTransferForm
+                formData={formData}
+                setFormData={setFormData}
+                events={events}
+                packages={packages}
+                hotels={hotels}
+                handleSubmit={dialogMode === "add" ? handleAddTransfer : handleEditTransfer}
+                onCancel={() => {
+                  setIsDialogOpen(false);
+                  setFormData(initialFormState);
+                }}
+                isLoading={isLoading}
+                isEdit={dialogMode === "edit"}
+                editingTransfer={selectedTransfer}
+                isAdding={isAdding}
+                isEditing={isEditing}
+              />
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

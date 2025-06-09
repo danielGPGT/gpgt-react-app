@@ -92,6 +92,7 @@ function PackagesTable() {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [isTiersDialogOpen, setIsTiersDialogOpen] = useState(false);
+  const [packageTiers, setPackageTiers] = useState([]);
 
   // Sorting options
   const sortColumns = [
@@ -113,8 +114,12 @@ function PackagesTable() {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get("/packages");
-        setPackages(res.data);
+        const [packagesRes, tiersRes] = await Promise.all([
+          api.get("/packages"),
+          api.get("/package-tiers")
+        ]);
+        setPackages(packagesRes.data);
+        setPackageTiers(tiersRes.data);
       } catch (err) {
         setError("Failed to fetch packages.");
       } finally {
@@ -698,11 +703,11 @@ function PackagesTable() {
                   <TableCell className="text-xs py-1.5">
                     <div className="flex gap-1">
                       <Button
-                        variant="default"
+                        variant={packageTiers.some(tier => tier.package_id === pkg.package_id) ? "secondary" : "default"}
                         size="sm"
                         onClick={() => handleViewTiers(pkg)}
                       >
-                        View Tiers
+                        {packageTiers.some(tier => tier.package_id === pkg.package_id) ? "View Tiers" : "Add Tiers"}
                       </Button>
                       <Button
                         variant="ghost"

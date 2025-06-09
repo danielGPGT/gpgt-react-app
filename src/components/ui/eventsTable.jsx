@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
-import { Plus, Trash2, Pencil, Loader2, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, CheckCircle2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -92,6 +92,7 @@ function EventsTable() {
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [users, setUsers] = useState([]);
+  const [showCustomSportInput, setShowCustomSportInput] = useState(false);
 
   // Sorting options
   const sortColumns = [
@@ -842,13 +843,54 @@ function EventsTable() {
                   {/* Sport */}
                   <div className="space-y-2">
                     <Label htmlFor="sport">Sport</Label>
-                    <Input
-                      id="sport"
-                      value={formData.sport}
-                      onChange={(e) => handleFieldChange("sport", e.target.value)}
-                      disabled={isAdding || isEditing}
-                      placeholder="e.g., Formula 1"
-                    />
+                    {showCustomSportInput ? (
+                      <div className="flex gap-2">
+                        <Input
+                          id="sport"
+                          value={formData.sport}
+                          onChange={(e) => handleFieldChange("sport", e.target.value)}
+                          disabled={isAdding || isEditing}
+                          placeholder="Enter custom sport"
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            setShowCustomSportInput(false);
+                            handleFieldChange("sport", "");
+                          }}
+                          disabled={isAdding || isEditing}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Select
+                        value={formData.sport || "none"}
+                        onValueChange={(value) => {
+                          if (value === "custom") {
+                            setShowCustomSportInput(true);
+                            handleFieldChange("sport", "");
+                          } else {
+                            handleFieldChange("sport", value === "none" ? "" : value);
+                          }
+                        }}
+                        disabled={isAdding || isEditing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a sport" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {sportOptions.map((sport) => (
+                            <SelectItem key={sport} value={sport}>
+                              {sport}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="custom">+ Add Custom Sport</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                     {formErrors.sport && (
                       <p className="text-sm text-red-500">{formErrors.sport}</p>
                     )}

@@ -119,7 +119,7 @@ function TicketTable() {
     ordered: false,
     paid: false,
     tickets_received: false,
-    markup: "55",
+    markup: "60",
     event_days: "",
     ticket_type: "",
   };
@@ -885,7 +885,7 @@ function TicketTable() {
     const handleFieldChange = (field, value) => {
       // Only allow digits
       if (["actual_stock", "unit_cost_local", "markup"].includes(field)) {
-        value = value.replace(/[^0-9]/g, '');
+        value = value.replace(/[^0-9.]/g, '');
       }
       setFormData((prev) => ({ ...prev, [field]: value }));
       validateField(field, value);
@@ -914,9 +914,9 @@ function TicketTable() {
           }
           break;
         case "markup":
-          const markupNum = parseInt(value);
-          if (value === "" || isNaN(markupNum) || markupNum < 0 || !Number.isInteger(markupNum)) {
-            newErrors[field] = "Markup must be a positive integer";
+          const markupNum = parseFloat(value);
+          if (value === "" || isNaN(markupNum) || markupNum < 0) {
+            newErrors[field] = "Markup must be a positive number";
           } else {
             delete newErrors[field];
           }
@@ -930,7 +930,10 @@ function TicketTable() {
     };
 
     const handleBlur = (field, value) => {
-      // Only validate on blur, don't restrict input
+      if (field === "markup" && value) {
+        // Ensure markup always has % symbol
+        setFormData(prev => ({ ...prev, [field]: `${value}%` }));
+      }
       validateField(field, value);
     };
 
@@ -1065,30 +1068,6 @@ function TicketTable() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="markup">Markup (%)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="markup"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={formData.markup?.replace("%", "") || 0}
-                    onChange={(e) =>
-                      handleFieldChange("markup", e.target.value)
-                    }
-                    onBlur={(e) => handleBlur("markup", e.target.value)}
-                    className={`w-full ${
-                      errors.markup ? "border-primary" : ""
-                    }`}
-                    disabled={isSubmitting}
-                  />
-                  <span className="text-muted-foreground">%</span>
-                </div>
-                {errors.markup && (
-                  <p className="text-sm text-primary">{errors.markup}</p>
-                )}
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="ticket_type">Ticket Type</Label>
                 <Select
                   value={formData.ticket_type}
@@ -1114,8 +1093,6 @@ function TicketTable() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="event_days">Event Days</Label>
                 <Select
@@ -1247,6 +1224,35 @@ function TicketTable() {
                   <p className="text-sm text-primary">
                     {errors["unit_cost_(gbp)"]}
                   </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="markup">Markup (%)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="markup"
+                    type="text"
+                    value={formData.markup ? String(formData.markup).replace('%', '') : ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9.]/g, '');
+                      handleFieldChange("markup", value);
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        handleFieldChange("markup", `${value}%`);
+                      }
+                      handleBlur("markup", value);
+                    }}
+                    className={`w-full ${
+                      errors.markup ? "border-primary" : ""
+                    }`}
+                    disabled={isSubmitting}
+                  />
+                  <span className="text-muted-foreground">%</span>
+                </div>
+                {errors.markup && (
+                  <p className="text-sm text-primary">{errors.markup}</p>
                 )}
               </div>
             </div>
@@ -1425,7 +1431,7 @@ function TicketTable() {
     const handleFieldChange = (field, value) => {
       // Only allow digits
       if (["actual_stock", "unit_cost_local", "markup"].includes(field)) {
-        value = value.replace(/[^0-9]/g, '');
+        value = value.replace(/[^0-9.]/g, '');
       }
       setFormData((prev) => ({ ...prev, [field]: value }));
       validateField(field, value);
@@ -1466,9 +1472,9 @@ function TicketTable() {
           }
           break;
         case "markup":
-          const markupNum = parseInt(value);
-          if (value === "" || isNaN(markupNum) || markupNum < 0 || !Number.isInteger(markupNum)) {
-            newErrors[field] = "Markup must be a positive integer";
+          const markupNum = parseFloat(value);
+          if (value === "" || isNaN(markupNum) || markupNum < 0) {
+            newErrors[field] = "Markup must be a positive number";
           } else {
             delete newErrors[field];
           }
@@ -1482,7 +1488,10 @@ function TicketTable() {
     };
 
     const handleBlur = (field, value) => {
-      // Only validate on blur, don't restrict input
+      if (field === "markup" && value) {
+        // Ensure markup always has % symbol
+        setFormData(prev => ({ ...prev, [field]: `${value}%` }));
+      }
       validateField(field, value);
     };
 
@@ -1626,30 +1635,6 @@ function TicketTable() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="markup">Markup (%)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="markup"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={formData.markup?.replace("%", "") || 0}
-                    onChange={(e) =>
-                      handleFieldChange("markup", e.target.value)
-                    }
-                    onBlur={(e) => handleBlur("markup", e.target.value)}
-                    className={`w-full ${
-                      errors.markup ? "border-primary" : ""
-                    }`}
-                    disabled={isSubmitting}
-                  />
-                  <span className="text-muted-foreground">%</span>
-                </div>
-                {errors.markup && (
-                  <p className="text-sm text-primary">{errors.markup}</p>
-                )}
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="ticket_type">Ticket Type</Label>
                 <Select
                   value={formData.ticket_type}
@@ -1675,8 +1660,6 @@ function TicketTable() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="event_days">Event Days</Label>
                 <Select
@@ -1808,6 +1791,35 @@ function TicketTable() {
                   <p className="text-sm text-primary">
                     {errors["unit_cost_(gbp)"]}
                   </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="markup">Markup (%)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="markup"
+                    type="text"
+                    value={formData.markup ? String(formData.markup).replace('%', '') : ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9.]/g, '');
+                      handleFieldChange("markup", value);
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        handleFieldChange("markup", `${value}%`);
+                      }
+                      handleBlur("markup", value);
+                    }}
+                    className={`w-full ${
+                      errors.markup ? "border-primary" : ""
+                    }`}
+                    disabled={isSubmitting}
+                  />
+                  <span className="text-muted-foreground">%</span>
+                </div>
+                {errors.markup && (
+                  <p className="text-sm text-primary">{errors.markup}</p>
                 )}
               </div>
             </div>

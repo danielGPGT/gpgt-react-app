@@ -120,6 +120,11 @@ const menuItems = [
         icon: Hotel,
       },
       {
+        title: "Test Hotels",
+        url: "/inventory?tab=test-hotels",
+        icon: Hotel,
+      },
+      {
         title: "Circuit Transfers",
         url: "/inventory?tab=circuits",
         icon: Bus,
