@@ -132,13 +132,13 @@ export function VenuesTable({
 
   // Add field mappings at the top of the component
   const venueFieldMappings = {
-    venue_id: "Venue ID",
-    venue_name: "Venue Name",
-    city: "City",
-    country: "Country",
-    latitude: "Latitude",
-    longitude: "Longitude",
-    venue_info: "Venue Info",
+    venue_id: "venue_id",
+    venue_name: "venue_name",
+    city: "city",
+    country: "country",
+    latitude: "latitude",
+    longitude: "longitude",
+    venue_info: "venue_info"
   };
 
   // Add new state for filters
@@ -214,10 +214,11 @@ export function VenuesTable({
 
       // Update each changed field
       for (const [field, value] of Object.entries(changedFields)) {
-        await api.put(`/venues/Venue ID/${editingVenue.venue_id}`, {
-          column: venueFieldMappings[field],
-          value: value,
+        const response = await api.put(`/venues/venue_id/${editingVenue.venue_id}`, {
+          column: field,
+          value: value
         });
+        console.log(`Updated ${field}:`, response.data);
       }
 
       toast.success("Venue updated successfully");
@@ -235,7 +236,7 @@ export function VenuesTable({
   const handleDeleteVenue = async () => {
     try {
       setIsDeleting(true);
-      await api.delete(`/venues/Venue ID/${venueToDelete.venue_id}`);
+      await api.delete(`/venues/venue_id/${venueToDelete.venue_id}`);
       toast.success("Venue deleted successfully");
       setShowDeleteDialog(false);
       setVenueToDelete(null);

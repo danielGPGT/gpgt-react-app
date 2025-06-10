@@ -21,6 +21,16 @@ function VenuesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newVenue, setNewVenue] = useState(null);
 
+  const fetchVenues = async () => {
+    try {
+      const response = await api.get("/venues");
+      setVenues(response.data);
+    } catch (error) {
+      console.error("Failed to fetch venues:", error);
+      toast.error("Failed to fetch venues");
+    }
+  };
+
   useEffect(() => {
     async function fetchCurrentUser() {
       try {
@@ -35,6 +45,7 @@ function VenuesPage() {
     }
 
     fetchCurrentUser();
+    fetchVenues();
   }, []);
 
   const openEditDialog = (venue) => {
@@ -46,11 +57,11 @@ function VenuesPage() {
   const handleEditVenue = async (venue) => {
     try {
       setIsEditing(true);
-      
+
       // Compare with original venue to find changed fields
       const changedFields = {};
       Object.keys(venue).forEach((key) => {
-        if (venue[key] !== venues.find(v => v.venue_id === venue.venue_id)?.[key]) {
+        if (venue[key] !== venues.find((v) => v.venue_id === venue.venue_id)?.[key]) {
           changedFields[key] = venue[key];
         }
       });
@@ -64,11 +75,8 @@ function VenuesPage() {
 
       // Update each changed field
       for (const [field, value] of Object.entries(changedFields)) {
-        await api.put(`/venues/Venue ID/${venue.venue_id}`, {
-          column: field === 'venue_id' ? 'Venue ID' : 
-                 field === 'venue_name' ? 'Venue Name' :
-                 field === 'venue_info' ? 'Venue Info' :
-                 field.charAt(0).toUpperCase() + field.slice(1),
+        await api.put(`/venues/venue_id/${venue.venue_id}`, {
+          column: field,
           value: value
         });
       }
@@ -76,10 +84,7 @@ function VenuesPage() {
       toast.success("Venue updated successfully");
       setIsEditDialogOpen(false);
       setEditingVenue(null);
-      
-      // Refresh venues list
-      const response = await api.get("/venues");
-      setVenues(response.data);
+      fetchVenues();
     } catch (error) {
       console.error("Failed to update venue:", error);
       toast.error("Failed to update venue");
@@ -91,13 +96,11 @@ function VenuesPage() {
   const handleDeleteVenue = async (venue) => {
     try {
       setIsDeleting(true);
-      await api.delete(`/venues/Venue ID/${venue.venue_id}`);
+      await api.delete(`/venues/venue_id/${venue.venue_id}`);
       toast.success("Venue deleted successfully");
       setShowDeleteDialog(false);
       setVenueToDelete(null);
-      // Refresh venues list
-      const response = await api.get("/venues");
-      setVenues(response.data);
+      fetchVenues();
     } catch (error) {
       console.error("Failed to delete venue:", error);
       toast.error("Failed to delete venue");

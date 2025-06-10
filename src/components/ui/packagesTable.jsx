@@ -64,6 +64,7 @@ import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format, parse } from "date-fns";
 import { TiersTableView } from "@/components/ui/tiers-table-view";
+import { v4 as uuidv4 } from 'uuid';
 
 function PackagesTable() {
   const [packages, setPackages] = useState([]);
@@ -186,12 +187,14 @@ function PackagesTable() {
   const initialPackageState = {
     event: "",
     event_id: "",
+    package_id: "",
     package_name: "",
     package_type: "",
     url: "",
     payment_date_1: "",
     payment_date_2: "",
-    payment_date_3: ""
+    payment_date_3: "",
+    status: ""
   };
   const [formData, setFormData] = useState(initialPackageState);
   const [formErrors, setFormErrors] = useState({});
@@ -207,9 +210,14 @@ function PackagesTable() {
     setFormData({
       event: pkg.event,
       event_id: pkg.event_id,
+      package_id: pkg.package_id,
       package_name: pkg.package_name,
       package_type: pkg.package_type,
       url: pkg.url || "",
+      payment_date_1: parseDateFromAPI(pkg.payment_date_1),
+      payment_date_2: parseDateFromAPI(pkg.payment_date_2),
+      payment_date_3: parseDateFromAPI(pkg.payment_date_3),
+      status: pkg.status
     });
     
     // Parse payment dates
@@ -263,7 +271,7 @@ function PackagesTable() {
 
   // Add package
   const handleAddPackage = async () => {
-    console.log("Form data before validation:", formData); // Debug log
+    console.log("Form data before validation:", formData);
 
     // Check for duplicate package
     const isDuplicate = packages.some(
@@ -282,14 +290,19 @@ function PackagesTable() {
     if (!validateField("event", formData.event)) return;
     setIsAdding(true);
     try {
-      const { package_name, event_id, ...addData } = formData;
       const payload = {
-        ...addData,
+        package_id: uuidv4(),
         event: formData.event,
+        event_id: formData.event_id,
+        package_name: `${formData.event} ${formData.package_type} Packages`,
+        package_type: formData.package_type,
+        url: formData.url || "",
         payment_date_1: formatDateForAPI(paymentDate1),
         payment_date_2: formatDateForAPI(paymentDate2),
-        payment_date_3: formatDateForAPI(paymentDate3)
+        payment_date_3: formatDateForAPI(paymentDate3),
+        status: "sales open" // Default status for new packages
       };
+
       console.log("Sending payload to API:", payload);
       await api.post("/packages", payload);
       setSuccessMessage("Package added successfully!");
@@ -329,8 +342,15 @@ function PackagesTable() {
     try {
       const changedFields = {};
 
+      // Check for changes in each field
       if (formData.package_type !== editingPackage.package_type) {
         changedFields["package_type"] = formData.package_type;
+      }
+      if (formData.url !== editingPackage.url) {
+        changedFields["url"] = formData.url;
+      }
+      if (formData.status !== editingPackage.status) {
+        changedFields["status"] = formData.status;
       }
 
       // Add payment date changes
@@ -358,7 +378,7 @@ function PackagesTable() {
 
       // Update only changed fields
       for (const [column, value] of Object.entries(changedFields)) {
-        await api.put(`/packages/Package ID/${editingPackage.package_id}`, {
+        await api.put(`/packages/package_id/${editingPackage.package_id}`, {
           column,
           value,
         });
@@ -382,7 +402,7 @@ function PackagesTable() {
     if (!packageToDelete) return;
     setIsDeleting(true);
     try {
-      await api.delete(`/packages/Package ID/${packageToDelete.package_id}`);
+      await api.delete(`/packages/package_id/${packageToDelete.package_id}`);
       setSuccessMessage("Package deleted successfully!");
       setShowSuccessDialog(true);
       setShowDeleteDialog(false);
@@ -429,7 +449,7 @@ function PackagesTable() {
     try {
       // Delete packages one by one
       for (const packageId of selectedPackages) {
-        await api.delete(`/packages/Package ID/${packageId}`);
+        await api.delete(`/packages/package_id/${packageId}`);
       }
 
       setSuccessMessage(

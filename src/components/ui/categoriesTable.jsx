@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { v4 as uuidv4 } from 'uuid';
 import {
   Table,
   TableBody,
@@ -63,37 +64,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-// Field mappings
-const categoryFieldMappings = {
-  venue_id: "Venue ID",
-  category_id: "Category ID",
-  category_name: "Category Name",
-  gpgt_category_name: "GPGT Category Name",
-  package_type: "Package Type",
-  ticket_delivery_days: "Ticket Delivery Days",
-  video_wall: "Video Wall",
-  covered_seat: "Covered Seat",
-  numbered_seat: "Numbered Seat",
-  category_info: "Category Info",
-  ticket_image_1: "Ticket image 1",
-  ticket_image_2: "Ticket image 2",
-};
-
-// Column mapping for API requests
-const columnMap = {
-  venue_id: "Venue ID",
-  category_name: "Category Name",
-  gpgt_category_name: "GPGT Category Name",
-  package_type: "Package Type",
-  ticket_delivery_days: "Ticket Delivery Days",
-  video_wall: "Video Wall",
-  covered_seat: "Covered Seat",
-  numbered_seat: "Numbered Seat",
-  category_info: "Category Info",
-  ticket_image_1: "Ticket image 1",
-  ticket_image_2: "Ticket image 2"
-};
 
 export function CategoriesTable() {
   const [categories, setCategories] = useState([]);
@@ -171,7 +141,7 @@ export function CategoriesTable() {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/n-categories");
+      const response = await api.get("/categories");
       console.log("Categories response:", response.data);
       setCategories(response.data);
     } catch (error) {
@@ -313,6 +283,7 @@ export function CategoriesTable() {
     setIsAdding(true);
     try {
       const payload = {
+        category_id: uuidv4(),
         venue_id: formData.venue_id,
         category_name: formData.category_name,
         gpgt_category_name: formData.gpgt_category_name || formData.category_name,
@@ -327,7 +298,7 @@ export function CategoriesTable() {
       };
 
       console.log("Adding category with payload:", payload);
-      await api.post("/n-categories", payload);
+      await api.post("/categories", payload);
       
       toast.success("Category added successfully!", {
         description: `${formData.category_name} has been added`
@@ -434,23 +405,16 @@ export function CategoriesTable() {
 
       // Update only changed fields
       for (const [field, value] of Object.entries(changedFields)) {
-        // Get the exact column name from the mapping
-        const columnName = categoryFieldMappings[field];
-        if (!columnName) {
-          console.error(`No mapping found for field: ${field}`);
-          continue;
-        }
-
         console.log('Sending update request:', {
-          url: `/n-categories/Category ID/${selectedCategory.category_id}`,
-          column: columnName,
+          url: `/categories/category_id/${selectedCategory.category_id}`,
+          column: field,
           value,
           field
         });
 
         try {
-          const response = await api.put(`/n-categories/Category ID/${selectedCategory.category_id}`, {
-            column: columnName,
+          const response = await api.put(`/categories/category_id/${selectedCategory.category_id}`, {
+            column: field,
             value: value || "" // Ensure we always send a string value
           });
           console.log('Update response:', response.data);
@@ -547,7 +511,7 @@ export function CategoriesTable() {
     if (!categoryToDelete) return;
     setIsDeleting(true);
     try {
-      await api.delete(`/n-categories/${categoryToDelete.category_id}`);
+      await api.delete(`/categories/category_id/${categoryToDelete.category_id}`);
       toast.success("Category deleted successfully!", {
         description: `${categoryToDelete.category_name} has been removed`
       });

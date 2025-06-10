@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
+import { v4 as uuidv4 } from 'uuid';
 import {
   Table,
   TableBody,
@@ -108,13 +109,13 @@ function EventsTable() {
 
   // Column mapping for API requests
   const columnMap = {
-    sport: "Sport",
-    event: "Event",
-    event_id: "Event ID",
-    event_start_date: "Event Start date",
-    event_end_date: "Event End Date",
-    venue_id: "Venue ID",
-    consultant_id: "Consultant ID",
+    sport: "sport",
+    event: "event",
+    event_id: "event_id",
+    event_start_date: "event_start_date",
+    event_end_date: "event_end_date",
+    venue_id: "venue_id",
+    consultant_id: "consultant_id",
     status: "status"
   };
 
@@ -124,7 +125,7 @@ function EventsTable() {
       setError(null);
       try {
         const [eventsRes, usersRes, venuesRes] = await Promise.all([
-          api.get("/event"),
+          api.get("/events"),
           api.get("/users"),
           api.get("/venues")
         ]);
@@ -295,21 +296,22 @@ function EventsTable() {
     setIsAdding(true);
     try {
       const eventData = {
+        event_id: uuidv4(),
         sport: formData.sport,
         event: formData.event,
         event_start_date: formatDateForDisplay(formData.event_start_date),
         event_end_date: formatDateForDisplay(formData.event_end_date),
         venue_id: formData.venue_id,
         consultant_id: formData.consultant_id,
-        status: ""
+        status: "sales open"
       };
 
-      await api.post("/event", eventData);
+      await api.post("/events", eventData);
       setSuccessMessage("Event added successfully!");
       setShowSuccessDialog(true);
       setIsAddDialogOpen(false);
       // Refresh
-      const res = await api.get("/event");
+      const res = await api.get("/events");
       setEvents(res.data);
     } catch (error) {
       console.error("Error adding event:", error);
@@ -363,7 +365,7 @@ function EventsTable() {
           if (newValue !== oldValue) {
             changedFields[key] = newValue;
           }
-        } else if (key !== 'status' && formData[key] !== editingEvent[key]) {
+        } else if (formData[key] !== editingEvent[key]) {
           changedFields[key] = formData[key];
         }
       });
@@ -378,17 +380,18 @@ function EventsTable() {
 
       // Update only changed fields
       for (const [column, value] of Object.entries(changedFields)) {
-        await api.put(`/event/Event ID/${editingEvent.event_id}`, {
-          column: columnMap[column],
-          value,
+        const response = await api.put(`/events/event_id/${editingEvent.event_id}`, {
+          column: column,
+          value: value
         });
+        console.log(`Updated ${column}:`, response.data);
       }
 
       setSuccessMessage("Event updated successfully!");
       setShowSuccessDialog(true);
       setIsEditDialogOpen(false);
       // Refresh
-      const res = await api.get("/event");
+      const res = await api.get("/events");
       setEvents(res.data);
     } catch (error) {
       console.error("Failed to update event:", error);
@@ -403,12 +406,12 @@ function EventsTable() {
     if (!eventToDelete) return;
     setIsDeleting(true);
     try {
-      await api.delete(`/event/Event ID/${eventToDelete.event_id}`);
+      await api.delete(`/events/event_id/${eventToDelete.event_id}`);
       setSuccessMessage("Event deleted successfully!");
       setShowSuccessDialog(true);
       setShowDeleteDialog(false);
       // Refresh
-      const res = await api.get("/event");
+      const res = await api.get("/events");
       setEvents(res.data);
     } catch (error) {
       console.error("Failed to delete event:", error);
@@ -450,7 +453,7 @@ function EventsTable() {
     try {
       // Delete events one by one
       for (const eventId of selectedEvents) {
-        await api.delete(`/event/Event ID/${eventId}`);
+        await api.delete(`/events/event_id/${eventId}`);
       }
 
       setSuccessMessage(
@@ -460,7 +463,7 @@ function EventsTable() {
       setSelectedEvents([]);
 
       // Refresh the events list
-      const res = await api.get("/event");
+      const res = await api.get("/events");
       setEvents(res.data);
     } catch (error) {
       console.error("Failed to delete events:", error);

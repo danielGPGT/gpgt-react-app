@@ -86,22 +86,28 @@ export function TierDialog({
 
   const fetchData = async () => {
     try {
-      const [
-        hotelsRes,
-        roomsRes,
-        circuitRes,
-        airportRes,
-        ticketsRes,
-      ] = await Promise.all([
-        api.get("/hotels", {
-          params: { package_id: selectedPackage.package_id }
+      // First get rooms for this package
+      const roomsRes = await api.get("/new rooms", {
+        params: { packageId: selectedPackage.package_id }
+      });
+      
+      // Extract unique hotel IDs from rooms
+      const uniqueHotelIds = [...new Set(roomsRes.data.map(room => room.hotel_id))];
+      
+      // Get other data in parallel
+      const [hotelsRes, circuitRes, airportRes, ticketsRes] = await Promise.all([
+        api.get("/test hotels", {
+          params: { hotelIds: uniqueHotelIds.join(',') }
         }),
-        api.get("/rooms"),
-        api.get("/circuit-transfers"),
-        api.get("/airport-transfers"),
+        api.get("/circuit-transfers", {
+          params: { packageId: selectedPackage.package_id }
+        }),
+        api.get("/airport-transfers", {
+          params: { packageId: selectedPackage.package_id }
+        }),
         api.get("/new tickets", {
-          params: { packageId: selectedPackage.package_id },
-        }),
+          params: { packageId: selectedPackage.package_id }
+        })
       ]);
 
       console.log("Hotels for package:", hotelsRes.data);
@@ -310,6 +316,9 @@ export function TierDialog({
               placeholder="Select ticket"
               className="w-full"
             />
+            {tickets.length === 0 && (
+              <p className="text-sm text-muted-foreground">No tickets available for this package</p>
+            )}
             {formErrors.ticket_id && (
               <p className="text-sm text-destructive">{formErrors.ticket_id}</p>
             )}
@@ -322,20 +331,34 @@ export function TierDialog({
               options={[
                 { value: "", label: "Select Hotel" },
                 ...hotels
-                  .filter(hotel => {
-                    const packageIds = hotel.package_id.split(', ').map(id => id.trim());
-                    return packageIds.includes(selectedPackage.package_id);
-                  })
+                  .filter(hotel => rooms.some(room => 
+                    room.hotel_id === hotel.hotel_id && 
+                    room.package_id.split(',').map(id => id.trim()).includes(selectedPackage.package_id)
+                  ))
                   .map((hotel) => ({
                     value: hotel.hotel_id,
                     label: hotel.hotel_name,
                   })),
               ]}
               value={formData.hotel_id}
-              onChange={(value) => handleFieldChange("hotel_id", value)}
+              onChange={(value) => {
+                handleFieldChange("hotel_id", value);
+                // Clear room selection when hotel changes
+                handleFieldChange("room_id", "");
+              }}
               placeholder="Select hotel"
               className="w-full"
             />
+            {rooms.length === 0 && (
+              <p className="text-sm text-muted-foreground">No rooms available for this package</p>
+            )}
+            {hotels.length > 0 && rooms.length > 0 && 
+              hotels.filter(hotel => rooms.some(room => 
+                room.hotel_id === hotel.hotel_id && 
+                room.package_id.split(',').map(id => id.trim()).includes(selectedPackage.package_id)
+              )).length === 0 && (
+              <p className="text-sm text-muted-foreground">No hotels available with rooms for this package</p>
+            )}
             {formErrors.hotel_id && (
               <p className="text-sm text-destructive">{formErrors.hotel_id}</p>
             )}
@@ -348,17 +371,30 @@ export function TierDialog({
               options={[
                 { value: "", label: "Select Room" },
                 ...rooms
-                  .filter((room) => room.hotel_id === formData.hotel_id)
+                  .filter(room => 
+                    room.hotel_id === formData.hotel_id && 
+                    room.package_id.split(',').map(id => id.trim()).includes(selectedPackage.package_id)
+                  )
                   .map((room) => ({
                     value: room.room_id,
-                    label: `${room.room_category} – ${room.room_type}`,
+                    label: `${room.room_category} - ${room.room_type}`,
                   })),
               ]}
               value={formData.room_id}
               onChange={(value) => handleFieldChange("room_id", value)}
-              placeholder="Select room"
+              placeholder={formData.hotel_id ? "Select room" : "Select a hotel first"}
               className="w-full"
+              disabled={!formData.hotel_id}
             />
+            {!formData.hotel_id && (
+              <p className="text-sm text-muted-foreground">Please select a hotel first</p>
+            )}
+            {formData.hotel_id && rooms.filter(room => 
+              room.hotel_id === formData.hotel_id && 
+              room.package_id.split(',').map(id => id.trim()).includes(selectedPackage.package_id)
+            ).length === 0 && (
+              <p className="text-sm text-muted-foreground">No rooms available for this hotel and package</p>
+            )}
             {formErrors.room_id && (
               <p className="text-sm text-destructive">{formErrors.room_id}</p>
             )}
@@ -370,20 +406,19 @@ export function TierDialog({
             <Combobox
               options={[
                 { value: "", label: "Select Circuit Transfer" },
-                ...circuitTransfers
-                  .filter((ct) => ct.hotel_id === formData.hotel_id)
-                  .map((ct) => ({
-                    value: ct.circuit_transfer_id,
-                    label: ct.transport_type,
-                  })),
+                ...circuitTransfers.map((transfer) => ({
+                  value: transfer.circuit_transfer_id,
+                  label: transfer.transport_type,
+                })),
               ]}
               value={formData.circuit_transfer_id}
-              onChange={(value) =>
-                handleFieldChange("circuit_transfer_id", value)
-              }
+              onChange={(value) => handleFieldChange("circuit_transfer_id", value)}
               placeholder="Select circuit transfer"
               className="w-full"
             />
+            {circuitTransfers.length === 0 && (
+              <p className="text-sm text-muted-foreground">No circuit transfers available for this package</p>
+            )}
           </div>
 
           {/* Airport Transfer */}
@@ -392,24 +427,21 @@ export function TierDialog({
             <Combobox
               options={[
                 { value: "", label: "Select Airport Transfer" },
-                ...airportTransfers
-                  .filter((at) => at.hotel_id === formData.hotel_id)
-                  .map((at) => ({
-                    value: at.airport_transfer_id,
-                    label: at.transport_type,
-                  })),
+                ...airportTransfers.map((transfer) => ({
+                  value: transfer.airport_transfer_id,
+                  label: transfer.transport_type,
+                })),
               ]}
               value={formData.airport_transfer_id}
-              onChange={(value) =>
-                handleFieldChange("airport_transfer_id", value)
-              }
+              onChange={(value) => handleFieldChange("airport_transfer_id", value)}
               placeholder="Select airport transfer"
               className="w-full"
             />
+            {airportTransfers.length === 0 && (
+              <p className="text-sm text-muted-foreground">No airport transfers available for this package</p>
+            )}
             {formErrors.airport_transfer_id && (
-              <p className="text-sm text-destructive">
-                {formErrors.airport_transfer_id}
-              </p>
+              <p className="text-sm text-destructive">{formErrors.airport_transfer_id}</p>
             )}
           </div>
 

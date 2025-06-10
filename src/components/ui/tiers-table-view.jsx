@@ -28,6 +28,7 @@ import { Loader2, Plus, Search, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { TierDialog } from "./tier-dialog";
 import { Badge } from "@/components/ui/badge";
+import { v4 as uuidv4 } from 'uuid';
 
 export function TiersTableView({
   isOpen,
@@ -61,16 +62,29 @@ export function TiersTableView({
     setIsLoading(true);
     try {
       console.log("Making API call with package_id:", selectedPackage.package_id);
-      const [tiersRes, hotelsRes, roomsRes, circuitRes, airportRes] = await Promise.all([
+      
+      // First get rooms for this package
+      const roomsRes = await api.get("/new rooms", {
+        params: { packageId: selectedPackage.package_id }
+      });
+      
+      // Extract unique hotel IDs from rooms
+      const uniqueHotelIds = [...new Set(roomsRes.data.map(room => room.hotel_id))];
+      
+      // Get other data in parallel
+      const [tiersRes, hotelsRes, circuitRes, airportRes] = await Promise.all([
         api.get("/package-tiers", {
           params: { package_id: selectedPackage.package_id }
         }),
-        api.get("/hotels", {
-          params: { package_id: selectedPackage.package_id }
+        api.get("/test hotels", {
+          params: { hotelIds: uniqueHotelIds.join(',') }
         }),
-        api.get("/rooms"),
-        api.get("/circuit-transfers"),
-        api.get("/airport-transfers")
+        api.get("/circuit-transfers", {
+          params: { packageId: selectedPackage.package_id }
+        }),
+        api.get("/airport-transfers", {
+          params: { packageId: selectedPackage.package_id }
+        })
       ]);
 
       console.log("Received tiers data:", tiersRes.data);
@@ -138,6 +152,88 @@ export function TiersTableView({
     } finally {
       setIsDeleteDialogOpen(false);
       setTierToDelete(null);
+    }
+  };
+
+  const handleAddTier = async () => {
+    try {
+      const payload = {
+        tier_id: uuidv4(),
+        package_id: selectedPackage.package_id,
+        package_name: selectedPackage.package_name,
+        tier_type: formData.tier_type,
+        ticket_id: formData.ticket_id,
+        ticket_name: formData.ticket_name,
+        hotel_id: formData.hotel_id,
+        room_id: formData.room_id,
+        circuit_transfer_id: formData.circuit_transfer_id || "",
+        airport_transfer_id: formData.airport_transfer_id || "",
+        status: formData.status || "sales open"
+      };
+
+      await api.post("/package-tiers", payload);
+      toast.success("Tier added successfully");
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to add tier:", error);
+      toast.error("Failed to add tier");
+    }
+  };
+
+  const handleEditTier = async () => {
+    if (!selectedTier) return;
+
+    try {
+      const changedFields = {};
+
+      // Check for changes in each field
+      if (formData.tier_type !== selectedTier.tier_type) {
+        changedFields["tier_type"] = formData.tier_type;
+      }
+      if (formData.ticket_id !== selectedTier.ticket_id) {
+        changedFields["ticket_id"] = formData.ticket_id;
+      }
+      if (formData.ticket_name !== selectedTier.ticket_name) {
+        changedFields["ticket_name"] = formData.ticket_name;
+      }
+      if (formData.hotel_id !== selectedTier.hotel_id) {
+        changedFields["hotel_id"] = formData.hotel_id;
+      }
+      if (formData.room_id !== selectedTier.room_id) {
+        changedFields["room_id"] = formData.room_id;
+      }
+      if (formData.circuit_transfer_id !== selectedTier.circuit_transfer_id) {
+        changedFields["circuit_transfer_id"] = formData.circuit_transfer_id || "";
+      }
+      if (formData.airport_transfer_id !== selectedTier.airport_transfer_id) {
+        changedFields["airport_transfer_id"] = formData.airport_transfer_id || "";
+      }
+      if (formData.status !== selectedTier.status) {
+        changedFields["status"] = formData.status;
+      }
+
+      // Only update if there are changes
+      if (Object.keys(changedFields).length === 0) {
+        toast.info("No changes were made");
+        onOpenChange(false);
+        return;
+      }
+
+      // Update only changed fields
+      for (const [column, value] of Object.entries(changedFields)) {
+        await api.put(`/package-tiers/tier_id/${selectedTier.tier_id}`, {
+          column,
+          value,
+        });
+      }
+
+      toast.success("Tier updated successfully");
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to update tier:", error);
+      toast.error("Failed to update tier");
     }
   };
 

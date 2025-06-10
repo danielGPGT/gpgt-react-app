@@ -276,7 +276,7 @@ function InternalPricing({
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await api.get("/events");
+        const res = await api.get("/event");
         setEvents(res.data);
         setFilteredEvents(res.data);
         
@@ -424,7 +424,7 @@ function InternalPricing({
       setLoadingTiers(true);
 
       // First get rooms for this package
-      const roomsRes = await api.get("/rooms", {
+      const roomsRes = await api.get("/new rooms", {
         params: { packageId },
       });
 
@@ -432,7 +432,7 @@ function InternalPricing({
       const uniqueHotelIds = [...new Set(roomsRes.data.map(room => room.hotel_id))];
 
       // Get hotels for these IDs
-      const hotelsRes = await api.get("/hotels", {
+      const hotelsRes = await api.get("/test hotels", {
         params: { hotelIds: uniqueHotelIds.join(',') },
       });
 
@@ -445,7 +445,7 @@ function InternalPricing({
         airportTransfersRes,
         tiersRes
       ] = await Promise.all([
-        api.get("/tickets", { params: { packageId } }),
+        api.get("/new tickets", { params: { packageId } }),
         api.get("/flights", { params: { packageId } }),
         api.get("/lounge-passes", { params: { packageId } }),
         api.get("/circuit-transfers", { params: { packageId } }),
@@ -762,7 +762,7 @@ function InternalPricing({
 
       if (hotel) {
         // Get rooms for this hotel that match the selected package
-        const roomsRes = await api.get("/rooms", {
+        const roomsRes = await api.get("/new rooms", {
           params: { 
             hotelId: hotel.hotel_id,
             packageId: selectedPackage?.package_id 
@@ -836,7 +836,7 @@ function InternalPricing({
       
       try {
         // Fetch category using category_id
-        const categoryRes = await api.get("/categories", {
+        const categoryRes = await api.get("/n-categories", {
           params: { 
             categoryId: foundTicket.category_id
           }

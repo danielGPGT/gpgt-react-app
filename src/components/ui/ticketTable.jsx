@@ -19,6 +19,11 @@ import {
   Pencil,
   Loader2,
   ChevronDown,
+  Clock,
+  ShoppingCart,
+  CreditCard,
+  Package,
+  ArrowDownToLine,
 } from "lucide-react";
 import {
   Pagination,
@@ -71,6 +76,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { v4 as uuidv4 } from "uuid";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function TicketTable() {
   const [stock, setStock] = useState([]);
@@ -105,23 +112,24 @@ function TicketTable() {
     category_id: "",
     package_id: "",
     ticket_id: "",
+    ticket_name: "",
     supplier: "",
     ref: "",
     actual_stock: 0,
-    used: "",
+    used: 0,
     remaining: 0,
-    "currency_(bought_in)": "EUR",
-    "unit_cost_(local)": "",
-    "unit_cost_(gbp)": "",
-    "total_cost_(local)": "",
-    "total_cost_(gbp)": "",
-    is_provsional: false,
+    currency_bought_in: "EUR",
+    unit_cost_local: 0,
+    unit_cost_gbp: 0,
+    total_cost_local: 0,
+    total_cost_gbp: 0,
+    is_provisional: false,
     ordered: false,
     paid: false,
     tickets_received: false,
-    markup: "60",
-    event_days: "",
-    ticket_type: "",
+    markup: "55%",
+    event_days: "Fri - Sun",
+    ticket_type: "E-ticket"
   };
   const [newTicket, setNewTicket] = useState(initialTicketState);
 
@@ -172,16 +180,20 @@ function TicketTable() {
 
   const sortColumns = [
     { value: "event", label: "Event" },
+    { value: "package_type", label: "Package Type" },
     { value: "ticket_name", label: "Ticket Name" },
     { value: "supplier", label: "Supplier" },
     { value: "ref", label: "Reference" },
     { value: "actual_stock", label: "Stock" },
     { value: "used", label: "Used" },
     { value: "remaining", label: "Remaining" },
-    { value: "unit_cost_(gbp)", label: "Unit Cost (GBP)" },
+    { value: "unit_cost_local", label: "Unit Cost (Local)" },
+    { value: "unit_cost_gbp", label: "Unit Cost (GBP)" }
   ];
   const [sortColumn, setSortColumn] = useState("event");
   const [sortDirection, setSortDirection] = useState("asc");
+
+  const [fxRates, setFxRates] = useState({});
 
   useEffect(() => {
     fetchInitialData();
@@ -189,32 +201,56 @@ function TicketTable() {
 
   const fetchInitialData = async () => {
     try {
-      const [stockRes, eventsRes, packagesRes] = await Promise.all([
-        api.get("new%20stock%20-%20tickets"),
-        api.get("event"),
-        api.get("packages"),
+      const [stockRes, eventsRes, packagesRes, fxRes] = await Promise.all([
+        api.get("/stock-tickets"),
+        api.get("/events"),
+        api.get("/packages"),
+        api.get("/new-fx")
       ]);
 
       // Ensure we have valid arrays with required properties
       const validEvents = Array.isArray(eventsRes.data) ? eventsRes.data : [];
-      const validPackages = Array.isArray(packagesRes.data)
-        ? packagesRes.data
-        : [];
+      const validPackages = Array.isArray(packagesRes.data) ? packagesRes.data : [];
       const validStock = Array.isArray(stockRes.data) ? stockRes.data : [];
+      
+      // Process FX rates into a more usable format
+      const processedFxRates = {};
+      if (Array.isArray(fxRes.data)) {
+        fxRes.data.forEach(rate => {
+          if (!processedFxRates[rate.from]) {
+            processedFxRates[rate.from] = {};
+          }
+          processedFxRates[rate.from][rate.to] = rate.rate;
+        });
+      }
 
       setStock(validStock);
       setEvents(validEvents);
       setPackages(validPackages);
+      setFxRates(processedFxRates);
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast.error("Failed to load data");
-      // Set empty arrays as fallback
       setStock([]);
       setEvents([]);
       setPackages([]);
+      setFxRates({});
     } finally {
       setLoading(false);
     }
+  };
+
+  const convertToGBP = (amount, fromCurrency) => {
+    if (!amount || !fromCurrency || fromCurrency === 'GBP') return amount;
+    
+    const rate = fxRates[fromCurrency]?.GBP;
+    if (!rate) {
+      console.warn(`No FX rate found for ${fromCurrency} to GBP`);
+      return amount;
+    }
+
+    // Direct conversion without spread
+    return Number((amount * rate).toFixed(2));
   };
 
   // Add function to fetch categories for an event
@@ -230,7 +266,7 @@ function TicketTable() {
       }
 
       // Then fetch categories using the venue_id
-      const response = await api.get(`n-categories?venue_id=${event.venue_id}`);
+      const response = await api.get(`categories?venue_id=${event.venue_id}`);
       console.log("Categories response:", response.data);
       setCategories(response.data);
     } catch (error) {
@@ -366,7 +402,7 @@ function TicketTable() {
         let aVal = a[sortColumn];
         let bVal = b[sortColumn];
         // For numbers, sort numerically
-        if (["actual_stock", "used", "remaining", "unit_cost_(gbp)"].includes(sortColumn)) {
+        if (["actual_stock", "used", "remaining", "unit_cost_gbp"].includes(sortColumn)) {
           aVal = Number(aVal) || 0;
           bVal = Number(bVal) || 0;
           return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
@@ -385,58 +421,45 @@ function TicketTable() {
   // Add ticket
   const handleAddTicket = async (formData) => {
     try {
-      setIsAdding(true);
-      toast.loading("Adding ticket...");
+      setLoading(true);
+      console.log("Adding ticket with form data:", formData);
 
-      console.log("Form data received:", formData);
-
-      // Get the event ID from the selected event name
-      const event = events.find(e => e.event === formData.event);
-      if (!event) {
-        throw new Error("Selected event not found");
-      }
-
-      // Create a new object with the exact field names that match the backend
+      // Create the ticket data object with only the required columns
       const ticketData = {
-        event_id: event.event_id,
-        category_id: formData.category_id,
-        supplier: formData.supplier,
-        ref: formData.ref,
-        actual_stock: formData.actual_stock,
-        used: formData.used,
-        remaining: "",  // Set remaining as empty string
-        currency_bought_in: formData["currency_(bought_in)"],
-        unit_cost_local: formData["unit_cost_(local)"],
-        unit_cost_gbp: formData["unit_cost_(gbp)"],
-        total_cost_local: formData["total_cost_(local)"],
-        total_cost_gbp: formData["total_cost_(gbp)"],
-        is_provsional: formData.is_provsional,
-        ordered: formData.ordered,
-        paid: formData.paid,
-        tickets_received: formData.tickets_received,
-        markup: formData.markup,
-        event_days: formData.event_days,
-        ticket_type: formData.ticket_type,
-        event: formData.event,
-        package_type: formData.package_type
+        event_id: formData.event_id,
+        package_type: formData.package_type || "",
+        category_id: formData.category_id || "",
+        package_id: formData.package_id || "",
+        ticket_id: uuidv4(),
+        supplier: formData.supplier || "",
+        ref: formData.ref || "",
+        actual_stock: formData.actual_stock ? Number(formData.actual_stock) : 0,
+        currency_bought_in: formData.currency_bought_in || "USD",
+        unit_cost_local: formData.unit_cost_local ? Number(formData.unit_cost_local) : 0,
+        unit_cost_gbp: formData.unit_cost_gbp ? Number(formData.unit_cost_gbp) : 0,
+        is_provisional: formData.is_provisional || false,
+        ordered: formData.ordered || false,
+        paid: formData.paid || false,
+        tickets_received: formData.tickets_received || false,
+        markup: formData.markup ? `${formData.markup}` : "60%",
+        event_days: formData.event_days || "",
+        ticket_type: formData.ticket_type || "E-ticket"
       };
 
-      console.log("Ticket data being sent:", ticketData);
+      console.log("Sending ticket data:", ticketData);
+      const response = await api.post("/stock-tickets", ticketData);
+      console.log("Add ticket response:", response);
 
-      await api.post("new%20stock%20-%20tickets", ticketData);
-      toast.dismiss();
-      toast.success("Ticket added successfully!");
-      setIsAddDialogOpen(false);
-      
-      // Refresh the tickets list
-      const res = await api.get("new%20stock%20-%20tickets");
-      setStock(res.data);
+      if (response.status === 200) {
+        toast.success("Ticket added successfully");
+        await fetchInitialData(); // Use fetchInitialData instead of fetchTickets
+        setIsAddDialogOpen(false); // Close the dialog
+      }
     } catch (error) {
-      console.error("Failed to add ticket:", error);
-      toast.dismiss();
-      toast.error("Failed to add ticket. Please try again.");
+      console.error("Error adding ticket:", error);
+      toast.error(error.response?.data?.message || "Failed to add ticket");
     } finally {
-      setIsAdding(false);
+      setLoading(false);
     }
   };
 
@@ -459,112 +482,91 @@ function TicketTable() {
   }, [showSuccessDialog]);
 
   // Delete ticket
-  const handleDeleteTicket = async (ticketId) => {
-    setTicketToDelete(ticketId);
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = async () => {
-    try {
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete) return;
       setIsDeleting(true);
-      toast.loading("Deleting ticket...");
-
-      await api.delete(`New Stock - tickets/ticket_id/${ticketToDelete}`);
-      setStock((prevStock) =>
-        prevStock.filter((ticket) => ticket.ticket_id !== ticketToDelete)
-      );
-
-      toast.dismiss();
-      toast.success("Ticket deleted successfully!");
+    try {
+      await api.delete(`/stock-tickets/ticket_id/${ticketToDelete.ticket_id}`);
+      setSuccessMessage("Ticket deleted successfully!");
+      setShowSuccessDialog(true);
       setShowDeleteConfirm(false);
-      setTicketToDelete(null);
+      // Refresh data
+      await fetchInitialData();
     } catch (error) {
       console.error("Failed to delete ticket:", error);
-      toast.dismiss();
-      toast.error("Failed to delete ticket. Please try again.");
-      setShowDeleteConfirm(false);
-      setTicketToDelete(null);
+      toast.error("Failed to delete ticket");
     } finally {
       setIsDeleting(false);
+      setTicketToDelete(null);
     }
   };
 
-  // Update ticket
-  const handleEditTicket = async (changedFields) => {
+  const openEditDialog = (ticket) => {
+    setEditingTicket(ticket);
+    setIsEditDialogOpen(true);
+  };
+
+  const closeEditDialog = () => {
+        setEditingTicket(null);
+        setIsEditDialogOpen(false);
+  };
+
+  const handleEditTicket = async (formData) => {
     try {
-      setIsEditing(true);
-      const loadingToast = toast.loading("Updating ticket...");
+      setLoading(true);
+      console.log("Editing ticket with form data:", formData);
 
-      if (Object.keys(changedFields).length === 0) {
-        toast.dismiss(loadingToast);
-        toast.info("No changes were made");
-        setIsEditDialogOpen(false);
-        setEditingTicket(null);
-        return;
+      // Get the original ticket data
+      const originalTicket = stock.find(t => t.ticket_id === formData.ticket_id);
+      if (!originalTicket) {
+        throw new Error("Original ticket not found");
       }
 
-      const ticketId = editingTicket.ticket_id;
-
-      // If event is being changed, get the new event ID
-      if (changedFields.event) {
-        const event = events.find(e => e.event === changedFields.event);
-        if (event) {
-          changedFields.event_id = event.event_id;
+      // Find changed fields by comparing with original data
+      const changedFields = Object.entries(formData).filter(([key, value]) => {
+        // Skip comparing ticket_id
+        if (key === 'ticket_id') return false;
+        
+        // Handle numeric fields
+        if (['actual_stock', 'unit_cost_local', 'unit_cost_gbp'].includes(key)) {
+          return Number(originalTicket[key]) !== Number(value);
         }
-      }
-
-      const excludedFields = [
-        "actual_stock",
-        "used",
-        "remaining",
-        "total_cost_local",
-        "unit_cost_gbp",
-        "total_cost_gbp",
-        "currency_bought_in",
-      ];
-
-      const filteredChanges = Object.entries(changedFields).reduce(
-        (acc, [field, value]) => {
-          if (!excludedFields.includes(field)) {
-            acc[field] = value;
-          }
-          return acc;
-        },
-        {}
-      );
-
-      if (Object.keys(filteredChanges).length === 0) {
-        toast.dismiss(loadingToast);
-        toast.info("No valid changes were made");
-        setIsEditDialogOpen(false);
-        setEditingTicket(null);
-        return;
-      }
-
-      for (const [field, value] of Object.entries(filteredChanges)) {
-        if (value !== undefined && value !== null && fieldMappings[field]) {
-          const updateData = {
-            column: fieldMappings[field],
-            value: value,
-          };
-
-          await api.put(`/New Stock - tickets/ticket_id/${ticketId}`, updateData);
+        
+        // Handle boolean fields
+        if (['is_provisional', 'ordered', 'paid', 'tickets_received'].includes(key)) {
+          return Boolean(originalTicket[key]) !== Boolean(value);
         }
+        
+        // Handle all other fields
+        return originalTicket[key] !== value;
+      });
+
+      console.log("Changed fields:", changedFields);
+
+      // Update only the changed fields
+      const updatePromises = changedFields.map(([field, value]) => {
+        return api.put(`/stock-tickets/ticket_id/${formData.ticket_id}`, {
+          column: field,
+          value: value === null ? "" : value
+        });
+      });
+
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+        console.log("Update completed successfully");
+        toast.success("Ticket updated successfully");
+      } else {
+        console.log("No fields changed");
+        toast.info("No changes to save");
       }
 
       await fetchInitialData();
-      toast.dismiss(loadingToast);
-      setIsEditDialogOpen(false);
-      setEditingTicket(null);
-      return true;
+      closeEditDialog();
     } catch (error) {
-      console.error("Failed to update ticket:", error);
-      console.error("Error details:", error.response?.data || error.message);
-      toast.dismiss();
-      toast.error("Failed to update ticket. Please try again.");
-      return false;
+      console.error("Error updating ticket:", error);
+      toast.error(error.response?.data?.message || "Failed to update ticket");
     } finally {
-      setIsEditing(false);
+      setLoading(false);
     }
   };
 
@@ -597,12 +599,12 @@ function TicketTable() {
           field === "total_cost_local" ? cellValue : ticket.total_cost_local;
         const newStock =
           field === "actual_stock" ? cellValue : ticket.actual_stock;
-        updateData["unit_cost_(gbp)"] =
+        updateData["unit_cost_gbp"] =
           newStock > 0 ? (newTotal / newStock).toFixed(2) : 0;
       }
 
       console.log("Updating field:", field, "with value:", cellValue);
-      await api.put(`New%20Stock%20-%20tickets/${rowId}`, updateData);
+      await api.put(`stock-tickets/${rowId}`, updateData);
       toast.success("Field updated successfully");
       fetchInitialData();
     } catch (error) {
@@ -736,7 +738,7 @@ function TicketTable() {
                 field === "total_cost_local" ? value : ticket.total_cost_local;
               const newStock =
                 field === "actual_stock" ? value : ticket.actual_stock;
-              updatedTicket["unit_cost_(gbp)"] =
+              updatedTicket["unit_cost_gbp"] =
                 newStock > 0 ? (newTotal / newStock).toFixed(2) : 0;
             }
 
@@ -764,7 +766,7 @@ function TicketTable() {
               field === "total_cost_local" ? value : prev.total_cost_local;
             const newStock =
               field === "actual_stock" ? value : prev.actual_stock;
-            updated["unit_cost_(gbp)"] =
+            updated["unit_cost_gbp"] =
               newStock > 0 ? (newTotal / newStock).toFixed(2) : 0;
           }
 
@@ -870,571 +872,29 @@ function TicketTable() {
       fetchCategories();
     }, [formData.event, events, formData.category_id]);
 
-    const handleCategorySelect = (category) => {
-      console.log("Category selected:", category);
-      setSelectedCategory(category);
-      setFormData(prev => ({
-        ...prev,
-        category_id: category.category_id,
-        package_type: category.package_type,
-        ticket_image_1: category.ticket_image_1,
-        ticket_image_2: category.ticket_image_2,
-      }));
-    };
-
     const handleFieldChange = (field, value) => {
-      // Only allow digits
-      if (["actual_stock", "unit_cost_local", "markup"].includes(field)) {
-        value = value.replace(/[^0-9.]/g, '');
-      }
-      setFormData((prev) => ({ ...prev, [field]: value }));
-      validateField(field, value);
-    };
-
-    const validateField = (field, value) => {
-      const newErrors = { ...errors };
-
-      switch (field) {
-        case "actual_stock":
-          if (!formData.is_provsional) {
-            const num = parseInt(value);
-            if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
-              newErrors[field] = "Stock must be a positive integer";
-            } else {
-              delete newErrors[field];
-            }
-          }
-          break;
-        case "unit_cost_local":
-          const num = parseInt(value);
-          if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
-            newErrors[field] = "Unit cost must be a positive integer";
-          } else {
-            delete newErrors[field];
-          }
-          break;
-        case "markup":
-          const markupNum = parseFloat(value);
-          if (value === "" || isNaN(markupNum) || markupNum < 0) {
-            newErrors[field] = "Markup must be a positive number";
-          } else {
-            delete newErrors[field];
-          }
-          break;
-        default:
-          delete newErrors[field];
-      }
-
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
-    };
-
-    const handleBlur = (field, value) => {
-      if (field === "markup" && value) {
-        // Ensure markup always has % symbol
-        setFormData(prev => ({ ...prev, [field]: `${value}%` }));
-      }
-      validateField(field, value);
-    };
-
-    const handleFormSubmit = async () => {
-      try {
-        setIsSubmitting(true);
-
-        const changedFields = {};
-        Object.keys(formData).forEach((key) => {
-          if (formData[key] !== editingTicket[key]) {
-            changedFields[key] = formData[key];
-          }
-        });
-
-        const success = await handleSubmit(changedFields);
-        if (success) {
-          toast.success("Ticket updated successfully!");
-        }
-        onCancel();
-      } catch (error) {
-        console.error("Error submitting form:", error);
-        toast.error(error.response?.data?.error || "Failed to update ticket");
-        setErrors((prev) => ({
+      console.log(`Field ${field} changed to:`, value);
+      
+      // Handle currency and cost changes
+      if (field === 'unit_cost_local' || field === 'currency_bought_in') {
+        const localCost = field === 'unit_cost_local' ? value : formData.unit_cost_local;
+        const currency = field === 'currency_bought_in' ? value : formData.currency_bought_in;
+        
+        // Convert using direct rate
+        const gbpValue = convertToGBP(Number(localCost), currency);
+        console.log(`Converting ${localCost} ${currency} to GBP:`, gbpValue);
+        
+        setFormData((prev) => ({
           ...prev,
-          submit: error.response?.data?.error || "Failed to update ticket",
+          [field]: value,
+          unit_cost_gbp: gbpValue
         }));
-      } finally {
-        setIsSubmitting(false);
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          [field]: value,
+        }));
       }
-    };
-
-    return (
-      <div className="grid gap-8 py-4">
-        <div className="space-y-6">
-          {/* Event and Category Selection */}
-          <div className="space-y-2">
-            <h4 className="text-lg font-semibold">Event Information</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="event">Event</Label>
-                <Combobox
-                  options={eventOptions}
-                  value={formData.event}
-                  onChange={(value) => {
-                    console.log("Combobox onChange triggered with value:", value);
-                    const selectedEvent = events.find(e => e.event === value);
-                    console.log("Found selected event object:", selectedEvent);
-                    if (selectedEvent) {
-                      console.log("Updating form with event:", value);
-                      console.log("And event_id:", selectedEvent.event_id);
-                      handleFieldChange("event", value);
-                      handleFieldChange("event_id", selectedEvent.event_id);
-                    }
-                  }}
-                  placeholder="Search for an event..."
-                  disabled={isSubmitting}
-                  groupBy="group"
-                />
-                {errors.event && (
-                  <p className="text-sm text-primary">{errors.event}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category (Ticket Name)</Label>
-                <Select
-                  value={selectedCategory?.category_id || ""}
-                  onValueChange={(value) => {
-                    console.log("Category Select onChange triggered with value:", value);
-                    const category = categories.find(c => c.category_id === value);
-                    console.log("Found category object:", category);
-                    if (category) {
-                      handleCategorySelect(category);
-                    }
-                  }}
-                  disabled={isSubmitting || !formData.event}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem
-                        key={category.category_id}
-                        value={category.category_id}
-                      >
-                        {category.category_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.category_id && (
-                  <p className="text-sm text-primary">{errors.category_id}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Ticket Details */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Ticket Details</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="supplier">Supplier</Label>
-                <Input
-                  id="supplier"
-                  value={formData.supplier}
-                  onChange={(e) =>
-                    handleFieldChange("supplier", e.target.value)
-                  }
-                  onBlur={(e) => handleBlur("supplier", e.target.value)}
-                  placeholder="Enter supplier name"
-                  disabled={isSubmitting}
-                />
-                {errors.supplier && (
-                  <p className="text-sm text-primary">{errors.supplier}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ref">Reference</Label>
-                <Input
-                  id="ref"
-                  value={formData.ref}
-                  onChange={(e) => handleFieldChange("ref", e.target.value)}
-                  onBlur={(e) => handleBlur("ref", e.target.value)}
-                  placeholder="Enter reference"
-                  disabled={isSubmitting}
-                />
-                {errors.ref && (
-                  <p className="text-sm text-primary">{errors.ref}</p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ticket_type">Ticket Type</Label>
-                <Select
-                  value={formData.ticket_type}
-                  onValueChange={(value) =>
-                    handleFieldChange("ticket_type", value)
-                  }
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select ticket type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      "E-ticket",
-                      "Collection Ticket",
-                      "Paper Ticket",
-                      "App Ticket",
-                    ].map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="event_days">Event Days</Label>
-                <Select
-                  value={formData.event_days}
-                  onValueChange={(value) =>
-                    handleFieldChange("event_days", value)
-                  }
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select event days" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      "Fri - Sun",
-                      "Sat - Sun",
-                      "Thu - Sun",
-                      "Friday",
-                      "Saturday",
-                      "Sunday",
-                      "Thursday",
-                    ].map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* Stock and Cost Information */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Stock & Cost Information</h4>
-            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-              <div className="space-y-2">
-                <Label htmlFor="actual_stock">Stock</Label>
-                <Input
-                  id="actual_stock"
-                  type="text"
-                  value={formData.actual_stock}
-                  onChange={(e) =>
-                    handleFieldChange("actual_stock", e.target.value)
-                  }
-                  onBlur={(e) =>
-                    handleBlur("actual_stock", e.target.value)
-                  }
-                  disabled={isSubmitting || formData.is_provsional}
-                  className={formData.is_provsional ? "opacity-50" : ""}
-                />
-                {formData.is_provsional && (
-                  <p className="text-sm text-muted-foreground">
-                    Stock cannot be set for provisional tickets
-                  </p>
-                )}
-                {errors.actual_stock && (
-                  <p className="text-sm text-primary">{errors.actual_stock}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="unit_cost_local">Unit Cost (Local)</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="unit_cost_local"
-                    type="text"
-                    value={formData["unit_cost_(local)"]}
-                    onChange={(e) =>
-                      handleFieldChange("unit_cost_(local)", e.target.value)
-                    }
-                    onBlur={(e) =>
-                      handleBlur("unit_cost_(local)", e.target.value)
-                    }
-                    className="flex-1"
-                    disabled={isSubmitting}
-                  />
-                  <Select
-                    value={formData["currency_(bought_in)"] || "EUR"}
-                    onValueChange={(value) =>
-                      handleFieldChange("currency_(bought_in)", value)
-                    }
-                    disabled={isSubmitting}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue placeholder="Currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[
-                        "GBP",
-                        "EUR",
-                        "USD",
-                        "AUD",
-                        "CAD",
-                        "CHF",
-                        "CNY",
-                        "JPY",
-                        "NZD",
-                        "SGD",
-                      ].map((currency) => (
-                        <SelectItem key={currency} value={currency}>
-                          {currency}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {formData.is_provsional && (
-                  <p className="text-sm text-muted-foreground">
-                    Price entered is based upon the price of 1 ticket
-                  </p>
-                )}
-                {errors["unit_cost_(local)"] && (
-                  <p className="text-sm text-primary">
-                    {errors["unit_cost_(local)"]}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="unit_cost_gbp">Unit Cost (GBP)</Label>
-                <Input
-                  id="unit_cost_gbp"
-                  type="text"
-                  value={formData["unit_cost_(gbp)"] ? Number(formData["unit_cost_(gbp)"]).toFixed(2) : ""}
-                  readOnly
-                  className="flex-1 bg-muted"
-                  disabled={true}
-                />
-                {errors["unit_cost_(gbp)"] && (
-                  <p className="text-sm text-primary">
-                    {errors["unit_cost_(gbp)"]}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="markup">Markup (%)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="markup"
-                    type="text"
-                    value={formData.markup ? String(formData.markup).replace('%', '') : ''}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/[^0-9.]/g, '');
-                      handleFieldChange("markup", value);
-                    }}
-                    onBlur={(e) => {
-                      const value = e.target.value;
-                      if (value) {
-                        handleFieldChange("markup", `${value}%`);
-                      }
-                      handleBlur("markup", value);
-                    }}
-                    className={`w-full ${
-                      errors.markup ? "border-primary" : ""
-                    }`}
-                    disabled={isSubmitting}
-                  />
-                  <span className="text-muted-foreground">%</span>
-                </div>
-                {errors.markup && (
-                  <p className="text-sm text-primary">{errors.markup}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Status Information */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Status</h4>
-            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="ordered"
-                  checked={formData?.ordered || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("ordered", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="ordered">Ordered</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="paid"
-                  checked={formData?.paid || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("paid", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="paid">Paid</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="received"
-                  checked={formData?.tickets_received || false}
-                  onCheckedChange={(checked) =>
-                    handleFieldChange("tickets_received", checked)
-                  }
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="received">Received</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="provisional"
-                  checked={formData?.is_provsional || false}
-                  onCheckedChange={(checked) => {
-                    handleFieldChange("is_provsional", checked);
-                    // Reset stock to 0 when making provisional
-                    if (checked) {
-                      handleFieldChange("actual_stock", 0);
-                    }
-                  }}
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="provisional">Provisional</Label>
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end gap-4 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              disabled={isSubmitting || isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleFormSubmit}
-              disabled={isSubmitting || isLoading}
-              className="min-w-[100px]"
-            >
-              {isSubmitting || isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                "Update Ticket"
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const AddTicketForm = ({
-    formData,
-    setFormData,
-    events,
-    packages,
-    filteredPackages,
-    handleSubmit,
-    onCancel,
-    isLoading = false,
-  }) => {
-    const [errors, setErrors] = useState({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState(null);
-    const [categories, setCategories] = useState([]);
-
-    // Event options for the Combobox
-    const eventOptions = useMemo(() => {
-      console.log("Building event options from events:", events);
-      const options = events.map(event => ({
-        value: event.event,
-        label: `${event.event}`,
-        group: event.sport || 'Other'
-      }));
-      console.log("Generated event options:", options);
-      return options;
-    }, [events]);
-
-    // Fetch categories when event changes
-    useEffect(() => {
-      console.log("Event changed in form:", formData.event);
-      console.log("Current events array:", events);
-
-      const fetchCategories = async () => {
-        if (!formData.event) {
-          console.log("No event selected, clearing categories");
-          setCategories([]);
-          return;
-        }
-
-        try {
-          // Get the event ID from the selected event name
-          const event = events.find(e => e.event === formData.event);
-          console.log("Found event object:", event);
-          console.log("Event venue_id:", event?.venue_id);
-          
-          if (!event?.venue_id) {
-            console.error("No venue_id found for event:", event);
-            setCategories([]);
-            return;
-          }
-
-          console.log("Making API call to fetch categories for venue_id:", event.venue_id);
-          // Fetch categories using the venue_id
-          const response = await api.get(`n-categories?venue_id=${event.venue_id}`);
-          console.log("API Response:", response);
-          
-          // Filter categories by venue_id
-          const filteredCategories = response.data.filter(category => {
-            console.log("Checking category:", category);
-            console.log("Category venue_id:", category.venue_id);
-            console.log("Expected venue_id:", event.venue_id);
-            return category.venue_id === event.venue_id;
-          });
-          
-          console.log("Filtered categories for venue:", filteredCategories);
-          setCategories(filteredCategories || []);
-
-          // If we have a category_id in formData, set the selected category
-          if (formData.category_id) {
-            const category = filteredCategories.find(c => c.category_id === formData.category_id);
-            if (category) {
-              console.log("Setting selected category:", category);
-              setSelectedCategory(category);
-            }
-          }
-        } catch (error) {
-          console.error("Failed to fetch categories:", error);
-          console.error("Error details:", error.response?.data || error.message);
-          toast.error("Failed to load categories");
-          setCategories([]);
-        }
-      };
-
-      fetchCategories();
-    }, [formData.event, events, formData.category_id]);
-
-    const handleFieldChange = (field, value) => {
-      // Only allow digits
-      if (["actual_stock", "unit_cost_local", "markup"].includes(field)) {
-        value = value.replace(/[^0-9.]/g, '');
-      }
-      setFormData((prev) => ({ ...prev, [field]: value }));
-      validateField(field, value);
     };
 
     const handleCategorySelect = (category) => {
@@ -1495,34 +955,14 @@ function TicketTable() {
       validateField(field, value);
     };
 
-    const handleFormSubmit = async () => {
+    const handleFormSubmit = async (e) => {
+      e.preventDefault();
       try {
         setIsSubmitting(true);
-
-        const formattedData = {
-          ...formData,
-          markup: formData.markup ? `${formData.markup}%` : "0%",
-          // Set stock to 0 for provisional tickets
-          actual_stock: formData.is_provsional ? 0 : formData.actual_stock,
-          // Ensure cost fields are empty strings
-          "unit_cost_(gbp)": "",
-          "total_cost_(local)": "",
-          "total_cost_(gbp)": "",
-          // Ensure used is empty string
-          used: "",
-          // Keep the unit cost local value
-          "unit_cost_(local)": formData["unit_cost_(local)"],
-        };
-
-        console.log("Formatted data being sent:", formattedData); // Debug log
-
-        await handleSubmit(formattedData);
-        toast.dismiss();
-        setFormData({ ...initialTicketState });
+        await handleSubmit(formData);
         onCancel();
       } catch (error) {
         console.error("Error submitting form:", error);
-        toast.dismiss();
         toast.error("Failed to add ticket");
       } finally {
         setIsSubmitting(false);
@@ -1725,44 +1165,32 @@ function TicketTable() {
                 <div className="flex gap-2">
                   <Input
                     id="unit_cost_local"
-                    type="text"
-                    value={formData["unit_cost_(local)"]}
-                    onChange={(e) =>
-                      handleFieldChange("unit_cost_(local)", e.target.value)
-                    }
-                    onBlur={(e) =>
-                      handleBlur("unit_cost_(local)", e.target.value)
-                    }
-                    className="flex-1"
-                    disabled={isSubmitting}
+                    type="number"
+                    step="0.01"
+                    value={formData.unit_cost_local || ""}
+                    onChange={(e) => handleFieldChange("unit_cost_local", e.target.value)}
+                    required
                   />
                   <Select
-                    value={formData["currency_(bought_in)"] || "EUR"}
-                    onValueChange={(value) =>
-                      handleFieldChange("currency_(bought_in)", value)
-                    }
-                    disabled={isSubmitting}
+                    value={formData.currency_bought_in || "USD"}
+                    onValueChange={(value) => handleFieldChange("currency_bought_in", value)}
                   >
                     <SelectTrigger className="w-[100px]">
                       <SelectValue placeholder="Currency" />
                     </SelectTrigger>
                     <SelectContent>
-                      {[
-                        "GBP",
-                        "EUR",
-                        "USD",
-                        "AUD",
-                        "CAD",
-                        "CHF",
-                        "CNY",
-                        "JPY",
-                        "NZD",
-                        "SGD",
-                      ].map((currency) => (
-                        <SelectItem key={currency} value={currency}>
-                          {currency}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="AUD">AUD</SelectItem>
+                      <SelectItem value="CAD">CAD</SelectItem>
+                      <SelectItem value="NZD">NZD</SelectItem>
+                      <SelectItem value="AED">AED</SelectItem>
+                      <SelectItem value="BHD">BHD</SelectItem>
+                      <SelectItem value="SGD">SGD</SelectItem>
+                      <SelectItem value="QAR">QAR</SelectItem>
+                      <SelectItem value="SAR">SAR</SelectItem>
+                      <SelectItem value="MYR">MYR</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1771,9 +1199,9 @@ function TicketTable() {
                     Price entered is based upon the price of 1 ticket
                   </p>
                 )}
-                {errors["unit_cost_(local)"] && (
+                {errors.unit_cost_local && (
                   <p className="text-sm text-primary">
-                    {errors["unit_cost_(local)"]}
+                    {errors.unit_cost_local}
                   </p>
                 )}
               </div>
@@ -1781,15 +1209,589 @@ function TicketTable() {
                 <Label htmlFor="unit_cost_gbp">Unit Cost (GBP)</Label>
                 <Input
                   id="unit_cost_gbp"
-                  type="text"
-                  value={formData["unit_cost_(gbp)"] ? Number(formData["unit_cost_(gbp)"]).toFixed(2) : ""}
+                  type="number"
+                  step="0.01"
+                  value={formData.unit_cost_gbp || ""}
                   readOnly
-                  className="flex-1 bg-muted"
-                  disabled={true}
+                  className="bg-muted"
                 />
-                {errors["unit_cost_(gbp)"] && (
+                {errors.unit_cost_gbp && (
                   <p className="text-sm text-primary">
-                    {errors["unit_cost_(gbp)"]}
+                    {errors.unit_cost_gbp}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="markup">Markup (%)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="markup"
+                    type="text"
+                    value={formData.markup ? String(formData.markup).replace('%', '') : ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9.]/g, '');
+                      handleFieldChange("markup", value);
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        handleFieldChange("markup", `${value}%`);
+                      }
+                      handleBlur("markup", value);
+                    }}
+                    className={`w-full ${
+                      errors.markup ? "border-primary" : ""
+                    }`}
+                    disabled={isSubmitting}
+                  />
+                  <span className="text-muted-foreground">%</span>
+                </div>
+                {errors.markup && (
+                  <p className="text-sm text-primary">{errors.markup}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Status Information */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold">Status</h4>
+            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="ordered"
+                  checked={formData?.ordered || false}
+                  onCheckedChange={(checked) =>
+                    handleFieldChange("ordered", checked)
+                  }
+                  disabled={isSubmitting}
+                />
+                <Label htmlFor="ordered">Ordered</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="paid"
+                  checked={formData?.paid || false}
+                  onCheckedChange={(checked) =>
+                    handleFieldChange("paid", checked)
+                  }
+                  disabled={isSubmitting}
+                />
+                <Label htmlFor="paid">Paid</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="received"
+                  checked={formData?.tickets_received || false}
+                  onCheckedChange={(checked) =>
+                    handleFieldChange("tickets_received", checked)
+                  }
+                  disabled={isSubmitting}
+                />
+                <Label htmlFor="received">Received</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="provisional"
+                  checked={formData?.is_provsional || false}
+                  onCheckedChange={(checked) => {
+                    handleFieldChange("is_provsional", checked);
+                    // Reset stock to 0 when making provisional
+                    if (checked) {
+                      handleFieldChange("actual_stock", 0);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                />
+                <Label htmlFor="provisional">Provisional</Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-end gap-4 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting || isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleFormSubmit}
+              disabled={isSubmitting || isLoading}
+              className="min-w-[100px]"
+            >
+              {isSubmitting || isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Ticket"
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const AddTicketForm = ({
+    formData,
+    setFormData,
+    events,
+    packages,
+    filteredPackages,
+    handleSubmit,
+    onCancel,
+    isLoading = false,
+  }) => {
+    const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [categories, setCategories] = useState([]);
+
+    // Check if stock should be disabled (for provisional tickets)
+    const isStockDisabled = formData.is_provsional;
+
+    // Event options for the Combobox
+    const eventOptions = useMemo(() => {
+      console.log("Building event options from events:", events);
+      const options = events.map(event => ({
+        value: event.event_id,
+        label: event.event,
+        group: event.sport || 'Other'
+      }));
+      console.log("Generated event options:", options);
+      return options;
+    }, [events]);
+
+    // Fetch categories when event changes
+    useEffect(() => {
+      console.log("Event changed in form:", formData.event_id);
+      console.log("Current events array:", events);
+
+      const fetchCategories = async () => {
+        if (!formData.event_id) {
+          console.log("No event selected, clearing categories");
+          setCategories([]);
+          setSelectedCategory(null);
+          return;
+        }
+
+        try {
+          // Get the event from the selected event ID
+          const event = events.find(e => e.event_id === formData.event_id);
+          console.log("Found event object:", event);
+          console.log("Event venue_id:", event?.venue_id);
+          
+          if (!event?.venue_id) {
+            console.error("No venue_id found for event:", event);
+            setCategories([]);
+            return;
+          }
+
+          console.log("Making API call to fetch categories for venue_id:", event.venue_id);
+          // Fetch categories using the venue_id
+          const response = await api.get(`n-categories?venue_id=${event.venue_id}`);
+          console.log("API Response:", response);
+          
+          if (response.data && Array.isArray(response.data)) {
+          // Filter categories by venue_id
+          const filteredCategories = response.data.filter(category => {
+            console.log("Checking category:", category);
+            console.log("Category venue_id:", category.venue_id);
+            console.log("Expected venue_id:", event.venue_id);
+            return category.venue_id === event.venue_id;
+          });
+          
+          console.log("Filtered categories for venue:", filteredCategories);
+          setCategories(filteredCategories || []);
+            setSelectedCategory(null); // Reset selected category when event changes
+          } else {
+            console.error("Invalid response format:", response.data);
+            setCategories([]);
+            setSelectedCategory(null);
+          }
+        } catch (error) {
+          console.error("Failed to fetch categories:", error);
+          console.error("Error details:", error.response?.data || error.message);
+          toast.error("Failed to load categories");
+          setCategories([]);
+          setSelectedCategory(null);
+        }
+      };
+
+      fetchCategories();
+    }, [formData.event_id, events]);
+
+    const handleFieldChange = (field, value) => {
+      console.log(`Field ${field} changed to:`, value);
+      
+      // Handle currency and cost changes
+      if (field === 'unit_cost_local' || field === 'currency_bought_in') {
+        const localCost = field === 'unit_cost_local' ? value : formData.unit_cost_local;
+        const currency = field === 'currency_bought_in' ? value : formData.currency_bought_in;
+        
+        // Convert using direct rate
+        const gbpValue = convertToGBP(Number(localCost), currency);
+        console.log(`Converting ${localCost} ${currency} to GBP:`, gbpValue);
+        
+        setFormData((prev) => ({
+          ...prev,
+          [field]: value,
+          unit_cost_gbp: gbpValue
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          [field]: value,
+        }));
+      }
+    };
+
+    const handleFormSubmit = async (e) => {
+      e.preventDefault();
+      try {
+        setIsSubmitting(true);
+        
+        // Prepare the data in the correct format
+        const ticketData = {
+          event_id: formData.event_id,
+          package_type: formData.package_type || "",
+          category_id: formData.category_id || "",
+          package_id: formData.package_id || "",
+          ticket_id: formData.ticket_id || "",
+          ticket_name: formData.ticket_name || "",
+          supplier: formData.supplier || "",
+          ref: formData.ref || "",
+          actual_stock: Number(formData.actual_stock) || 0,
+          used: 0,
+          remaining: Number(formData.actual_stock) || 0,
+          currency_bought_in: formData.currency_bought_in || "USD",
+          unit_cost_local: Number(formData.unit_cost_local) || 0,
+          unit_cost_gbp: Number(formData.unit_cost_gbp) || 0,
+          total_cost_local: Number(formData.unit_cost_local) * Number(formData.actual_stock) || 0,
+          total_cost_gbp: Number(formData.unit_cost_gbp) * Number(formData.actual_stock) || 0,
+          is_provisional: formData.is_provsional || false,
+          ordered: formData.ordered || false,
+          paid: formData.paid || false,
+          tickets_received: formData.tickets_received || false,
+          markup: formData.markup || "0%",
+          event_days: formData.event_days || "",
+          ticket_type: formData.ticket_type || ""
+        };
+
+        console.log("Submitting ticket data:", ticketData);
+        await handleSubmit(ticketData);
+        onCancel();
+      } catch (error) {
+        console.error("Error submitting form:", error);
+        toast.error("Failed to add ticket");
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    const handleCategorySelect = (category) => {
+      console.log("Category selected:", category);
+      setSelectedCategory(category);
+      setFormData(prev => ({
+        ...prev,
+        category_id: category.category_id,
+        package_type: category.package_type,
+        ticket_name: category.category_name,
+        ticket_image_1: category.ticket_image_1,
+        ticket_image_2: category.ticket_image_2,
+      }));
+    };
+
+    const validateField = (field, value) => {
+      const newErrors = { ...errors };
+
+      switch (field) {
+        case "actual_stock":
+          if (!formData.is_provsional) {
+            const num = parseInt(value);
+            if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
+              newErrors[field] = "Stock must be a positive integer";
+            } else {
+              delete newErrors[field];
+            }
+          }
+          break;
+        case "unit_cost_local":
+          const num = parseInt(value);
+          if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
+            newErrors[field] = "Unit cost must be a positive integer";
+          } else {
+            delete newErrors[field];
+          }
+          break;
+        case "markup":
+          const markupNum = parseFloat(value);
+          if (value === "" || isNaN(markupNum) || markupNum < 0) {
+            newErrors[field] = "Markup must be a positive number";
+          } else {
+            delete newErrors[field];
+          }
+          break;
+        default:
+          delete newErrors[field];
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    const handleBlur = (field, value) => {
+      if (field === "markup" && value) {
+        // Ensure markup always has % symbol
+        setFormData(prev => ({ ...prev, [field]: `${value}%` }));
+      }
+      validateField(field, value);
+    };
+
+    return (
+      <div className="grid gap-8 py-4">
+        <div className="space-y-6">
+          {/* Event and Category Selection */}
+          <div className="space-y-2">
+            <h4 className="text-lg font-semibold">Event Information</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="event">Event</Label>
+                <Combobox
+                  options={eventOptions}
+                  value={formData.event_id}
+                  onChange={(value) => {
+                    console.log("Combobox onChange triggered with value:", value);
+                    handleFieldChange("event_id", value);
+                  }}
+                  placeholder="Search for an event..."
+                  disabled={isSubmitting}
+                  groupBy="group"
+                />
+                {errors.event && (
+                  <p className="text-sm text-primary">{errors.event}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Category (Ticket Name)</Label>
+                <Select
+                  value={selectedCategory?.category_id || ""}
+                  onValueChange={(value) => {
+                    console.log("Category Select onChange triggered with value:", value);
+                    const category = categories.find(c => c.category_id === value);
+                    console.log("Found category object:", category);
+                    if (category) {
+                      handleCategorySelect(category);
+                    }
+                  }}
+                  disabled={isSubmitting || !formData.event_id}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem
+                        key={category.category_id}
+                        value={category.category_id}
+                      >
+                        {category.category_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.category_id && (
+                  <p className="text-sm text-primary">{errors.category_id}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Ticket Details */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold">Ticket Details</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="supplier">Supplier</Label>
+                <Input
+                  id="supplier"
+                  value={formData.supplier}
+                  onChange={(e) =>
+                    handleFieldChange("supplier", e.target.value)
+                  }
+                  onBlur={(e) => handleBlur("supplier", e.target.value)}
+                  placeholder="Enter supplier name"
+                  disabled={isSubmitting}
+                />
+                {errors.supplier && (
+                  <p className="text-sm text-primary">{errors.supplier}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ref">Reference</Label>
+                <Input
+                  id="ref"
+                  value={formData.ref}
+                  onChange={(e) => handleFieldChange("ref", e.target.value)}
+                  onBlur={(e) => handleBlur("ref", e.target.value)}
+                  placeholder="Enter reference"
+                  disabled={isSubmitting}
+                />
+                {errors.ref && (
+                  <p className="text-sm text-primary">{errors.ref}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ticket_type">Ticket Type</Label>
+                <Select
+                  value={formData.ticket_type}
+                  onValueChange={(value) =>
+                    handleFieldChange("ticket_type", value)
+                  }
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select ticket type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "E-ticket",
+                      "Collection Ticket",
+                      "Paper Ticket",
+                      "App Ticket",
+                    ].map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="event_days">Event Days</Label>
+                <Select
+                  value={formData.event_days}
+                  onValueChange={(value) =>
+                    handleFieldChange("event_days", value)
+                  }
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select event days" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "Fri - Sun",
+                      "Sat - Sun",
+                      "Thu - Sun",
+                      "Friday",
+                      "Saturday",
+                      "Sunday",
+                      "Thursday",
+                    ].map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Stock and Cost Information */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold">Stock & Cost Information</h4>
+            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="space-y-2">
+                <Label htmlFor="actual_stock">Stock</Label>
+                <Input
+                  id="actual_stock"
+                  type="text"
+                  value={formData.actual_stock}
+                  onChange={(e) =>
+                    handleFieldChange("actual_stock", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlur("actual_stock", e.target.value)
+                  }
+                  disabled={isSubmitting || isStockDisabled}
+                  className={isStockDisabled ? "opacity-50" : ""}
+                />
+                {isStockDisabled && (
+                  <p className="text-sm text-muted-foreground">
+                    Stock cannot be set for provisional tickets
+                  </p>
+                )}
+                {errors.actual_stock && (
+                  <p className="text-sm text-primary">{errors.actual_stock}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unit_cost_local">Unit Cost (Local)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="unit_cost_local"
+                    type="number"
+                    step="0.01"
+                    value={formData.unit_cost_local || ""}
+                    onChange={(e) => handleFieldChange("unit_cost_local", e.target.value)}
+                    required
+                  />
+                  <Select
+                    value={formData.currency_bought_in || "USD"}
+                    onValueChange={(value) => handleFieldChange("currency_bought_in", value)}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="AUD">AUD</SelectItem>
+                      <SelectItem value="CAD">CAD</SelectItem>
+                      <SelectItem value="NZD">NZD</SelectItem>
+                      <SelectItem value="AED">AED</SelectItem>
+                      <SelectItem value="BHD">BHD</SelectItem>
+                      <SelectItem value="SGD">SGD</SelectItem>
+                      <SelectItem value="QAR">QAR</SelectItem>
+                      <SelectItem value="SAR">SAR</SelectItem>
+                      <SelectItem value="MYR">MYR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.is_provsional && (
+                  <p className="text-sm text-muted-foreground">
+                    Price entered is based upon the price of 1 ticket
+                  </p>
+                )}
+                {errors.unit_cost_local && (
+                  <p className="text-sm text-primary">
+                    {errors.unit_cost_local}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unit_cost_gbp">Unit Cost (GBP)</Label>
+                <Input
+                  id="unit_cost_gbp"
+                  type="number"
+                  step="0.01"
+                  value={formData.unit_cost_gbp || ""}
+                  readOnly
+                  className="bg-muted"
+                />
+                {errors.unit_cost_gbp && (
+                  <p className="text-sm text-primary">
+                    {errors.unit_cost_gbp}
                   </p>
                 )}
               </div>
@@ -1915,6 +1917,7 @@ function TicketTable() {
     mode = "add",
     ticket = null,
     isLoading = false,
+    onSubmit,
   }) => {
     const isEdit = mode === "edit";
     const dialogTitle = isEdit ? "Edit Ticket" : "Add New Ticket";
@@ -1948,7 +1951,7 @@ function TicketTable() {
 
     const handleFormSubmit = async (formData) => {
       if (isEdit) {
-        await handleEditTicket(formData);
+        await onSubmit(formData);
       } else {
         await handleAddTicket(formData);
       }
@@ -1982,6 +1985,7 @@ function TicketTable() {
               handleSubmit={handleFormSubmit}
               onCancel={() => onOpenChange(false)}
               isLoading={isLoading}
+              onSubmit={onSubmit}
             />
           ) : (
             <AddTicketForm
@@ -2047,6 +2051,26 @@ function TicketTable() {
       toast.error("Failed to delete some tickets");
     } finally {
       setIsBulkDeleting(false);
+    }
+  };
+
+  const handleDeleteClick = async (ticketId) => {
+    try {
+      setLoading(true);
+      console.log("Deleting ticket:", ticketId);
+      
+      const response = await api.delete(`/stock-tickets/ticket_id/${ticketId}`);
+      console.log("Delete response:", response);
+
+      if (response.status === 200) {
+        toast.success("Ticket deleted successfully");
+        await fetchInitialData();
+      }
+    } catch (error) {
+      console.error("Error deleting ticket:", error);
+      toast.error(error.response?.data?.message || "Failed to delete ticket");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -2233,87 +2257,202 @@ function TicketTable() {
                 </TableHead>
               )}
               <TableHead className="text-xs py-2">Event</TableHead>
+              <TableHead className="text-xs py-2">Package Type</TableHead>
               <TableHead className="text-xs py-2">Ticket Name</TableHead>
               <TableHead className="text-xs py-2">Supplier</TableHead>
               <TableHead className="text-xs py-2">Reference</TableHead>
               <TableHead className="text-xs py-2">Stock</TableHead>
               <TableHead className="text-xs py-2">Used</TableHead>
               <TableHead className="text-xs py-2">Remaining</TableHead>
+              <TableHead className="text-xs py-2">Currency</TableHead>
               <TableHead className="text-xs py-2">Unit Cost (Local)</TableHead>
               <TableHead className="text-xs py-2">Unit Cost (GBP)</TableHead>
+              <TableHead className="text-xs py-2">Total Cost (Local)</TableHead>
+              <TableHead className="text-xs py-2">Total Cost (GBP)</TableHead>
               <TableHead className="text-xs py-2">Status</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentItems.map((item) => (
-              <TableRow key={item.ticket_id} className="hover:bg-muted/50">
+            {currentItems.length > 0 ? (
+              currentItems.map((ticket) => (
+                <TableRow key={ticket.ticket_id} className="hover:bg-muted/50">
                 {isSelectionMode && (
                   <TableCell className="text-xs py-1.5">
                     <Checkbox
-                      checked={selectedTickets.includes(item.ticket_id)}
+                        checked={selectedTickets.includes(ticket.ticket_id)}
                       onCheckedChange={(checked) =>
-                        handleSelectTicket(item.ticket_id, checked)
+                          handleSelectTicket(ticket.ticket_id, checked)
                       }
-                      aria-label={`Select ${item.ticket_name}`}
+                        aria-label={`Select ${ticket.ticket_name}`}
                       className="h-4 w-4"
                     />
                   </TableCell>
                 )}
-                <TableCell className="text-xs py-1.5 font-medium">{item.event}</TableCell>
-                <TableCell className="text-xs py-1.5">{item.ticket_name}</TableCell>
-                <TableCell className="text-xs py-1.5">{item.supplier}</TableCell>
-                <TableCell className="text-xs py-1.5">{item.ref}</TableCell>
-                <TableCell className="text-xs py-1.5">{item.actual_stock}</TableCell>
-                <TableCell className="text-xs py-1.5">{item.used}</TableCell>
+                  <TableCell className="text-xs py-1.5">{ticket.event}</TableCell>
+                  <TableCell className="text-xs py-1.5">{ticket.package_type}</TableCell>
+                  <TableCell className="text-xs py-1.5">{ticket.ticket_name}</TableCell>
+                  <TableCell className="text-xs py-1.5">{ticket.supplier || "-"}</TableCell>
+                  <TableCell className="text-xs py-1.5">{ticket.ref || "-"}</TableCell>
+                  <TableCell className="text-xs py-1.5">{ticket.actual_stock}</TableCell>
+                  <TableCell className="text-xs py-1.5">{ticket.used}</TableCell>
                 <TableCell className="text-xs py-1.5">
+                    {ticket.remaining === "purchased_to_order" ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="bg-info/10 text-info">
+                              PTO
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Purchased to Order</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
                   <Badge
                     variant="outline"
-                    className={`font-medium ${
-                      item.remaining === "purchased_to_order"
-                        ? "bg-info/10"
-                        : Number(item.remaining) < 5
-                        ? "bg-primary/10"
-                        : Number(item.remaining) < 10
-                        ? "bg-warning/10"
-                        : "bg-success/10"
+                        className={`${
+                          Number(ticket.remaining) < 5
+                            ? "bg-destructive/10 text-destructive"
+                            : Number(ticket.remaining) < 10
+                            ? "bg-warning/10 text-warning"
+                            : "bg-success/10 text-success"
                     }`}
                   >
-                    {item.remaining === "purchased_to_order" ? "PTO" : item.remaining}
+                        {ticket.remaining}
                   </Badge>
+                    )}
+                </TableCell>
+                  <TableCell className="text-xs py-1.5">{ticket.currency_bought_in}</TableCell>
+                <TableCell className="text-xs py-1.5">
+                    {ticket.currency_bought_in === "USD" ? "$" : 
+                     ticket.currency_bought_in === "EUR" ? "€" : 
+                     ticket.currency_bought_in === "GBP" ? "£" : ""}
+                    {ticket.unit_cost_local.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
                 </TableCell>
                 <TableCell className="text-xs py-1.5">
-                  {item["unit_cost_(local)"] ? `${item["currency_(bought_in)"]} ${Number(item["unit_cost_(local)"]).toFixed(2)}` : "-"}
+                    £{ticket.unit_cost_gbp.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
                 </TableCell>
                 <TableCell className="text-xs py-1.5">
-                  {item["unit_cost_(gbp)"] ? `£${Number(item["unit_cost_(gbp)"]).toFixed(2)}` : "-"}
-                </TableCell>
-                <TableCell className="text-xs py-1.5">
-                  <div className="flex items-center gap-1">
-                    {item.ordered && (
-                      <Badge variant="outline" className="flex items-center gap-1">
+                    {ticket.currency_bought_in === "USD" ? "$" : 
+                     ticket.currency_bought_in === "EUR" ? "€" : 
+                     ticket.currency_bought_in === "GBP" ? "£" : ""}
+                    {ticket.total_cost_local.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    £{ticket.total_cost_gbp.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    <div className="flex items-center gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className={`${
+                                ticket.is_provisional
+                                  ? "bg-warning/10 text-warning"
+                                  : "bg-success/10 text-success"
+                              }`}
+                            >
+                              {ticket.is_provisional ? (
+                                <Clock className="h-3 w-3" />
+                              ) : (
                         <CheckCircle2 className="h-3 w-3" />
-                        Ordered
-                      </Badge>
                     )}
-                    {item.paid && (
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Paid
                       </Badge>
-                    )}
-                    {item.tickets_received && (
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Received
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">{ticket.is_provisional ? "Provisional" : "Confirmed"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className={`${
+                                ticket.ordered
+                                  ? "bg-success/10 text-success"
+                                  : "bg-warning/10 text-warning"
+                              }`}
+                            >
+                              {ticket.ordered ? (
+                                <ShoppingCart className="h-3 w-3" />
+                              ) : (
+                                <ShoppingCart className="h-3 w-3" />
+                              )}
                       </Badge>
-                    )}
-                    {item.is_provsional && (
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <XCircle className="h-3 w-3" />
-                        Provisional
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">{ticket.ordered ? "Ordered" : "Not Ordered"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className={`${
+                                ticket.paid
+                                  ? "bg-success/10 text-success"
+                                  : "bg-warning/10 text-warning"
+                              }`}
+                            >
+                              {ticket.paid ? (
+                                <CreditCard className="h-3 w-3" />
+                              ) : (
+                                <CreditCard className="h-3 w-3" />
+                              )}
                       </Badge>
-                    )}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">{ticket.paid ? "Paid" : "Unpaid"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className={`${
+                                ticket.tickets_received
+                                  ? "bg-success/10 text-success"
+                                  : "bg-warning/10 text-warning"
+                              }`}
+                            >
+                              {ticket.tickets_received ? (
+                                <Package className="h-3 w-3" />
+                              ) : (
+                                <Package className="h-3 w-3" />
+                              )}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">{ticket.tickets_received ? "Received" : "Not Received"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                   </div>
                 </TableCell>
                 <TableCell className="text-xs py-1.5">
@@ -2321,10 +2460,7 @@ function TicketTable() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => {
-                        setEditingTicket(item);
-                        setIsEditDialogOpen(true);
-                      }}
+                        onClick={() => openEditDialog(ticket)}
                       className="h-7 w-7"
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -2332,15 +2468,30 @@ function TicketTable() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDeleteTicket(item.ticket_id)}
+                        onClick={() => handleDeleteClick(ticket.ticket_id)}
+                        disabled={loading}
                       className="h-7 w-7"
                     >
+                        {loading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        )}
                     </Button>
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={isSelectionMode ? 15 : 14}
+                  className="text-center text-muted-foreground text-xs py-1.5"
+                >
+                  No tickets found.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
@@ -2403,72 +2554,39 @@ function TicketTable() {
       {/* Edit Dialog */}
       <TicketDialog
         isOpen={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
+        onOpenChange={closeEditDialog}
         mode="edit"
         ticket={editingTicket}
-        isLoading={isEditing}
+        isLoading={loading}
+        onSubmit={handleEditTicket}
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={showDeleteConfirm}
-        onOpenChange={(open) => {
-          if (!open && !isDeleting) {
-            setShowDeleteConfirm(false);
-            setTicketToDelete(null);
-          }
-        }}
-      >
-        <AlertDialogContent className="fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] max-h-[90vh] overflow-y-auto">
-          {isDeleting && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 z-[100]">
-              <div className="flex flex-col items-center gap-2">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full border-4 border-destructive/20"></div>
-                  <div className="w-12 h-12 rounded-full border-4 border-destructive border-t-transparent animate-spin absolute top-0 left-0"></div>
-                </div>
-                <p className="text-lg font-medium text-destructive">
-                  Deleting Ticket...
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Please wait while we process your request
-                </p>
-              </div>
-            </div>
-          )}
-          <div
-            className={`${isDeleting ? "opacity-50 pointer-events-none" : ""}`}
-          >
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
-              <AlertDialogDescription className="text-destructive mb-6">
-                Are you sure you want to delete this ticket? This action cannot
-                be undone.
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the ticket.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>
-                Cancel
-              </AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={confirmDelete}
+              onClick={handleDeleteTicket}
                 className="bg-destructive text-white hover:bg-destructive/90"
                 disabled={isDeleting}
               >
                 {isDeleting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <div className="w-4 h-4 rounded-full border-2 border-white/20"></div>
-                      <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin absolute top-0 left-0"></div>
-                    </div>
-                    <span>Deleting...</span>
-                  </div>
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
                 ) : (
                   "Delete"
                 )}
               </AlertDialogAction>
             </AlertDialogFooter>
-          </div>
         </AlertDialogContent>
       </AlertDialog>
 

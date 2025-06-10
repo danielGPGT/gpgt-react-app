@@ -244,14 +244,15 @@ Only include the JSON object in your response, nothing else. If you cannot find 
       throw new Error('No response generated from Gemini API');
     }
 
-    // Clean up the response text by removing markdown code block formatting
-    let cleanedRespone = response.text
-      .replace(/```json\s*/g, '') // Remove ```json prefix
-      .replace(/```\s*$/g, '')    // Remove ``` suffix
-      .trim();                    // Remove any extra whitespace
-
-    // Parse the JSON response
+    let cleanedResponse;
     try {
+      // Clean up the response text by removing markdown code block formatting
+      cleanedResponse = response.text
+        .replace(/```json\s*/g, '') // Remove ```json prefix
+        .replace(/```\s*$/g, '')    // Remove ``` suffix
+        .trim();                    // Remove any extra whitespace
+
+      // Parse the JSON response
       const hotelInfo = JSON.parse(cleanedResponse);
       
       // Validate coordinates

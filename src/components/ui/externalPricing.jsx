@@ -14,7 +14,7 @@ import {
   Layers,
 } from "lucide-react";
 import { parse } from "date-fns";
-import { differenceInCalendarDays } from "date-fns";
+import { differenceInCalendarDays, differenceInDays } from "date-fns";
 import { MonitorPlay, Umbrella, Hash, CheckCircle } from "lucide-react";
 import {
   Dialog,
@@ -193,13 +193,13 @@ function ExternalPricing({
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await api.get("/event");
-        const allEvents = res.data;
-        setEvents(allEvents);
-
-        // Extract unique sports
-        const uniqueSports = [...new Set(allEvents.map((ev) => ev.sport))];
-        setSports(uniqueSports);
+        const res = await api.get("/events");
+        setEvents(res.data);
+        setFilteredEvents(res.data);
+        
+        // Extract unique sports from events
+        const uniqueSports = [...new Set(res.data.map(event => event.sport))];
+        setSports(uniqueSports.filter(sport => sport)); // Filter out any undefined/null values
       } catch (error) {
         console.error("Failed to fetch events:", error.message);
       } finally {
@@ -314,26 +314,19 @@ function ExternalPricing({
   }, [b2bCommission]);
 
   const handleDateChange = (range) => {
-    if (!range?.from || !range?.to) {
-      setDateRange(range);
-      return;
+    setDateRange(range);
+    if (range?.from && range?.to) {
+      const nights = differenceInDays(range.to, range.from);
+      setOriginalNights(nights);
+    } else {
+      setOriginalNights(0);
     }
-    
-    // Ensure the dates are valid Date objects
-    const from = new Date(range.from);
-    const to = new Date(range.to);
-    
-    // Set the new date range
-    setDateRange({
-      from,
-      to
-    });
   };
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await api.get("/event");
+        const res = await api.get("/events");
         setEvents(res.data);
       } catch (error) {
         console.error("Failed to fetch events:", error.message);
@@ -365,6 +358,27 @@ function ExternalPricing({
   }, [salesTeams, setSalesTeam]);
 
   const handleEventSelect = async (eventId) => {
+    if (eventId === "none") {
+      // Reset all states when event is deselected
+      setSelectedEvent(null);
+      setSelectedPackage(null);
+      setSelectedHotel(null);
+      setSelectedRoom(null);
+      setSelectedTicket(null);
+      setSelectedCircuitTransfer(null);
+      setSelectedAirportTransfer(null);
+      setSelectedFlight(null);
+      setSelectedLoungePass(null);
+      setDateRange({ from: null, to: null });
+      setOriginalNights(0);
+      setTicketQuantity(0);
+      setCircuitTransferQuantity(0);
+      setAirportTransferQuantity(0);
+      setLoungePassQuantity(0);
+      setCategories([]);
+      return;
+    }
+
     const foundEvent = events.find((ev) => ev.event_id === eventId);
     setSelectedEvent(foundEvent);
 
@@ -372,105 +386,138 @@ function ExternalPricing({
     setSelectedPackage(null);
     setSelectedHotel(null);
     setSelectedRoom(null);
+    setSelectedTicket(null);
+    setSelectedCircuitTransfer(null);
+    setSelectedAirportTransfer(null);
     setSelectedFlight(null);
-    setPackages([]);
-    setHotels([]);
-    setRooms([]);
-    setFlights([]);
-    setLoungePasses([]);
-    setSalesTeams([]);
+    setSelectedLoungePass(null);
+    setDateRange({ from: null, to: null });
+    setOriginalNights(0);
+    setTicketQuantity(0);
+    setCircuitTransferQuantity(0);
+    setAirportTransferQuantity(0);
+    setLoungePassQuantity(0);
+    setCategories([]);
 
     if (foundEvent) {
       try {
         setLoadingPackages(true);
+        setLoadingCategories(true);
+        const [packagesRes] = await Promise.all([
+          api.get("/packages", {
+            params: { eventId: foundEvent.event_id },
+          }),
+        ]);
+        setPackages(packagesRes.data);
+
+        // Fetch flights and lounge passes for this event
         setLoadingFlights(true);
         setLoadingLoungePasses(true);
-        setLoadingSalesTeams(true);
-        setLoadingCategories(true);
-
-        const [packagesRes, flightsRes, loungePassesRes, usersRes] =
-          await Promise.all([
-            api.get("/packages", { params: { eventId: foundEvent.event_id } }),
-            api.get("/flights", { params: { eventId: foundEvent.event_id } }),
-            api.get("/lounge-passes", {
-              params: { eventId: foundEvent.event_id },
-            }),
-            api.get("/users"),
-          ]);
-
-        setPackages(packagesRes.data);
+        const [flightsRes, loungeRes] = await Promise.all([
+          api.get("/stock-flights", { params: { eventId: foundEvent.event_id } }),
+          api.get("/stock-lounge-passes", {
+            params: { eventId: foundEvent.event_id },
+          }),
+        ]);
         setFlights(flightsRes.data);
-        setLoungePasses(loungePassesRes.data);
-        
-        // Find consultant from users data using consultant_id from event
-        if (foundEvent.consultant_id) {
-          const consultant = usersRes.data.find(user => user.user_id === foundEvent.consultant_id);
-          if (consultant) {
-            console.log("Found consultant:", consultant);
-            setSalesTeams([consultant]);
-          }
-        }
+        setLoungePasses(loungeRes.data);
       } catch (error) {
-        console.error("Failed to fetch packages or flights:", error.message);
-        setPackages([]);
-        setFlights([]);
-        setLoungePasses([]);
-        setSalesTeams([]);
+        console.error("Failed to fetch event data:", error.message);
+        toast.error("Failed to load event data. Please try again.");
       } finally {
         setLoadingPackages(false);
         setLoadingFlights(false);
         setLoadingLoungePasses(false);
-        setLoadingSalesTeams(false);
       }
     }
   };
 
   const handlePackageSelect = async (packageId) => {
-    const foundPackage = packages.find((pkg) => pkg.package_id === packageId);
-    setSelectedPackage(foundPackage);
-    setSelectedHotel(null);
-    setSelectedRoom(null);
-    setHotels([]);
-    setRooms([]);
-    setTickets([]);
-    setSelectedTicket(null);
-    setPackageTiers([]);
-    setSelectedTier(null);
+    if (packageId === "none") {
+      setSelectedPackage(null);
+      setSelectedHotel(null);
+      setSelectedRoom(null);
+      setSelectedTicket(null);
+      setSelectedFlight(null);
+      setSelectedLoungePass(null);
+      setSelectedCircuitTransfer(null);
+      setSelectedAirportTransfer(null);
+      setRooms([]);
+      setHotels([]);
+      setTickets([]);
+      setFlights([]);
+      setLoungePasses([]);
+      setCircuitTransfers([]);
+      setAirportTransfers([]);
+      setPackageTiers([]);
+      setSelectedTier(null);
+      setDateRange({ from: null, to: null });
+      setOriginalNights(0);
+      return;
+    }
 
-    if (foundPackage) {
-      try {
-        setLoadingHotels(true);
-        setLoadingTickets(true);
-        setLoadingTiers(true);
+    try {
+      setLoadingHotels(true);
+      setLoadingRooms(true);
+      setLoadingTickets(true);
+      setLoadingFlights(true);
+      setLoadingLoungePasses(true);
+      setLoadingCircuitTransfers(true);
+      setLoadingAirportTransfers(true);
+      setLoadingTiers(true);
 
-        const [hotelsRes, ticketsRes, tiersRes] = await Promise.all([
-          api.get("/hotels", {
-            params: { packageId: foundPackage.package_id },
-          }),
-          api.get("/new tickets", {
-            params: { packageId: foundPackage.package_id },
-          }),
-          api.get("/package-tiers", {
-            params: { packageId: foundPackage.package_id },
-          }),
-        ]);
+      // First get rooms for this package
+      const roomsRes = await api.get("/stock-rooms", {
+        params: { packageId },
+      });
 
-        setHotels(hotelsRes.data);
-        setTickets(ticketsRes.data);
-        setPackageTiers(tiersRes.data);
-      } catch (error) {
-        console.error(
-          "Failed to fetch hotels, tickets, or tiers:",
-          error.message
-        );
-        setHotels([]);
-        setTickets([]);
-        setPackageTiers([]);
-      } finally {
-        setLoadingHotels(false);
-        setLoadingTickets(false);
-        setLoadingTiers(false);
-      }
+      // Extract unique hotel IDs from rooms
+      const uniqueHotelIds = [...new Set(roomsRes.data.map(room => room.hotel_id))];
+
+      // Get hotels for these IDs
+      const hotelsRes = await api.get("/hotels", {
+        params: { hotelIds: uniqueHotelIds.join(',') },
+      });
+
+      // Get other data in parallel
+      const [
+        ticketsRes,
+        flightsRes,
+        loungePassesRes,
+        circuitTransfersRes,
+        airportTransfersRes,
+        tiersRes
+      ] = await Promise.all([
+        api.get("/stock-tickets", { params: { packageId } }),
+        api.get("/stock-flights", { params: { packageId } }),
+        api.get("/stock-lounge-passes", { params: { packageId } }),
+        api.get("/stock-circuit-transfers", { params: { packageId } }),
+        api.get("/stock-airport-transfers", { params: { packageId } }),
+        api.get("/package-tiers", { params: { packageId } })
+      ]);
+
+      const packageData = packages.find((p) => p.package_id === packageId);
+      setSelectedPackage(packageData);
+      setRooms(roomsRes.data);
+      setHotels(hotelsRes.data);
+      setTickets(ticketsRes.data);
+      setFlights(flightsRes.data);
+      setLoungePasses(loungePassesRes.data);
+      setCircuitTransfers(circuitTransfersRes.data);
+      setAirportTransfers(airportTransfersRes.data);
+      setPackageTiers(tiersRes.data);
+    } catch (error) {
+      console.error("Failed to fetch package data:", error);
+      toast.error("Failed to load package data. Please try again.");
+    } finally {
+      setLoadingHotels(false);
+      setLoadingRooms(false);
+      setLoadingTickets(false);
+      setLoadingFlights(false);
+      setLoadingLoungePasses(false);
+      setLoadingCircuitTransfers(false);
+      setLoadingAirportTransfers(false);
+      setLoadingTiers(false);
     }
   };
 
@@ -586,13 +633,13 @@ function ExternalPricing({
             setLoadingAirportTransfers(true);
             try {
               const [roomsRes, circuitRes, airportRes] = await Promise.all([
-                api.get("/rooms", {
+                api.get("/stock-rooms", {
                   params: { hotelId: hotel.hotel_id },
                 }),
-                api.get("/circuit-transfers", {
+                api.get("/stock-circuit-transfers", {
                   params: { hotelId: hotel.hotel_id },
                 }),
-                api.get("/airport-transfers", {
+                api.get("/stock-airport-transfers", {
                   params: { hotelId: hotel.hotel_id },
                 }),
               ]);
@@ -708,95 +755,155 @@ function ExternalPricing({
     if (hotelId === "none") {
       setSelectedHotel(null);
       setSelectedRoom(null);
-      setSelectedCircuitTransfer(null);
       setRooms([]);
-      setCircuitTransfers([]);
-      setAirportTransfers([]);
+      setDateRange({ from: null, to: null });
+      setOriginalNights(0);
       return;
     }
-    const foundHotel = hotels.find((hotel) => hotel.hotel_id === hotelId);
-    setSelectedHotel(foundHotel);
-    setSelectedRoom(null);
-    setSelectedCircuitTransfer(null);
-    setRooms([]);
-    setCircuitTransfers([]);
-    setAirportTransfers([]);
 
-    if (foundHotel) {
-      try {
-        setLoadingRooms(true);
-        setLoadingCircuitTransfers(true);
-        setLoadingAirportTransfers(true);
+    try {
+      setLoadingRooms(true);
+      setLoadingCircuitTransfers(true);
+      setLoadingAirportTransfers(true);
 
-        const [roomsRes, circuitTransfersRes, airportTransfersRes] =
-          await Promise.all([
-            api.get("/rooms", { params: { hotelId: foundHotel.hotel_id } }),
-            api.get("/circuit-transfers", {
-              params: { hotelId: foundHotel.hotel_id },
-            }),
-            api.get("/airport-transfers", {
-              params: { hotelId: foundHotel.hotel_id },
-            }),
-          ]);
+      // Find hotel from our existing data
+      const hotel = hotels.find(h => h.hotel_id === hotelId);
+      setSelectedHotel(hotel);
+
+      if (hotel) {
+        // Get rooms for this hotel that match the selected package
+        const roomsRes = await api.get("/stock-rooms", {
+          params: { 
+            hotelId: hotel.hotel_id,
+            packageId: selectedPackage?.package_id 
+          },
+        });
+
+        // Get transfers
+        const [circuitRes, airportRes] = await Promise.all([
+          api.get("/stock-circuit-transfers", {
+            params: { hotelId: hotel.hotel_id },
+          }),
+          api.get("/stock-airport-transfers", {
+            params: { hotelId: hotel.hotel_id },
+          }),
+        ]);
 
         setRooms(roomsRes.data);
-        setCircuitTransfers(circuitTransfersRes.data);
-        setAirportTransfers(airportTransfersRes.data);
-      } catch (error) {
-        console.error(
-          "Failed to fetch rooms, circuit transfers, or airport transfers found:",
-          error.message
-        );
-        setRooms([]);
-        setCircuitTransfers([]);
-        setAirportTransfers([]);
-      } finally {
-        setLoadingRooms(false);
-        setLoadingCircuitTransfers(false);
-        setLoadingAirportTransfers(false);
+        setCircuitTransfers(circuitRes.data);
+        setAirportTransfers(airportRes.data);
       }
+    } catch (error) {
+      console.error("Failed to fetch hotel data:", error);
+      toast.error("Failed to load hotel data. Please try again.");
+    } finally {
+      setLoadingRooms(false);
+      setLoadingCircuitTransfers(false);
+      setLoadingAirportTransfers(false);
     }
   };
 
-  const handleRoomSelect = (roomId) => {
+  const handleRoomSelect = async (roomId) => {
     if (roomId === "none") {
       setSelectedRoom(null);
+      setDateRange({ from: null, to: null });
+      setOriginalNights(0);
       return;
     }
-    const foundRoom = rooms.find((room) => room.room_id === roomId);
-    setSelectedRoom(foundRoom);
+
+    try {
+      setLoadingRooms(true);
+      const room = rooms.find((r) => r.room_id === roomId);
+      if (room) {
+        setSelectedRoom(room);
+        // Set date range from room's check-in and check-out dates
+        const from = new Date(room.check_in_date.split('/').reverse().join('-'));
+        const to = new Date(room.check_out_date.split('/').reverse().join('-'));
+        setDateRange({ from, to });
+        setOriginalNights(room.nights);
+      }
+    } catch (error) {
+      console.error("Failed to fetch room data:", error);
+      toast.error("Failed to load room data. Please try again.");
+    } finally {
+      setLoadingRooms(false);
+    }
   };
 
   const handleTicketSelect = async (ticketId) => {
     if (ticketId === "none") {
       setSelectedTicket(null);
       setTicketQuantity(0);
+      if (selectedCircuitTransfer) {
+        setCircuitTransferQuantity(0);
+      }
       return;
     }
 
     const foundTicket = tickets.find((ticket) => ticket.ticket_id === ticketId);
     if (foundTicket) {
       console.log('Selected Ticket:', foundTicket);
-      console.log('Available Categories:', categories);
-      console.log('Ticket Category ID:', foundTicket.category_id);
       
-      // Find the corresponding category
-      const ticketCategory = categories.find(cat => cat.category_id === foundTicket.category_id);
-      console.log('Found Category:', ticketCategory);
-      
-      if (!ticketCategory) {
-        console.warn('No matching category found for ticket:', foundTicket);
+      try {
+        // Fetch category using category_id
+        const categoryRes = await api.get("/categories", {
+          params: { 
+            categoryId: foundTicket.category_id
+          }
+        });
+        
+        console.log('Category Response:', categoryRes.data);
+        
+        if (categoryRes.data && categoryRes.data.length > 0) {
+          // Find the correct category by category_id
+          const matchedCategory = categoryRes.data.find(cat => cat.category_id === foundTicket.category_id);
+          if (matchedCategory) {
+            console.log('Found Category:', matchedCategory);
+            const ticketWithCategory = {
+              ...foundTicket,
+              category: {
+                ...matchedCategory,
+                category_name: matchedCategory.category_name || matchedCategory.gpgt_category_name,
+                video_wall: matchedCategory.video_wall || false,
+                covered_seat: matchedCategory.covered_seat || false,
+                numbered_seat: matchedCategory.numbered_seat || false,
+                category_info: matchedCategory.category_info || '',
+                ticket_delivery_days: matchedCategory.ticket_delivery_days || 0,
+                ticket_image_1: matchedCategory.ticket_image_1 || '',
+                ticket_image_2: matchedCategory.ticket_image_2 || ''
+              }
+            };
+            console.log('Ticket with Category:', ticketWithCategory);
+            setSelectedTicket(ticketWithCategory);
+            setTicketQuantity(numberOfAdults);
+            if (selectedCircuitTransfer) {
+              setCircuitTransferQuantity(numberOfAdults);
+            }
+          } else {
+            console.warn('No matching category found for ticket:', foundTicket);
+            setSelectedTicket(foundTicket);
+            setTicketQuantity(numberOfAdults);
+            if (selectedCircuitTransfer) {
+              setCircuitTransferQuantity(numberOfAdults);
+            }
+          }
+        } else {
+          console.warn('No category found for ticket:', foundTicket);
+          setSelectedTicket(foundTicket);
+          setTicketQuantity(numberOfAdults);
+          if (selectedCircuitTransfer) {
+            setCircuitTransferQuantity(numberOfAdults);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch category:', error);
+        // Still set the ticket even if category fetch fails
+        setSelectedTicket(foundTicket);
+        setTicketQuantity(numberOfAdults);
+        if (selectedCircuitTransfer) {
+          setCircuitTransferQuantity(numberOfAdults);
+        }
       }
-      
-      // Merge category information with ticket
-      const ticketWithCategory = {
-        ...foundTicket,
-        category: ticketCategory
-      };
-      console.log('Ticket with Category:', ticketWithCategory);
-      
-      setSelectedTicket(ticketWithCategory);
-      setTicketQuantity(numberOfAdults);
     }
   };
 
@@ -1027,17 +1134,22 @@ function ExternalPricing({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {hotels.map((hotel) => (
-                      <SelectItem key={hotel.hotel_id} value={hotel.hotel_id}>
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">
-                            {hotel.hotel_name}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {Array(hotel.stars).fill("★").join("")}
-                          </span>
-                        </div>
-                      </SelectItem>
+                    {hotels
+                      .filter(hotel => rooms.some(room => 
+                        room.hotel_id === hotel.hotel_id && 
+                        room.package_id.split(',').map(id => id.trim()).includes(selectedPackage.package_id)
+                      ))
+                      .map((hotel) => (
+                        <SelectItem key={hotel.hotel_id} value={hotel.hotel_id}>
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">
+                              {hotel.hotel_name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {Array(hotel.stars).fill("★").join("")}
+                            </span>
+                          </div>
+                        </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1172,10 +1284,17 @@ function ExternalPricing({
                   <p className="font-semibold mb-1 text-foreground">
                     Check in - Check out:
                   </p>
-                  <DatePickerWithRange
-                    date={dateRange}
-                    setDate={handleDateChange}
-                  />
+                  <div className="flex items-center gap-2">
+                    <DatePickerWithRange
+                      date={dateRange}
+                      setDate={handleDateChange}
+                    />
+                    {dateRange?.from && dateRange?.to && (
+                      <span className="text-sm text-muted-foreground">
+                        ({differenceInDays(dateRange.to, dateRange.from)} {differenceInDays(dateRange.to, dateRange.from) === 1 ? 'night' : 'nights'})
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

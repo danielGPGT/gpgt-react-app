@@ -764,7 +764,55 @@ function TestHotelRooms() {
   const handleAddHotel = async (hotelData) => {
     try {
       setIsAddingHotel(true);
-      await api.post("test hotels", hotelData);
+      const hotelId = crypto.randomUUID();
+      
+      const columnMap = {
+        hotel_id: "Hotel ID",
+        hotel_name: "Hotel Name",
+        stars: "Stars",
+        city_tax_type: "City Tax Type",
+        city_tax_value: "City Tax Value",
+        city_tax_amount: "City Tax Amount",
+        vat_type: "VAT Type",
+        vat_amount: "VAT Amount",
+        commission: "Commission",
+        resort_fee: "Resort Fee (Per Night)",
+        other_rates: "Other Rates",
+        latitude: "Latitude",
+        longitude: "Longitude",
+        hotel_info: "Hotel Info",
+        images: "Images",
+        currency: "currency"
+      };
+
+      // Format numeric values
+      const formatNumericValue = (value) => {
+        if (value === "" || value === null || value === undefined) return "";
+        const num = parseFloat(value);
+        return isNaN(num) ? "" : num.toString();
+      };
+
+      const newHotel = {
+        hotel_id: hotelId,
+        hotel_name: hotelData.hotel_name,
+        stars: hotelData.stars ? parseInt(hotelData.stars).toString() : "",
+        city_tax_type: hotelData.city_tax_type || "",
+        city_tax_value: hotelData.city_tax_value || "",
+        city_tax_amount: formatNumericValue(hotelData.city_tax_amount),
+        vat_type: hotelData.vat_type || "",
+        vat_amount: formatNumericValue(hotelData.vat_amount),
+        commission: formatNumericValue(hotelData.commission),
+        resort_fee: formatNumericValue(hotelData.resort_fee),
+        other_rates: hotelData.other_rates || "",
+        latitude: hotelData.latitude || "",
+        longitude: hotelData.longitude || "",
+        hotel_info: hotelData.hotel_info || "",
+        images: hotelData.images || "",
+        currency: hotelData.currency || ""
+      };
+
+      const hotelArray = Object.keys(columnMap).map(key => newHotel[key]);
+      await api.post("test hotels", hotelArray);
       toast.success("Hotel added successfully");
       setIsAddHotelDialogOpen(false);
       await fetchData(); // Ensure we wait for the data to be fetched
@@ -778,13 +826,82 @@ function TestHotelRooms() {
 
   const handleEditHotel = async (hotelData) => {
     try {
+      // Validate mandatory fields
+      if (!hotelData.hotel_name?.trim()) {
+        toast.error("Hotel name is required");
+        return;
+      }
+
       setIsEditingHotel(true);
-      await api.put(`test hotels/Hotel ID/${hotelData.hotel_id}`, hotelData);
+      console.log("Starting hotel edit process...");
+
+      const columnMap = {
+        hotel_id: "Hotel ID",
+        hotel_name: "Hotel Name",
+        stars: "Stars",
+        hotel_info: "Hotel Info",
+        longitude: "Longitude",
+        latitude: "Latitude",
+        images: "Images",
+        city_tax_type: "City Tax Type",
+        city_tax_value: "City Tax Value",
+        city_tax_amount: "City Tax Amount",
+        vat_type: "VAT Type",
+        vat_amount: "VAT Amount",
+        commission: "Commission",
+        resort_fee: "Resort Fee (Per Night)",
+        other_rates: "Other Rates"
+      };
+
+      const changedFields = {};
+      Object.keys(hotelData).forEach((key) => {
+        if (key === 'images') {
+          if (hotelData[key] !== editingHotel[key]) {
+            changedFields[key] = hotelData[key];
+          }
+        } else if (hotelData[key] !== editingHotel[key]) {
+          changedFields[key] = hotelData[key];
+        }
+      });
+
+      if (Object.keys(changedFields).length === 0) {
+        console.log("No changes detected");
+        toast.info("No changes were made");
+        setIsEditHotelDialogOpen(false);
+        setEditingHotel(null);
+        return;
+      }
+
+      // Process updates sequentially to avoid race conditions
+      for (const [field, value] of Object.entries(changedFields)) {
+        const column = columnMap[field];
+        if (!column) {
+          console.warn(`No column mapping found for field: ${field}`);
+          continue;
+        }
+
+        let formattedValue = value;
+        if (field === 'stars') {
+          formattedValue = parseInt(value);
+        } else if (['city_tax_amount', 'vat_amount', 'commission', 'resort_fee'].includes(field)) {
+          formattedValue = parseFloat(value);
+        }
+
+        console.log(`Updating ${column} to ${formattedValue}`);
+        await api.put(`test hotels/Hotel ID/${editingHotel.hotel_id}`, {
+          column,
+          value: formattedValue
+        });
+      }
+
+      console.log("Hotel updated successfully");
       toast.success("Hotel updated successfully");
       setIsEditHotelDialogOpen(false);
-      await fetchData(); // Ensure we wait for the data to be fetched
+      setEditingHotel(null);
+      fetchData();
     } catch (error) {
       console.error("Failed to update hotel:", error);
+      console.error("Error details:", error.response?.data);
       toast.error(error.response?.data?.error || "Failed to update hotel");
     } finally {
       setIsEditingHotel(false);
@@ -826,6 +943,7 @@ function TestHotelRooms() {
     try {
       setIsEditingRoom(true);
       const columnMap = {
+        hotel_id: "Hotel ID",
         room_category: "Room Category",
         room_type: "Room Type",
         source: "Source",
@@ -1284,6 +1402,8 @@ function TestHotelRooms() {
         mode="add"
         isAddingHotel={isAddingHotel}
         isEditingHotel={isEditingHotel}
+        handleAddHotel={handleAddHotel}
+        handleEditHotel={handleEditHotel}
       />
 
       {/* Edit Hotel Dialog */}
@@ -1294,6 +1414,8 @@ function TestHotelRooms() {
         hotel={editingHotel}
         isAddingHotel={isAddingHotel}
         isEditingHotel={isEditingHotel}
+        handleAddHotel={handleAddHotel}
+        handleEditHotel={handleEditHotel}
       />
 
       {/* Add ViewRoomsDialog */}
@@ -1385,10 +1507,27 @@ function TestHotelRooms() {
 }
 
 // Hotel Dialog Component
-const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddingHotel, isEditingHotel }) => {
+const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddingHotel, isEditingHotel, handleAddHotel, handleEditHotel }) => {
   const [formData, setFormData] = useState(() => {
     if (mode === "edit" && hotel) {
-      return { ...hotel };
+      return {
+        hotel_id: hotel.hotel_id,
+        hotel_name: hotel.hotel_name || "",
+        stars: hotel.stars || 5,
+        hotel_info: hotel.hotel_info || "",
+        latitude: hotel.latitude || "",
+        longitude: hotel.longitude || "",
+        currency: hotel.currency || "USD",
+        city_tax_type: hotel.city_tax_type || "per_room",
+        city_tax_value: hotel.city_tax_value || "percentage",
+        city_tax_amount: hotel.city_tax_amount || 0,
+        vat_type: hotel.vat_type || "percentage",
+        vat_amount: hotel.vat_amount || 0,
+        commission: hotel.commission || 0,
+        resort_fee: hotel["resort_fee_(per_night)"] || 0,
+        other_rates: hotel.other_rates || "",
+        images: hotel.images || "[]"
+      };
     }
     return {
       hotel_name: "",
@@ -1423,6 +1562,38 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
       setIsSubmitting(false);
     }
   };
+
+  // Reset form when dialog opens/closes or hotel changes
+  useEffect(() => {
+    if (isOpen && mode === "edit" && hotel) {
+      console.log("Setting form data with hotel:", hotel); // Debug log
+      setFormData({
+        hotel_id: hotel.hotel_id,
+        hotel_name: hotel.hotel_name || "",
+        stars: hotel.stars || 5,
+        hotel_info: hotel.hotel_info || "",
+        latitude: hotel.latitude || "",
+        longitude: hotel.longitude || "",
+        currency: hotel.currency || "USD",
+        city_tax_type: hotel.city_tax_type || "per_room",
+        city_tax_value: hotel.city_tax_value || "percentage",
+        city_tax_amount: hotel.city_tax_amount || 0,
+        vat_type: hotel.vat_type || "percentage",
+        vat_amount: hotel.vat_amount || 0,
+        commission: hotel.commission || 0,
+        resort_fee: hotel["resort_fee_(per_night)"] || 0,
+        other_rates: hotel.other_rates || "",
+        images: hotel.images || "[]"
+      });
+    }
+  }, [isOpen, mode, hotel]);
+
+  // Debug log to check form data
+  useEffect(() => {
+    if (isOpen) {
+      console.log("Current form data:", formData);
+    }
+  }, [isOpen, formData]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
