@@ -56,7 +56,7 @@ function HotelRoomCombinedTable() {
     { key: "package_type", label: "Package Type" },
     { key: "city_tax_type", label: "City Tax" },
     { key: "vat_amount", label: "VAT" },
-    { key: "resort_fee_(per_night)", label: "Resort Fee" },
+    { key: "resort_fee_per_night", label: "Resort Fee" },
     { key: "room_category", label: "Room Category" },
     { key: "room_type", label: "Room Type" },
     { key: "booked", label: "Booked" },

@@ -143,8 +143,8 @@ function LoungePassTable() {
   const fetchInitialData = async () => {
     try {
       const [passesRes, eventsRes] = await Promise.all([
-        api.get("Stock%20-%20lounge%20passes"),
-        api.get("event"),
+        api.get("stock-lounge-passes"),
+        api.get("events"),
       ]);
 
       setLoungePasses(passesRes.data);
@@ -226,7 +226,7 @@ function LoungePassTable() {
           value: cellValue
         };
 
-        const encodedSheetName = encodeURIComponent("Stock - Lounge Passes");
+        const encodedSheetName = encodeURIComponent("stock-lounge-passes");
         console.log("Update request:", {
           sheetName: encodedSheetName,
           idColumn: "Lounge Pass ID",
@@ -236,7 +236,7 @@ function LoungePassTable() {
         });
 
         await api.put(
-          `${encodedSheetName}/Lounge%20Pass%20ID/${rowId}`,
+          `${encodedSheetName}/lounge_pass_id/${rowId}`,
           updateData
         );
 
@@ -252,10 +252,31 @@ function LoungePassTable() {
     }
   };
 
+  // Helper function to transform data for API
+  const transformDataForAPI = (data) => {
+    return {
+      "event_id": data.event_id || "",
+      "variant": data.variant || "",
+      "cost": parseFloat(data.cost) || 0,
+      "margin": data.margin?.toString().replace('%', '') + '%' || "55%"
+    };
+  };
+
+  // Helper function to transform data from API
+  const transformDataFromAPI = (data) => {
+    return {
+      ...data,
+      used: parseInt(data.used) || 0,
+      cost: parseFloat(data.cost) || 0,
+      margin: data.margin?.toString().replace('%', '') || '55'
+    };
+  };
+
   // Add pass
   const handleAddPass = async (formData) => {
     try {
       setIsAdding(true);
+      const loadingToast = toast.loading("Adding new lounge pass...");
 
       // Check if variant already exists for this event
       const existingPass = loungePasses.find(
@@ -263,31 +284,36 @@ function LoungePassTable() {
       );
 
       if (existingPass) {
+        toast.dismiss(loadingToast);
         toast.error("This variant already exists for the selected event");
         return;
       }
 
+      // Get event_id from the selected event
+      const selectedEvent = events.find(e => e.event === formData.event);
+      if (!selectedEvent) {
+        toast.dismiss(loadingToast);
+        toast.error("Invalid event selection");
+        return;
+      }
+
       // Create the pass data with the correct field mappings
-      const passData = {
+      const passData = transformDataForAPI({
         ...formData,
-        // Map the fields to match the API's expected format
-        event: formData.event,
-        variant: formData.variant,
-        cost: formData.cost || 0,
-        margin: formData.margin || "0%"
-      };
+        event_id: selectedEvent.event_id,
+      });
 
       console.log("Adding lounge pass with data:", passData);
 
       // Properly encode the sheet name
-      const encodedSheetName = encodeURIComponent("Stock - Lounge Passes");
-      const response = await api.post(encodedSheetName, passData);
-      console.log("API Response:", response);
+      const encodedSheetName = encodeURIComponent("stock-lounge-passes");
+      await api.post(encodedSheetName, passData);
 
+      toast.dismiss(loadingToast);
       setSuccessMessage("Lounge pass added successfully!");
       setShowSuccessDialog(true);
       setIsAddDialogOpen(false);
-      fetchInitialData();
+      await fetchInitialData();
     } catch (error) {
       console.error("Failed to add lounge pass:", error);
       console.error("Error details:", error.response?.data);
@@ -301,12 +327,31 @@ function LoungePassTable() {
   const handleEditPass = async (changedFields) => {
     try {
       setIsEditing(true);
+      const loadingToast = toast.loading("Updating lounge pass...");
+
+      if (!editingPass?.lounge_pass_id) {
+        toast.dismiss(loadingToast);
+        toast.error("Invalid lounge pass ID");
+        return;
+      }
 
       if (Object.keys(changedFields).length === 0) {
+        toast.dismiss(loadingToast);
         toast.info("No changes were made");
         setIsEditDialogOpen(false);
         setEditingPass(null);
         return;
+      }
+
+      // If event is being changed, get the new event_id
+      if (changedFields.event) {
+        const selectedEvent = events.find(e => e.event === changedFields.event);
+        if (!selectedEvent) {
+          toast.dismiss(loadingToast);
+          toast.error("Invalid event selection");
+          return;
+        }
+        changedFields.event_id = selectedEvent.event_id;
       }
 
       // If event or variant is being changed, check for duplicates
@@ -322,32 +367,40 @@ function LoungePassTable() {
         );
 
         if (existingPass) {
+          toast.dismiss(loadingToast);
           toast.error("This variant already exists for the selected event");
           return;
         }
       }
 
       const passId = editingPass.lounge_pass_id;
-      const encodedSheetName = encodeURIComponent("Stock - Lounge Passes");
+      const encodedSheetName = encodeURIComponent("stock-lounge-passes");
 
-      // Update each changed field using the column mappings, excluding event_id and used
+      // Process all changed fields at once
+      const processedData = {};
       for (const [field, value] of Object.entries(changedFields)) {
-        if (columnMappings[field] && field !== 'event_id' && field !== 'used') {
-          await api.put(`${encodedSheetName}/Lounge%20Pass%20ID/${passId}`, {
-            column: columnMappings[field],
-            value: value,
+        if (field !== 'lounge_pass_id' && field !== 'event' && field !== 'used') {
+          const processedValue = field === 'cost' ? parseFloat(value) || 0 :
+                               field === 'margin' ? value.toString().replace('%', '') + '%' :
+                               value;
+          
+          // Make individual API calls for each field as required by the API
+          await api.put(`${encodedSheetName}/lounge_pass_id/${passId}`, {
+            column: field,
+            value: processedValue
           });
         }
       }
 
+      toast.dismiss(loadingToast);
       setSuccessMessage("Lounge pass updated successfully!");
       setShowSuccessDialog(true);
       setIsEditDialogOpen(false);
       setEditingPass(null);
-      fetchInitialData();
+      await fetchInitialData();
     } catch (error) {
       console.error("Failed to update lounge pass:", error);
-      toast.error("Failed to update lounge pass. Please try again.");
+      toast.error(error.response?.data?.error || "Failed to update lounge pass. Please try again.");
     } finally {
       setIsEditing(false);
     }
@@ -355,27 +408,32 @@ function LoungePassTable() {
 
   // Delete pass
   const handleDeletePass = async (passId) => {
+    if (!passId) {
+      toast.error("Invalid lounge pass ID");
+      return;
+    }
     setPassToDelete(passId);
     setShowDeleteConfirm(true);
   };
 
   const confirmDelete = async () => {
+    if (!passToDelete) {
+      toast.error("Invalid lounge pass ID");
+      return;
+    }
+
     try {
       setIsDeleting(true);
-      const encodedSheetName = encodeURIComponent("Stock - Lounge Passes");
-      console.log("Delete request:", {
-        sheetName: encodedSheetName,
-        idColumn: "Lounge Pass ID",
-        idValue: passToDelete
-      });
-
-      await api.delete(
-        `${encodedSheetName}/Lounge%20Pass%20ID/${passToDelete}`
-      );
+      const loadingToast = toast.loading("Deleting lounge pass...");
+      
+      const encodedSheetName = encodeURIComponent("stock-lounge-passes");
+      await api.delete(`${encodedSheetName}/lounge_pass_id/${passToDelete}`);
+      
+      toast.dismiss(loadingToast);
       setSuccessMessage("Lounge pass deleted successfully!");
       setShowSuccessDialog(true);
       setShowDeleteConfirm(false);
-      fetchInitialData();
+      await fetchInitialData();
     } catch (error) {
       console.error("Failed to delete lounge pass:", error);
       toast.error(error.response?.data?.error || "Failed to delete lounge pass. Please try again.");

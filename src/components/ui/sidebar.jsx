@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react"
+import { PanelLeftIcon, Package } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -652,6 +652,17 @@ function SidebarMenuSubButton({
       {...props} />
   );
 }
+
+const navigation = [
+  // ... existing items ...
+  {
+    title: "New Pricing",
+    href: "/new-pricing",
+    icon: Package,
+    roles: ["Admin", "Internal Sales", "External B2B"]
+  },
+  // ... existing items ...
+];
 
 export {
   Sidebar,

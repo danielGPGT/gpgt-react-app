@@ -371,7 +371,7 @@ function InternalPricing({
         setLoadingFlights(true);
         setLoadingLoungePasses(true);
         const [flightsRes, loungeRes] = await Promise.all([
-          api.get("/flights", { params: { eventId: foundEvent.event_id } }),
+          api.get("/flights", { params: { event_id: foundEvent.event_id } }),
           api.get("/lounge-passes", {
             params: { eventId: foundEvent.event_id },
           }),
@@ -936,8 +936,10 @@ function InternalPricing({
     }
 
     const foundFlight = flights.find((flight) => flight.flight_id === flightId);
-    setSelectedFlight(foundFlight);
-    setFlightQuantity(numberOfAdults);
+    if (foundFlight) {
+      setSelectedFlight(foundFlight);
+      setFlightQuantity(numberOfAdults);
+    }
   };
 
   const handleLoungePassSelect = (passId) => {
@@ -950,8 +952,10 @@ function InternalPricing({
     const foundPass = loungePasses.find(
       (pass) => pass.lounge_pass_id === passId
     );
-    setSelectedLoungePass(foundPass);
-    setLoungePassQuantity(1);
+    if (foundPass) {
+      setSelectedLoungePass(foundPass);
+      setLoungePassQuantity(1);
+    }
   };
 
   // Update quantities when numberOfAdults changes
@@ -1578,7 +1582,7 @@ function InternalPricing({
                         {selectedFlight.airline} • {selectedFlight.class}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {selectedFlight.outbound_flight.split(" ")[0]} - {selectedFlight.inbound_flight.split(" ")[0]}
+                        {selectedFlight.from_location}
                       </span>
                     </div>
                   ) : selectedLocation === "none" ? (
@@ -1670,11 +1674,11 @@ function InternalPricing({
                                       </div>
                                       <div className="text-right">
                                         <p className="font-medium">
-                                          {currencySymbols[selectedCurrency]}
+                                          {currencySymbols[flight.currency || selectedCurrency]}
                                           {flight.price * numberOfAdults}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                          {currencySymbols[selectedCurrency]}
+                                          {currencySymbols[flight.currency || selectedCurrency]}
                                           {flight.price} per person
                                         </p>
                                       </div>
@@ -1693,10 +1697,20 @@ function InternalPricing({
               <div className="text-xs space-y-1 pt-1">
                 <p className="text-foreground">Outbound: {selectedFlight.outbound_flight}</p>
                 <p className="text-foreground">Inbound: {selectedFlight.inbound_flight}</p>
-                <p className="text-foreground">
-                  Total Price: {currencySymbols[selectedCurrency]}
-                  {selectedFlight.price * numberOfAdults}
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-foreground">Price per person:</p>
+                  <p className="text-foreground">
+                    {currencySymbols[selectedFlight.currency || selectedCurrency]}
+                    {selectedFlight.price}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-foreground">Total Price:</p>
+                  <p className="text-foreground">
+                    {currencySymbols[selectedFlight.currency || selectedCurrency]}
+                    {selectedFlight.price * numberOfAdults}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -1720,7 +1734,12 @@ function InternalPricing({
                   <SelectItem value="none">None</SelectItem>
                   {loungePasses.map((lp) => (
                     <SelectItem key={lp.lounge_pass_id} value={lp.lounge_pass_id}>
-                      {lp.variant}
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{lp.variant}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {currencySymbols[lp.currency || selectedCurrency]}{lp.price}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1729,8 +1748,7 @@ function InternalPricing({
 
             {selectedLoungePass && (
               <div className="text-xs space-y-1 pt-1">
-
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between">
                   <p className="text-foreground">Quantity:</p>
                   <QuantitySelector
                     value={loungePassQuantity}
@@ -1739,7 +1757,20 @@ function InternalPricing({
                     max={100}
                   />
                 </div>
-
+                <div className="flex items-center justify-between">
+                  <p className="text-foreground">Price per pass:</p>
+                  <p className="text-foreground">
+                    {currencySymbols[selectedLoungePass.currency || selectedCurrency]}
+                    {selectedLoungePass.price}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-foreground">Total:</p>
+                  <p className="text-foreground">
+                    {currencySymbols[selectedLoungePass.currency || selectedCurrency]}
+                    {selectedLoungePass.price * loungePassQuantity}
+                  </p>
+                </div>
               </div>
             )}
           </div>

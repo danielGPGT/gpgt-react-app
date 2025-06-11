@@ -27,10 +27,6 @@ function Inventory({ defaultTab = "tickets", onTabChange }) {
             <Hotel className="h-4 w-4" />
             Hotels & Rooms
           </TabsTrigger>
-          <TabsTrigger value="test-hotels" className="flex items-center gap-2">
-            <Hotel className="h-4 w-4" />
-            Test Hotels
-          </TabsTrigger>
           <TabsTrigger value="circuits" className="flex items-center gap-2">
             <Bus className="h-4 w-4" />
             Circuit Transfers
@@ -50,11 +46,7 @@ function Inventory({ defaultTab = "tickets", onTabChange }) {
         </TabsContent>
 
         <TabsContent value="hotels" className="mt-6">
-          <HotelsWithRooms />
-        </TabsContent>
-
-        <TabsContent value="test-hotels" className="mt-6">
-          <TestHotelRooms />
+        <TestHotelRooms />
         </TabsContent>
 
         <TabsContent value="circuits" className="mt-6">

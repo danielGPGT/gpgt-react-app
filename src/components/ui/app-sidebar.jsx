@@ -120,11 +120,6 @@ const menuItems = [
         icon: Hotel,
       },
       {
-        title: "Test Hotels",
-        url: "/inventory?tab=test-hotels",
-        icon: Hotel,
-      },
-      {
         title: "Circuit Transfers",
         url: "/inventory?tab=circuits",
         icon: Bus,
@@ -145,7 +140,7 @@ const menuItems = [
   // Sales & Pricing
   {
     title: "Pricing",
-    url: "/pricing",
+    url: "/new-pricing",
     icon: BadgePoundSterling,
     allowedRoles: ["Admin", "Internal Sales", "External B2B"],
   },

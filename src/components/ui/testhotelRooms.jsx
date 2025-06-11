@@ -105,6 +105,25 @@ const roomFieldMappings = {
   attrition_group: "Attrition Group"
 };
 
+const hotelFieldMappings = {
+  hotel_id: "Hotel ID",
+  hotel_name: "Hotel Name",
+  stars: "Stars",
+  city_tax_type: "City Tax Type",
+  city_tax_value: "City Tax Value",
+  city_tax_amount: "City Tax Amount",
+  vat_type: "VAT Type",
+  vat_amount: "VAT Amount",
+  commission: "Commission",
+  resort_fee_per_night: "Resort Fee/Night",
+  other_rates: "Other Rates",
+  latitude: "Latitude",
+  longitude: "Longitude",
+  hotel_info: "Hotel Info",
+  images: "Images",
+  currency: "Currency"
+};
+
 // Add ViewRoomsDialog component before the TestHotelRooms component
 const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, onEditRoom, onDeleteRoom }) => {
   const [isDeletingRoom, setIsDeletingRoom] = useState(false);
@@ -404,13 +423,13 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
                                   <div className="flex flex-row gap-1">
                                     <span className="text-xs text-muted-foreground">Core per night:</span>
                                     <span className="font-medium">
-                                      {room["currency_(local)"]} {room.core_per_night_price_local}
+                                      {room.currency_local} {room.core_per_night_price_local}
                                     </span>
                                   </div>
                                   <div className="flex flex-row gap-1">
                                     <span className="text-xs text-muted-foreground">Core + Taxes:</span>
                                     <span className="font-medium">
-                                      {room["currency_(local)"]} {room.final_per_night_price_local}
+                                      {room.currency_local} {room.final_per_night_price_local}
                                     </span>
                                   </div>
                                 </div>
@@ -422,13 +441,13 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
                                   <div className="flex flex-row gap-1">
                                     <span className="text-xs text-muted-foreground">Per Night:</span>
                                     <span className="font-medium">
-                                      £{room["price_per_night_(gbp)"]}
+                                      £{room.price_per_night_gbp}
                                     </span>
                                   </div>
                                   <div className="flex flex-row gap-1">
                                     <span className="text-xs text-muted-foreground">Room Cost:</span>
                                     <span className="font-medium">
-                                      £{room["total_room_cost_(gbp)"]}
+                                      £{room.total_room_cost_gbp}
                                     </span>
                                   </div>
                                 </div>
@@ -602,13 +621,26 @@ function TestHotelRooms() {
     try {
       setLoading(true);
       const [hotelsRes, roomsRes] = await Promise.all([
-        api.get("test hotels"),
-        api.get("test stock - rooms"),
+        api.get("hotels"),
+        api.get("stock-rooms"),
       ]);
       
       // Ensure we have valid data
       const hotelsData = Array.isArray(hotelsRes.data) ? hotelsRes.data : [];
-      const roomsData = Array.isArray(roomsRes.data) ? roomsRes.data : [];
+      const roomsData = Array.isArray(roomsRes.data) ? roomsRes.data.map(room => ({
+        ...room,
+        booked: parseInt(room.booked) || 0,
+        used: parseInt(room.used) || 0,
+        remaining: parseInt(room.remaining) || 0,
+        max_guests: parseInt(room.max_guests) || 0,
+        nights: parseInt(room.nights) || 0,
+        breakfast_cost_pp: parseFloat(room.breakfast_cost_pp) || 0,
+        core_per_night_price_local: parseFloat(room.core_per_night_price_local) || 0,
+        final_per_night_price_local: parseFloat(room.final_per_night_price_local) || "",
+        extra_night_price_gbp: parseFloat(room.extra_night_price_gbp) || 0,
+        total_room_cost_gbp: parseFloat(room.total_room_cost_gbp) || 0,
+        breakfast_included: room.breakfast_included === true || room.breakfast_included === "true"
+      })) : [];
       
       // Map rooms data to add event information to hotels
       const hotelsWithEvents = hotelsData.map(hotel => {
@@ -766,59 +798,33 @@ function TestHotelRooms() {
       setIsAddingHotel(true);
       const hotelId = crypto.randomUUID();
       
-      const columnMap = {
-        hotel_id: "Hotel ID",
-        hotel_name: "Hotel Name",
-        stars: "Stars",
-        city_tax_type: "City Tax Type",
-        city_tax_value: "City Tax Value",
-        city_tax_amount: "City Tax Amount",
-        vat_type: "VAT Type",
-        vat_amount: "VAT Amount",
-        commission: "Commission",
-        resort_fee: "Resort Fee (Per Night)",
-        other_rates: "Other Rates",
-        latitude: "Latitude",
-        longitude: "Longitude",
-        hotel_info: "Hotel Info",
-        images: "Images",
-        currency: "currency"
-      };
-
-      // Format numeric values
-      const formatNumericValue = (value) => {
-        if (value === "" || value === null || value === undefined) return "";
-        const num = parseFloat(value);
-        return isNaN(num) ? "" : num.toString();
-      };
-
       const newHotel = {
         hotel_id: hotelId,
         hotel_name: hotelData.hotel_name,
-        stars: hotelData.stars ? parseInt(hotelData.stars).toString() : "",
-        city_tax_type: hotelData.city_tax_type || "",
-        city_tax_value: hotelData.city_tax_value || "",
-        city_tax_amount: formatNumericValue(hotelData.city_tax_amount),
-        vat_type: hotelData.vat_type || "",
-        vat_amount: formatNumericValue(hotelData.vat_amount),
-        commission: formatNumericValue(hotelData.commission),
-        resort_fee: formatNumericValue(hotelData.resort_fee),
+        stars: parseInt(hotelData.stars) || 0,
+        city_tax_type: hotelData.city_tax_type,
+        city_tax_value: hotelData.city_tax_value,
+        city_tax_amount: parseFloat(hotelData.city_tax_amount) || 0,
+        vat_type: hotelData.vat_type,
+        vat_amount: parseFloat(hotelData.vat_amount) || 0,
+        commission: parseFloat(hotelData.commission) || 0,
+        resort_fee_per_night: parseFloat(hotelData.resort_fee_per_night) || 0,
         other_rates: hotelData.other_rates || "",
         latitude: hotelData.latitude || "",
         longitude: hotelData.longitude || "",
         hotel_info: hotelData.hotel_info || "",
-        images: hotelData.images || "",
-        currency: hotelData.currency || ""
+        images: hotelData.images || "[]",
+        currency: hotelData.currency || "USD",
+        events: [],
+        rooms: []
       };
 
-      const hotelArray = Object.keys(columnMap).map(key => newHotel[key]);
-      await api.post("test hotels", hotelArray);
+      await api.post("hotels", newHotel);
+      await fetchData();
       toast.success("Hotel added successfully");
-      setIsAddHotelDialogOpen(false);
-      await fetchData(); // Ensure we wait for the data to be fetched
     } catch (error) {
       console.error("Failed to add hotel:", error);
-      toast.error(error.response?.data?.error || "Failed to add hotel");
+      toast.error("Failed to add hotel");
     } finally {
       setIsAddingHotel(false);
     }
@@ -834,24 +840,6 @@ function TestHotelRooms() {
 
       setIsEditingHotel(true);
       console.log("Starting hotel edit process...");
-
-      const columnMap = {
-        hotel_id: "Hotel ID",
-        hotel_name: "Hotel Name",
-        stars: "Stars",
-        hotel_info: "Hotel Info",
-        longitude: "Longitude",
-        latitude: "Latitude",
-        images: "Images",
-        city_tax_type: "City Tax Type",
-        city_tax_value: "City Tax Value",
-        city_tax_amount: "City Tax Amount",
-        vat_type: "VAT Type",
-        vat_amount: "VAT Amount",
-        commission: "Commission",
-        resort_fee: "Resort Fee (Per Night)",
-        other_rates: "Other Rates"
-      };
 
       const changedFields = {};
       Object.keys(hotelData).forEach((key) => {
@@ -874,22 +862,16 @@ function TestHotelRooms() {
 
       // Process updates sequentially to avoid race conditions
       for (const [field, value] of Object.entries(changedFields)) {
-        const column = columnMap[field];
-        if (!column) {
-          console.warn(`No column mapping found for field: ${field}`);
-          continue;
-        }
-
         let formattedValue = value;
         if (field === 'stars') {
           formattedValue = parseInt(value);
-        } else if (['city_tax_amount', 'vat_amount', 'commission', 'resort_fee'].includes(field)) {
+        } else if (['city_tax_amount', 'vat_amount', 'commission', 'resort_fee_per_night'].includes(field)) {
           formattedValue = parseFloat(value);
         }
 
-        console.log(`Updating ${column} to ${formattedValue}`);
-        await api.put(`test hotels/Hotel ID/${editingHotel.hotel_id}`, {
-          column,
+        console.log(`Updating ${field} to ${formattedValue}`);
+        await api.put(`hotels/hotel_id/${editingHotel.hotel_id}`, {
+          column: field,
           value: formattedValue
         });
       }
@@ -912,7 +894,7 @@ function TestHotelRooms() {
     try {
       setIsDeletingHotel(true);
       setDeletingHotelId(hotelId);
-      await api.delete(`test hotels/Hotel ID/${hotelId}`);
+      await api.delete(`hotels/hotel_id/${hotelId}`);
       toast.success("Hotel deleted successfully");
       await fetchData(); // Ensure we wait for the data to be fetched
     } catch (error) {
@@ -941,100 +923,53 @@ function TestHotelRooms() {
   // Add handleEditRoom function
   const handleEditRoom = async ({ room_id, field, value }) => {
     try {
-      setIsEditingRoom(true);
-      const columnMap = {
-        hotel_id: "Hotel ID",
-        room_category: "Room Category",
-        room_type: "Room Type",
-        source: "Source",
-        room_flexibility: "Room Flexibility",
-        max_guests: "Max Guests",
-        booked: "Booked",
-        check_in_date: "Check In Date",
-        check_out_date: "Check Out Date",
-        currency_local: "Currency (Local)",
-        breakfast_included: "Breakfast Included",
-        breakfast_cost_pp: "Breakfast Cost PP",
-        core_per_night_price_local: "Core Per Night Price Local",
-        room_margin: "Room Margin",
-        package_type: "Package Type",
-        event_id: "Event ID",
-        event_name: "Event Name",
-        attrition_group: "Attrition Group"
-      };
-
-      const column = columnMap[field];
-      if (!column) {
-        console.warn(`No column mapping found for field: ${field}`);
+      const allowedFields = [
+        "room_id", "event_id", "package_id", "package_type", "room_category", "room_type", "source", "room_flexibility", "max_guests", "booked", "check_in_date", "check_out_date", "currency_local", "breakfast_included", "breakfast_cost_pp", "core_per_night_price_local", "room_margin", "attrition_group"
+      ];
+      if (!allowedFields.includes(field)) {
+        console.warn(`Field ${field} is not allowed for update.`);
         return;
       }
-
-      await api.put(`test stock - rooms/Room ID/${room_id}`, {
-        column,
-        value
-      });
-
+      // Convert boolean values to uppercase strings
+      const formattedValue = typeof value === 'boolean' ? value.toString().toUpperCase() : value;
+      await api.put(`stock-rooms/room_id/${room_id}`, { column: field, value: formattedValue });
       toast.success("Room updated successfully");
-      
-      // Fetch fresh data
       await fetchData();
     } catch (error) {
       console.error("Failed to update room:", error);
       toast.error(error.response?.data?.error || "Failed to update room");
-    } finally {
-      setIsEditingRoom(false);
     }
   };
 
   // Update handleAddRoom function
   const handleAddRoom = async (roomData) => {
     try {
-      setIsAddingRoom(true);
-      const roomId = crypto.randomUUID();
-      
       const newRoom = {
-        room_id: roomId,
-        hotel_id: roomData.hotel_id,
+        room_id: crypto.randomUUID(),
         event_id: roomData.event_id,
-        event_name: "", // Set event_name to empty string
+        hotel_id: roomData.hotel_id,
         package_type: roomData.package_type,
-        room_category: roomData.room_category.trim(),
-        room_type: roomData.room_type.trim(),
-        source: roomData.source.trim(),
+        room_category: roomData.room_category,
+        room_type: roomData.room_type,
+        source: roomData.source,
         room_flexibility: roomData.room_flexibility,
-        max_guests: parseInt(roomData.max_guests),
-        booked: parseInt(roomData.booked),
-        used: "",
-        remaining: "",
+        max_guests: roomData.max_guests,
+        booked: roomData.booked,
         check_in_date: roomData.check_in_date,
         check_out_date: roomData.check_out_date,
-        nights: "",
-        currency_local: roomData["currency_(local)"],
-        breakfast_included: roomData.breakfast_included === "true",
-        breakfast_cost_pp: parseFloat(roomData.breakfast_cost_pp),
-        core_per_night_price_local: parseFloat(roomData.core_per_night_price_local),
-        final_per_night_price_local: "",
-        price_per_night_gbp: "",
-        extra_night_price_gbp: "",
-        total_room_cost_gbp: "",
+        currency_local: roomData.currency_local,
+        breakfast_included: roomData.breakfast_included,
+        breakfast_cost_pp: roomData.breakfast_cost_pp,
+        core_per_night_price_local: roomData.core_per_night_price_local,
         room_margin: roomData.room_margin,
-        extra_night_margin: "",
-        attrition_group: roomData.attrition_group || ""
+        attrition_group: roomData.attrition_group
       };
-
-      const roomArray = Object.keys(roomFieldMappings).map(key => newRoom[key]);
-
-      await api.post("test stock - rooms", roomArray);
+      await api.post("stock-rooms", newRoom);
       toast.success("Room added successfully");
-      setIsRoomDialogOpen(false);
-      
-      // Fetch fresh data
       await fetchData();
     } catch (error) {
       console.error("Failed to add room:", error);
       toast.error(error.response?.data?.error || "Failed to add room");
-    } finally {
-      setIsAddingRoom(false);
     }
   };
 
@@ -1044,7 +979,7 @@ function TestHotelRooms() {
       setIsDeletingRoom(true);
       setDeletingRoomId(roomId);
       
-      await api.delete(`test stock - rooms/Room ID/${roomId}`);
+      await api.delete(`stock-rooms/room_id/${roomId}`);
       toast.success("Room deleted successfully");
       
       // Fetch fresh data
@@ -1302,11 +1237,11 @@ function TestHotelRooms() {
                 <TableCell className="text-xs py-1.5">
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {hotel["resort_fee_(per_night)"] === 0 ? (
+                      {hotel.resort_fee_per_night === 0 ? (
                         "None"
                       ) : (
                         <>
-                          {getCurrencySymbol(getHotelCurrency(hotel.hotel_id))}{hotel["resort_fee_(per_night)"]}
+                          {getCurrencySymbol(getHotelCurrency(hotel.hotel_id))}{hotel.resort_fee_per_night}
                           <span className="text-xs text-muted-foreground ml-1">
                             per night
                           </span>
@@ -1510,24 +1445,7 @@ function TestHotelRooms() {
 const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddingHotel, isEditingHotel, handleAddHotel, handleEditHotel }) => {
   const [formData, setFormData] = useState(() => {
     if (mode === "edit" && hotel) {
-      return {
-        hotel_id: hotel.hotel_id,
-        hotel_name: hotel.hotel_name || "",
-        stars: hotel.stars || 5,
-        hotel_info: hotel.hotel_info || "",
-        latitude: hotel.latitude || "",
-        longitude: hotel.longitude || "",
-        currency: hotel.currency || "USD",
-        city_tax_type: hotel.city_tax_type || "per_room",
-        city_tax_value: hotel.city_tax_value || "percentage",
-        city_tax_amount: hotel.city_tax_amount || 0,
-        vat_type: hotel.vat_type || "percentage",
-        vat_amount: hotel.vat_amount || 0,
-        commission: hotel.commission || 0,
-        resort_fee: hotel["resort_fee_(per_night)"] || 0,
-        other_rates: hotel.other_rates || "",
-        images: hotel.images || "[]"
-      };
+      return { ...hotel };
     }
     return {
       hotel_name: "",
@@ -1538,7 +1456,7 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
       vat_type: "percentage",
       vat_amount: 0,
       commission: 0,
-      resort_fee: 0,
+      resort_fee_per_night: 0,
       other_rates: "",
       latitude: "",
       longitude: "",
@@ -1550,50 +1468,46 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (hotel && mode === "edit") {
+      setFormData({ ...hotel });
+    } else if (mode === "add") {
+      setFormData({
+        hotel_name: "",
+        stars: 5,
+        city_tax_type: "per_room",
+        city_tax_value: "percentage",
+        city_tax_amount: 0,
+        vat_type: "percentage",
+        vat_amount: 0,
+        commission: 0,
+        resort_fee_per_night: 0,
+        other_rates: "",
+        latitude: "",
+        longitude: "",
+        hotel_info: "",
+        images: "[]",
+        currency: "USD"
+      });
+    }
+  }, [hotel, mode]);
+
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      if (mode === "edit") {
-        await handleEditHotel(formData);
-      } else {
+      if (mode === "add") {
         await handleAddHotel(formData);
+      } else {
+        await handleEditHotel({ ...hotel, ...formData });
       }
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to submit hotel:", error);
+      toast.error("Failed to submit hotel");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Reset form when dialog opens/closes or hotel changes
-  useEffect(() => {
-    if (isOpen && mode === "edit" && hotel) {
-      console.log("Setting form data with hotel:", hotel); // Debug log
-      setFormData({
-        hotel_id: hotel.hotel_id,
-        hotel_name: hotel.hotel_name || "",
-        stars: hotel.stars || 5,
-        hotel_info: hotel.hotel_info || "",
-        latitude: hotel.latitude || "",
-        longitude: hotel.longitude || "",
-        currency: hotel.currency || "USD",
-        city_tax_type: hotel.city_tax_type || "per_room",
-        city_tax_value: hotel.city_tax_value || "percentage",
-        city_tax_amount: hotel.city_tax_amount || 0,
-        vat_type: hotel.vat_type || "percentage",
-        vat_amount: hotel.vat_amount || 0,
-        commission: hotel.commission || 0,
-        resort_fee: hotel["resort_fee_(per_night)"] || 0,
-        other_rates: hotel.other_rates || "",
-        images: hotel.images || "[]"
-      });
-    }
-  }, [isOpen, mode, hotel]);
-
-  // Debug log to check form data
-  useEffect(() => {
-    if (isOpen) {
-      console.log("Current form data:", formData);
-    }
-  }, [isOpen, formData]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -1603,7 +1517,7 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
         </DialogHeader>
         <ScrollArea className="h-[calc(90vh-180px)]">
           <div className="grid gap-4 py-4 relative">
-            {(isAddingHotel || isEditingHotel) && (
+            {(isAddingHotel || isEditingHotel || isSubmitting) && (
               <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1643,7 +1557,14 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                               ...prev,
                               hotel_info: hotelInfo.hotel_info || prev.hotel_info,
                               latitude: hotelInfo.latitude || prev.latitude,
-                              longitude: hotelInfo.longitude || prev.longitude
+                              longitude: hotelInfo.longitude || prev.longitude,
+                              city_tax_type: hotelInfo.city_tax_info?.type || prev.city_tax_type,
+                              city_tax_value: hotelInfo.city_tax_info?.value_type || prev.city_tax_value,
+                              city_tax_amount: hotelInfo.city_tax_info?.amount || prev.city_tax_amount,
+                              vat_type: hotelInfo.vat_info?.type || prev.vat_type,
+                              vat_amount: hotelInfo.vat_info?.amount || prev.vat_amount,
+                              resort_fee_per_night: hotelInfo.resort_fee || prev.resort_fee_per_night,
+                              commission: hotelInfo.commission || prev.commission
                             }));
                             toast.success("Hotel information fetched successfully");
                           } catch (error) {
@@ -1658,31 +1579,27 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                     </div>
                   </div>
                 </div>
-
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Stars</Label>
-                      <Select
-                        value={String(formData.stars)}
-                        onValueChange={(value) => setFormData({ ...formData, stars: parseInt(value) })}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select rating" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[3, 4, 5].map((stars) => (
-                            <SelectItem key={stars} value={String(stars)}>
-                              {stars} Stars
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Stars</Label>
+                    <Select
+                      value={String(formData.stars)}
+                      onValueChange={(value) => setFormData({ ...formData, stars: parseInt(value) })}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select rating" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[3, 4, 5].map((stars) => (
+                          <SelectItem key={stars} value={String(stars)}>
+                            {stars} Stars
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
-
               <div className="space-y-1.5">
                 <Label className="text-xs">Hotel Information</Label>
                 <Textarea
@@ -1697,8 +1614,6 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
             {/* Financial Information */}
             <div className="space-y-3 bg-card rounded-lg border p-4">
               <h3 className="text-sm font-medium text-muted-foreground">Financial Information</h3>
-              
-              {/* Currency Selection */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Currency <span className="text-destructive">*</span></Label>
                 <Select
@@ -1725,8 +1640,6 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                   </SelectContent>
                 </Select>
               </div>
-              
-              {/* City Tax Section */}
               <div className="space-y-3 border-b pb-4">
                 <div className="flex items-center gap-4">
                   <Label className="text-sm font-medium whitespace-nowrap">City Tax</Label>
@@ -1749,7 +1662,6 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                       <SelectItem value="included">Included</SelectItem>
                     </SelectContent>
                   </Select>
-
                   {formData.city_tax_value !== "included" && (
                     <>
                       <Select
@@ -1769,7 +1681,6 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                           <SelectItem value="per_person_per_room_per_night">Per Person Per Room Per Night</SelectItem>
                         </SelectContent>
                       </Select>
-
                       <div className="flex items-center gap-2">
                         <Input
                           type="number"
@@ -1784,8 +1695,6 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                   )}
                 </div>
               </div>
-
-              {/* VAT Section */}
               <div className="space-y-3 border-b pb-4">
                 <div className="flex items-center gap-4">
                   <Label className="text-sm font-medium whitespace-nowrap">VAT</Label>
@@ -1808,7 +1717,6 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                       <SelectItem value="included">Included</SelectItem>
                     </SelectContent>
                   </Select>
-
                   {formData.vat_type !== "included" && (
                     <div className="flex items-center gap-2">
                       <Input
@@ -1823,8 +1731,6 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                   )}
                 </div>
               </div>
-
-              {/* Additional Fees Section */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Additional Fees</Label>
                 <div className="grid grid-cols-2 gap-4">
@@ -1843,8 +1749,8 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                     <Input
                       type="number"
                       step="0.01"
-                      value={formData.resort_fee}
-                      onChange={(e) => setFormData({ ...formData, resort_fee: parseFloat(e.target.value) })}
+                      value={formData.resort_fee_per_night}
+                      onChange={(e) => setFormData({ ...formData, resort_fee_per_night: parseFloat(e.target.value) })}
                       className="h-9"
                     />
                   </div>
@@ -1896,7 +1802,6 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
                     </div>
                   </div>
                 </div>
-
                 <div className="space-y-1.5">
                   <Label className="text-xs">Image URLs (one per line)</Label>
                   <Textarea
@@ -1935,11 +1840,11 @@ const HotelDialog = ({ isOpen, onOpenChange, mode = "add", hotel = null, isAddin
           </div>
         </ScrollArea>
         <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isAddingHotel || isEditingHotel} className="h-9">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isAddingHotel || isEditingHotel || isSubmitting} className="h-9">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isAddingHotel || isEditingHotel} className="h-9">
-            {isAddingHotel || isEditingHotel ? (
+          <Button onClick={handleSubmit} disabled={isAddingHotel || isEditingHotel || isSubmitting} className="h-9">
+            {isAddingHotel || isEditingHotel || isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {mode === "edit" ? "Updating..." : "Adding..."}
@@ -1981,22 +1886,30 @@ const RoomDialog = memo(({
       hotel_id: selectedHotel?.hotel_id || "",
       event_id: "",
       event_name: "",
+      package_id: "",
+      package_type: "Both",
+      hotel_name: selectedHotel?.hotel_name || "",
       room_category: "",
       room_type: "",
       source: "",
-      room_flexibility: "non_flex",
+      room_flexibility: "Flex",
       max_guests: 2,
       booked: 0,
+      used: 0,
       remaining: 0,
       check_in_date: "",
       check_out_date: "",
-      "currency_(local)": "",
-      breakfast_included: "false",
+      nights: 0,
+      currency_local: "GBP",
+      breakfast_included: false,
       breakfast_cost_pp: 0,
       core_per_night_price_local: 0,
+      final_per_night_price_local: 0,
+      price_per_night_gbp: 0,
+      extra_night_price_gbp: 0,
+      total_room_cost_gbp: 0,
       room_margin: "55%",
       extra_night_margin: "28%",
-      package_type: "Both",
       attrition_group: ""
     };
   });
@@ -2014,7 +1927,7 @@ const RoomDialog = memo(({
 
   const fetchEvents = async () => {
     try {
-      const response = await api.get("event");
+      const response = await api.get("events");
       setEvents(response.data);
     } catch (error) {
       console.error("Failed to fetch events:", error);
@@ -2038,8 +1951,18 @@ const RoomDialog = memo(({
           check_in_date: room.check_in_date || "",
           check_out_date: room.check_out_date || "",
           hotel_id: selectedHotel?.hotel_id || room.hotel_id,
-          breakfast_included: room.breakfast_included ? "true" : "false",
-          room_flexibility: room.room_flexibility || "non_flex"
+          hotel_name: selectedHotel?.hotel_name || room.hotel_name,
+          breakfast_included: room.breakfast_included === true || room.breakfast_included === "true",
+          room_flexibility: room.room_flexibility || "Flex",
+          package_type: room.package_type || "Both",
+          package_id: room.package_id || "",
+          used: parseInt(room.used) || 0,
+          remaining: parseInt(room.remaining) || 0,
+          nights: parseInt(room.nights) || 0,
+          final_per_night_price_local: parseFloat(room.final_per_night_price_local) || 0,
+          price_per_night_gbp: parseFloat(room.price_per_night_gbp) || 0,
+          extra_night_price_gbp: parseFloat(room.extra_night_price_gbp) || 0,
+          total_room_cost_gbp: parseFloat(room.total_room_cost_gbp) || 0
         });
         setDateRange({
           from: room.check_in_date ? new Date(room.check_in_date.split("/").reverse().join("-")) : null,
@@ -2048,20 +1971,33 @@ const RoomDialog = memo(({
       } else {
         setFormData({
           hotel_id: selectedHotel?.hotel_id || "",
+          event_id: "",
+          event_name: "",
+          package_id: "",
+          package_type: "Both",
+          hotel_name: selectedHotel?.hotel_name || "",
           room_category: "",
           room_type: "",
           source: "",
-          room_flexibility: "non_flex",
+          room_flexibility: "Flex",
           max_guests: 2,
           booked: 0,
+          used: 0,
+          remaining: 0,
           check_in_date: "",
           check_out_date: "",
-          "currency_(local)": "",
-          breakfast_included: "false",
+          nights: 0,
+          currency_local: "GBP",
+          breakfast_included: false,
           breakfast_cost_pp: 0,
           core_per_night_price_local: 0,
+          final_per_night_price_local: 0,
+          price_per_night_gbp: 0,
+          extra_night_price_gbp: 0,
+          total_room_cost_gbp: 0,
           room_margin: "55%",
-          extra_night_margin: "28%"
+          extra_night_margin: "28%",
+          attrition_group: ""
         });
         setDateRange({ from: null, to: null });
       }
@@ -2267,10 +2203,10 @@ const RoomDialog = memo(({
               {/* Currency and Pricing */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Currency (Local) <span className="text-destructive">*</span></Label>
+                  <Label>Currency <span className="text-destructive">*</span></Label>
                   <Select
-                    value={formData["currency_(local)"]}
-                    onValueChange={(value) => handleFieldChange('currency_(local)', value)}
+                    value={formData.currency_local}
+                    onValueChange={(value) => handleFieldChange('currency_local', value)}
                     required
                   >
                     <SelectTrigger>
@@ -2280,10 +2216,15 @@ const RoomDialog = memo(({
                       <SelectItem value="GBP">GBP</SelectItem>
                       <SelectItem value="EUR">EUR</SelectItem>
                       <SelectItem value="USD">USD</SelectItem>
-                      <SelectItem value="BHD">BHD</SelectItem>
+                      <SelectItem value="SGD">SGD</SelectItem>
                       <SelectItem value="AED">AED</SelectItem>
-                      <SelectItem value="SAR">SAR</SelectItem>
+                      <SelectItem value="BHD">BHD</SelectItem>
+                      <SelectItem value="CAD">CAD</SelectItem>
+                      <SelectItem value="AUD">AUD</SelectItem>
+                      <SelectItem value="NZD">NZD</SelectItem>
                       <SelectItem value="QAR">QAR</SelectItem>
+                      <SelectItem value="SAR">SAR</SelectItem>
+                      <SelectItem value="MYR">MYR</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

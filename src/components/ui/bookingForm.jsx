@@ -594,10 +594,10 @@ function BookingForm({
         payment_3_status: values.payment3_status ? "Paid" : "Due",
         
         // Calculated totals
-        'Total cost': totalPrice,
-        'Total Sold For Local': totalPrice,
-        'Total Sold GBP': totalPrice,
-        'P&L': 0 // This will be calculated by the backend
+        'Total cost': "",
+        'Total Sold For Local': "",
+        'Total Sold GBP': "",
+        'P&L': "" // This will be calculated by the backend
       };
       console.log('Prepared booking data:', bookingData);
 

@@ -133,7 +133,7 @@ function PackagesTable() {
   useEffect(() => {
     async function fetchEvents() {
       try {
-        const res = await api.get("/event");
+        const res = await api.get("/events");
         setEvents(res.data);
       } catch (err) {
         // ignore for now

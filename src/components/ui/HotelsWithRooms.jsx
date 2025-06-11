@@ -146,7 +146,7 @@ function HotelsWithRooms() {
     vat_type: "VAT Type",
     vat_amount: "VAT Amount",
     commission: "Commission",
-    "resort_fee_(per_night)": "Resort Fee (Per Night)",
+    "resort_fee_per_night": "Resort Fee (Per Night)",
     other_rates: "Other Rates",
     latitude: "Latitude",
     longitude: "Longitude",
@@ -429,7 +429,7 @@ function HotelsWithRooms() {
         vat_type: hotelData.vat_type,
         vat_amount: parseFloat(hotelData.vat_amount),
         commission: parseFloat(hotelData.commission),
-        "resort_fee_(per_night)": parseFloat(hotelData.resort_fee),
+        "resort_fee_per_night": parseFloat(hotelData.resort_fee),
         other_rates: hotelData.other_rates || "",
         latitude: hotelData.latitude || "",
         longitude: hotelData.longitude || "",
@@ -1963,11 +1963,11 @@ function HotelsWithRooms() {
                 <TableCell className="text-xs py-1.5">
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {hotel["resort_fee_(per_night)"] === 0 ? (
+                      {hotel.resort_fee_per_night === 0 ? (
                         "None"
                       ) : (
                         <>
-                          {getCurrencySymbol(getHotelCurrency(hotel.hotel_id))}{hotel["resort_fee_(per_night)"]}
+                          {getCurrencySymbol(getHotelCurrency(hotel.hotel_id))}{hotel.resort_fee_per_night}
                           <span className="text-xs text-muted-foreground ml-1">
                             per night
                           </span>

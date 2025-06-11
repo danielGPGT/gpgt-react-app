@@ -99,16 +99,9 @@ function AirportTransferTable() {
     hotel_name: "",
     transport_type: "",
     max_capacity: "",
-    used: "",
-    total_budget: "",
-    budget_per_car: "",
     supplier: "",
     quote_currency: "",
     supplier_quote_per_car_local: "",
-    supplier_quote_per_car_gbp: "",
-    diff: "",
-    total_diff: "",
-    total_owing_to_supplier: "",
     paid_to_supplier: false,
     outstanding: false,
     markup: "55"
@@ -121,24 +114,13 @@ function AirportTransferTable() {
   // Column mappings for API operations
   const columnMappings = {
     event_id: "Event ID",
-    event_name: "Event Name",
-    package_id: "Package ID",
     package_type: "Package Type",
     hotel_id: "Hotel ID",
-    airport_transfer_id: "Airport Transfer ID",
-    hotel_name: "Hotel Name",
     transport_type: "Transport Type",
     max_capacity: "Max Capacity",
-    used: "Used",
-    total_budget: "Total Budget",
-    budget_per_car: "Budget per car",
     supplier: "Supplier",
     quote_currency: "Quote Currency",
     supplier_quote_per_car_local: "Supplier quote per car local",
-    supplier_quote_per_car_gbp: "Supplier quote per car GBP",
-    diff: "diff",
-    total_diff: "Total diff",
-    total_owing_to_supplier: "Total Owing to Supplier",
     paid_to_supplier: "Paid to Supplier",
     outstanding: "Outstanding",
     markup: "Markup"
@@ -179,13 +161,14 @@ function AirportTransferTable() {
 
   useEffect(() => {
     fetchInitialData();
+    fetchHotelsForEvent();
   }, []);
 
   const fetchInitialData = async () => {
     try {
       const [transfersRes, eventsRes] = await Promise.all([
-        api.get("Stock%20-%20airport%20transfers"),
-        api.get("event"),
+        api.get("stock-airport-transfers"),
+        api.get("events"),
       ]);
 
       setTransfers(transfersRes.data.map(transformDataFromAPI));
@@ -200,11 +183,10 @@ function AirportTransferTable() {
     }
   };
 
-  const fetchHotelsForEvent = async (eventName) => {
+  const fetchHotelsForEvent = async () => {
     try {
       const response = await api.get("hotels");
-      const filteredHotels = response.data.filter(hotel => hotel.event_name === eventName);
-      setHotels(filteredHotels);
+      setHotels(response.data);
     } catch (error) {
       console.error("Failed to fetch hotels:", error);
       toast.error("Failed to load hotels");
@@ -309,43 +291,17 @@ function AirportTransferTable() {
     return result;
   }, [transfers, filters, sortColumn, sortDirection]);
 
-  // Handle field update
-  const handleFieldUpdate = async (transferId, field, value) => {
-    try {
-      const updateData = {
-        column: columnMappings[field],
-        value: value,
-      };
-
-      const encodedSheetName = encodeURIComponent("Stock - Airport Transfers");
-      await api.put(
-        `${encodedSheetName}/Airport Transfer ID/${transferId}`,
-        updateData
-      );
-
-      toast.success("Field updated successfully");
-      fetchInitialData();
-    } catch (error) {
-      console.error("Failed to update field:", error);
-      toast.error(error.response?.data?.error || "Failed to update field");
-    }
-  };
-
-  // Handle cell save
-  const handleCellSave = async (rowId, field) => {
-    try {
-      await handleFieldUpdate(rowId, field, cellValue);
-    } finally {
-      setEditingCell({ rowId: null, field: null });
-      setCellValue("");
-    }
-  };
-
   // Edit transfer
   const handleEditTransfer = async (changedFields) => {
     try {
       setIsEditing(true);
       const loadingToast = toast.loading("Updating transfer...");
+
+      if (!editingTransfer?.airport_transfer_id) {
+        toast.dismiss(loadingToast);
+        toast.error("Invalid transfer ID");
+        return false;
+      }
 
       if (Object.keys(changedFields).length === 0) {
         toast.dismiss(loadingToast);
@@ -363,18 +319,22 @@ function AirportTransferTable() {
       // Format the value based on field type
       let processedValue = value;
       if (field === 'paid_to_supplier' || field === 'outstanding') {
-        processedValue = value ? "true" : "false";
+        processedValue = value ? "TRUE" : "FALSE";
       } else if (field === 'markup') {
         processedValue = value.toString();
+      } else if (field === 'max_capacity') {
+        processedValue = parseInt(value) || 0;
+      } else if (field === 'supplier_quote_per_car_local') {
+        processedValue = parseFloat(value) || 0;
       }
 
       const updateData = {
-        column: columnMappings[field],
+        column: field,
         value: processedValue
       };
 
       console.log("Updating single field:", { field, value: processedValue, updateData });
-      await api.put(`/Stock - Airport Transfers/Airport Transfer ID/${transferId}`, updateData);
+      await api.put(`/stock-airport-transfers/airport_transfer_id/${transferId}`, updateData);
 
       await fetchInitialData();
       toast.dismiss(loadingToast);
@@ -386,7 +346,7 @@ function AirportTransferTable() {
       console.error("Failed to update transfer:", error);
       console.error("Error details:", error.response?.data || error.message);
       toast.dismiss();
-      toast.error("Failed to update transfer. Please try again.");
+      toast.error(error.response?.data?.error || "Failed to update transfer. Please try again.");
       return false;
     } finally {
       setIsEditing(false);
@@ -405,30 +365,38 @@ function AirportTransferTable() {
     };
     setEditingTransfer(formattedTransfer);
     setIsEditDialogOpen(true);
-    // Fetch hotels for the event when opening edit dialog
-    if (transfer.event_name) {
-      fetchHotelsForEvent(transfer.event_name);
-    }
   };
 
   // Add transfer
   const handleAddTransfer = async (formData) => {
     try {
       setIsAdding(true);
+      const loadingToast = toast.loading("Adding new transfer...");
+
+      // Validate required fields
+      const requiredFields = ['event_id', 'package_type', 'hotel_id', 'transport_type'];
+      const missingFields = requiredFields.filter(field => !formData[field]);
+      
+      if (missingFields.length > 0) {
+        toast.dismiss(loadingToast);
+        toast.error(`Missing required fields: ${missingFields.join(', ')}`);
+        return;
+      }
+
       const apiData = transformDataForAPI({
         ...formData,
         airport_transfer_id: generateAirportTransferId()
       });
-      await api.post("Stock%20-%20airport%20transfers", apiData);
+
+      await api.post("stock-airport-transfers", apiData);
+      toast.dismiss(loadingToast);
       setSuccessMessage("Airport transfer added successfully!");
       setShowSuccessDialog(true);
       setIsAddDialogOpen(false);
-      fetchInitialData();
+      await fetchInitialData();
     } catch (error) {
       console.error("Failed to add airport transfer:", error);
-      toast.error(
-        error.response?.data?.error || "Failed to add airport transfer"
-      );
+      toast.error(error.response?.data?.error || "Failed to add airport transfer");
     } finally {
       setIsAdding(false);
     }
@@ -436,26 +404,34 @@ function AirportTransferTable() {
 
   // Delete transfer
   const handleDeleteTransfer = async (transferId) => {
+    if (!transferId) {
+      toast.error("Invalid transfer ID");
+      return;
+    }
     setTransferToDelete(transferId);
     setShowDeleteConfirm(true);
   };
 
   const confirmDelete = async () => {
+    if (!transferToDelete) {
+      toast.error("Invalid transfer ID");
+      return;
+    }
+
     try {
       setIsDeleting(true);
-      const encodedSheetName = encodeURIComponent("Stock - Airport Transfers");
-      await api.delete(
-        `${encodedSheetName}/Airport Transfer ID/${transferToDelete}`
-      );
+      const loadingToast = toast.loading("Deleting transfer...");
+      
+      await api.delete(`stock-airport-transfers/airport_transfer_id/${transferToDelete}`);
+      
+      toast.dismiss(loadingToast);
       setSuccessMessage("Airport transfer deleted successfully!");
       setShowSuccessDialog(true);
       setShowDeleteConfirm(false);
-      fetchInitialData();
+      await fetchInitialData();
     } catch (error) {
       console.error("Failed to delete airport transfer:", error);
-      toast.error(
-        error.response?.data?.error || "Failed to delete airport transfer"
-      );
+      toast.error(error.response?.data?.error || "Failed to delete airport transfer");
     } finally {
       setIsDeleting(false);
       setTransferToDelete(null);
@@ -504,35 +480,21 @@ function AirportTransferTable() {
     return pages;
   };
 
-  // Handle cell edit
-  const handleCellEdit = (rowId, field, value) => {
-    setEditingCell({ rowId, field });
-    setCellValue(value);
-  };
-
-  // Handle cell cancel
-  const handleCellCancel = () => {
-    setEditingCell({ rowId: null, field: null });
-    setCellValue("");
-  };
-
   // Helper function to transform data for API
   const transformDataForAPI = (data) => {
     return {
+      "airport_transfer_id": data.airport_transfer_id || crypto.randomUUID(),
       "event_id": data.event_id || "",
       "package_type": data.package_type || "",
       "hotel_id": data.hotel_id || "",
-      "airport_transfer_id": data.airport_transfer_id || "",
       "transport_type": data.transport_type || "",
-      "max_capacity": data.max_capacity || "",
-      "budget_per_car": "", // Always send empty string
+      "max_capacity": parseInt(data.max_capacity) || 0,
       "supplier": data.supplier || "",
       "quote_currency": data.quote_currency || "",
-      "supplier_quote_per_car_local": data.supplier_quote_per_car_local || "",
-      "supplier_quote_per_car_gbp": "", // Always send empty string
-      "paid_to_supplier": data.paid_to_supplier === true ? "true" : "false",
-      "outstanding": data.outstanding === true ? "true" : "false",
-      "markup": data.markup ? `${data.markup}%` : "",
+      "supplier_quote_per_car_local": parseFloat(data.supplier_quote_per_car_local) || 0,
+      "paid_to_supplier": data.paid_to_supplier === true ? "TRUE" : "FALSE",
+      "outstanding": data.outstanding === true ? "TRUE" : "FALSE",
+      "markup": data.markup ? `${data.markup}%` : "55%"
     };
   };
 
@@ -540,8 +502,11 @@ function AirportTransferTable() {
   const transformDataFromAPI = (data) => {
     return {
       ...data,
-      supplier_quote_per_car_local: data["supplier_quote_per_car_local"] || 0,
-      supplier_quote_per_car_gbp: data["supplier_quote_per_car_gbp"] || 0,
+      max_capacity: parseInt(data.max_capacity) || 0,
+      supplier_quote_per_car_local: parseFloat(data.supplier_quote_per_car_local) || 0,
+      paid_to_supplier: data.paid_to_supplier === "TRUE",
+      outstanding: data.outstanding === "TRUE",
+      markup: data.markup?.toString().replace('%', '') || '55'
     };
   };
 
@@ -1005,7 +970,6 @@ function AirportTransferTable() {
                             event_id: selectedEvent?.event_id || "",
                             hotel_name: "", // Reset hotel when event changes
                           }));
-                          fetchHotelsForEvent(value);
                         } else {
                           setNewTransfer((prev) => ({
                             ...prev,
@@ -1013,7 +977,6 @@ function AirportTransferTable() {
                             event_id: selectedEvent?.event_id || "",
                             hotel_name: "", // Reset hotel when event changes
                           }));
-                          fetchHotelsForEvent(value);
                         }
                       }}
                       placeholder="Select event"
@@ -1038,9 +1001,14 @@ function AirportTransferTable() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="hotel_name">Hotel</Label>
-                    <Select
+                    <Combobox
+                      options={hotels.map((hotel) => ({
+                        value: hotel.hotel_name,
+                        label: hotel.hotel_name,
+                        id: hotel.hotel_id
+                      }))}
                       value={getFormValue("hotel_name")}
-                      onValueChange={(value) => {
+                      onChange={(value) => {
                         const selectedHotel = hotels.find(h => h.hotel_name === value);
                         if (isEditDialogOpen) {
                           setEditingTransfer((prev) => ({
@@ -1056,23 +1024,9 @@ function AirportTransferTable() {
                           }));
                         }
                       }}
-                      disabled={!hotels.length}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue>
-                          {isEditDialogOpen 
-                            ? editingTransfer?.hotel_name || "Select hotel"
-                            : newTransfer.hotel_name || "Select hotel"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {hotels.map((hotel) => (
-                          <SelectItem key={hotel.hotel_id} value={hotel.hotel_name}>
-                            {hotel.hotel_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select hotel"
+                      className="w-full"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="transport_type">Transport Type</Label>

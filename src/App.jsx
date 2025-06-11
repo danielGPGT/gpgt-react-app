@@ -17,6 +17,7 @@ import RoleBasedRoute from "./components/roleBasedRoute";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 import { Toaster } from "sonner";
+import NewPricing from "@/pages/newPricing";
 
 function App() {
   return (
@@ -123,6 +124,7 @@ function App() {
         <Route path="/my-account" element={<RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
         <MyAccount />
         </RoleBasedRoute>} />
+        <Route path="/new-pricing" element={<NewPricing />} />
       </Routes>
     </ThemeProvider>
   );

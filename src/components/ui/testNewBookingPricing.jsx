@@ -276,7 +276,7 @@ function InternalPricing({
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await api.get("/event");
+        const res = await api.get("/events");
         setEvents(res.data);
         setFilteredEvents(res.data);
         

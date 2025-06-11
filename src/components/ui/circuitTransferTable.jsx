@@ -23,11 +23,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { Pencil, Trash2, ChevronDown, Plus, Loader2 } from 'lucide-react';
+import { Pencil, Trash2, ChevronDown, Plus, Loader2, Check, ChevronsUpDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 // Update the field mapping at the top of the file
 const fieldToColumnMapping = {
@@ -83,6 +96,9 @@ function CircuitTransferTable() {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [transferToDelete, setTransferToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter and sort state
   const [filters, setFilters] = useState({
@@ -132,11 +148,11 @@ function CircuitTransferTable() {
     try {
       setIsLoading(true);
       // Fetch circuit transfers
-      const { data: transfersData } = await api.get('/Stock - circuit transfers');
+      const { data: transfersData } = await api.get('/stock-circuit-transfers');
       setCircuitTransfers(transfersData);
 
       // Fetch events
-      const { data: eventsData } = await api.get('/event');
+      const { data: eventsData } = await api.get('/events');
       console.log('Fetched events:', eventsData);
       setEvents(eventsData);
 
@@ -166,16 +182,8 @@ function CircuitTransferTable() {
     console.log('Event changed:', formData.event_name);
     console.log('Available hotels:', hotels);
     if (formData.event_name) {
-      const filtered = hotels.filter(hotel => {
-        console.log('Comparing:', {
-          hotelEvent: hotel.event_name,
-          selectedEvent: formData.event_name,
-          matches: hotel.event_name === formData.event_name
-        });
-        return hotel.event_name === formData.event_name;
-      });
-      console.log('Filtered hotels:', filtered);
-      setFilteredHotels(filtered);
+      // Get all hotels since they're not event-specific anymore
+      setFilteredHotels(hotels);
     } else {
       setFilteredHotels([]);
     }
@@ -185,10 +193,13 @@ function CircuitTransferTable() {
     fetchInitialData();
   }, []);
 
-  const handleAddTransfer = async (formData) => {
+  const handleAddTransfer = async (data) => {
     try {
       setIsAdding(true);
-      await api.post('/Stock - circuit transfers', formData);
+      console.log('Adding transfer with data:', data);
+
+      // The data is already formatted correctly in the form submission
+      await api.post('/stock-circuit-transfers', data);
       await fetchInitialData();
       toast.success("Circuit transfer added successfully");
       setIsDialogOpen(false);
@@ -227,15 +238,33 @@ function CircuitTransferTable() {
         throw new Error("Original transfer data not found");
       }
 
-      // Compare and only keep changed fields
+      // Define allowed fields
+      const allowedFields = [
+        "event_id", "package_type", "hotel_id", "circuit_transfer_id", "transport_type",
+        "coach_capacity", "days", "quote_hours", "expected_hours", "provider_coach",
+        "cost_per_day_invoice_ccy", "vat_tax_if_not_included_in_price",
+        "parking_ticket_per_coach_per_day", "currency", "guide_included_in_coach_cost",
+        "guide_cost_per_day", "vat_tax_if_not_included_in_guide_price", "provider_guides",
+        "utilisation_%", "markup"
+      ];
+
+      // Compare and only keep changed fields that are in the allowed list
       const changedFields = Object.entries(dataToUpdate)
         .filter(([key, value]) => {
+          // Skip fields not in the allowed list
+          if (!allowedFields.includes(key)) return false;
+          
           // Skip undefined and null values
           if (value === undefined || value === null) return false;
 
           // Get the original value
           const originalValue = originalTransfer[key];
           
+          // For currency, do direct string comparison
+          if (key === 'currency') {
+            return value !== originalValue;
+          }
+
           // Handle numeric values
           if (typeof value === 'number' || !isNaN(Number(value))) {
             const numValue = Number(value);
@@ -262,11 +291,7 @@ function CircuitTransferTable() {
           return value !== originalValue;
         })
         .reduce((acc, [key, value]) => {
-          // Map the form field name to the backend column name
-          const backendColumn = fieldToColumnMapping[key];
-          if (backendColumn) {
-            acc[backendColumn] = value;
-          }
+          acc[key] = value;
           return acc;
         }, {});
 
@@ -289,6 +314,8 @@ function CircuitTransferTable() {
         processedValue = value.toString();
       } else if (value === '') {
         processedValue = null;
+      } else if (typeof value === 'boolean') {
+        processedValue = value.toString().toUpperCase();
       }
 
       const requestBody = {
@@ -297,7 +324,7 @@ function CircuitTransferTable() {
       };
       console.log('Request body:', requestBody);
 
-      await api.put(`/Stock - circuit transfers/Circuit Transfer ID/${id}`, requestBody);
+      await api.put(`/stock-circuit-transfers/circuit_transfer_id/${id}`, requestBody);
 
       await fetchInitialData();
       toast.success("Circuit transfer updated successfully");
@@ -312,15 +339,17 @@ function CircuitTransferTable() {
 
   const handleDeleteTransfer = async (transferId) => {
     try {
-      setIsLoading(true);
-      await api.delete(`/Stock - circuit transfers/${transferId}`);
+      setIsDeleting(true);
+      await api.delete(`/stock-circuit-transfers/circuit_transfer_id/${transferId}`);
       await fetchInitialData();
       toast.success("Circuit transfer deleted successfully");
+      setShowDeleteDialog(false);
+      setTransferToDelete(null);
     } catch (error) {
       console.error('Error deleting transfer:', error);
       toast.error(error.message || "Failed to delete circuit transfer");
     } finally {
-      setIsLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -364,7 +393,7 @@ function CircuitTransferTable() {
         package_id: editingTransfer.package_id || "",
         package_type: editingTransfer.package_type || "",
         hotel_id: editingTransfer.hotel_id || "",
-        circuit_transfer_id: editingTransfer.circuit_transfer_id || crypto.randomUUID(),
+        circuit_transfer_id: editingTransfer.circuit_transfer_id || "",
         hotel_name: editingTransfer.hotel_name || "",
         transport_type: editingTransfer.transport_type || "Shared Coach (Sat & Sun)",
         used: editingTransfer.used || "",
@@ -372,15 +401,15 @@ function CircuitTransferTable() {
         days: editingTransfer.days || 1,
         quote_hours: editingTransfer.quote_hours || 8,
         expected_hours: editingTransfer.expected_hours || 12,
-        provider_coach: editingTransfer["provider_(coach)"] || "TBC",
-        cost_per_day_invoice_ccy: editingTransfer["cost_per_day_(invoice_ccy)"] || 0,
-        vat_tax_if_not_included_in_price: editingTransfer["vat/tax_(if_not_included_in_price)"] || "0%",
-        parking_ticket_per_coach_per_day: editingTransfer["parking_ticket_(per_coach_per_day)"] || 0,
+        provider_coach: editingTransfer.provider_coach || "TBC",
+        cost_per_day_invoice_ccy: editingTransfer.cost_per_day_invoice_ccy || 0,
+        vat_tax_if_not_included_in_price: editingTransfer.vat_tax_if_not_included_in_price || "0%",
+        parking_ticket_per_coach_per_day: editingTransfer.parking_ticket_per_coach_per_day || 0,
         currency: editingTransfer.currency || "USD",
-        guide_included_in_coach_cost: editingTransfer["guide_included_in_coach_cost"] || "No",
-        guide_cost_per_day: editingTransfer["guide_cost_per_day"] || 0,
-        vat_tax_if_not_included_in_price_guide: editingTransfer["vat/tax_(if_not_included_in_guide_price)"] || "0%",
-        provider_guides: editingTransfer["provider_(guides)"] || "TBC",
+        guide_included_in_coach_cost: editingTransfer.guide_included_in_coach_cost || "No",
+        guide_cost_per_day: editingTransfer.guide_cost_per_day || 0,
+        vat_tax_if_not_included_in_guide_price: editingTransfer.vat_tax_if_not_included_in_guide_price || "0%",
+        provider_guides: editingTransfer.provider_guides || "TBC",
         utilisation_percent: editingTransfer["utilisation_%"] || "70%",
         markup: editingTransfer.markup || "60%"
       } : initialFormData;
@@ -390,7 +419,6 @@ function CircuitTransferTable() {
         ...baseData
       };
     });
-    const [filteredHotels, setFilteredHotels] = useState([]);
 
     // Update local state when initial data changes
     useEffect(() => {
@@ -401,7 +429,7 @@ function CircuitTransferTable() {
           package_id: editingTransfer.package_id || "",
           package_type: editingTransfer.package_type || "",
           hotel_id: editingTransfer.hotel_id || "",
-          circuit_transfer_id: editingTransfer.circuit_transfer_id || crypto.randomUUID(),
+          circuit_transfer_id: editingTransfer.circuit_transfer_id || "",
           hotel_name: editingTransfer.hotel_name || "",
           transport_type: editingTransfer.transport_type || "Shared Coach (Sat & Sun)",
           used: editingTransfer.used || "",
@@ -409,15 +437,15 @@ function CircuitTransferTable() {
           days: editingTransfer.days || 1,
           quote_hours: editingTransfer.quote_hours || 8,
           expected_hours: editingTransfer.expected_hours || 12,
-          provider_coach: editingTransfer["provider_(coach)"] || "TBC",
-          cost_per_day_invoice_ccy: editingTransfer["cost_per_day_(invoice_ccy)"] || 0,
-          vat_tax_if_not_included_in_price: editingTransfer["vat/tax_(if_not_included_in_price)"] || "0%",
-          parking_ticket_per_coach_per_day: editingTransfer["parking_ticket_(per_coach_per_day)"] || 0,
+          provider_coach: editingTransfer.provider_coach || "TBC",
+          cost_per_day_invoice_ccy: editingTransfer.cost_per_day_invoice_ccy || 0,
+          vat_tax_if_not_included_in_price: editingTransfer.vat_tax_if_not_included_in_price || "0%",
+          parking_ticket_per_coach_per_day: editingTransfer.parking_ticket_per_coach_per_day || 0,
           currency: editingTransfer.currency || "USD",
-          guide_included_in_coach_cost: editingTransfer["guide_included_in_coach_cost"] || "No",
-          guide_cost_per_day: editingTransfer["guide_cost_per_day"] || 0,
-          vat_tax_if_not_included_in_price_guide: editingTransfer["vat/tax_(if_not_included_in_guide_price)"] || "0%",
-          provider_guides: editingTransfer["provider_(guides)"] || "TBC",
+          guide_included_in_coach_cost: editingTransfer.guide_included_in_coach_cost || "No",
+          guide_cost_per_day: editingTransfer.guide_cost_per_day || 0,
+          vat_tax_if_not_included_in_guide_price: editingTransfer.vat_tax_if_not_included_in_guide_price || "0%",
+          provider_guides: editingTransfer.provider_guides || "TBC",
           utilisation_percent: editingTransfer["utilisation_%"] || "70%",
           markup: editingTransfer.markup || "60%"
         };
@@ -435,15 +463,9 @@ function CircuitTransferTable() {
 
     // Filter hotels when event changes
     useEffect(() => {
-      if (formState.event_name) {
-        const filtered = hotels.filter(hotel => 
-          hotel.event_name === formState.event_name
-        );
-        setFilteredHotels(filtered);
-      } else {
-        setFilteredHotels([]);
-      }
-    }, [formState.event_name, hotels]);
+      // Get all hotels since they're not event-specific anymore
+      setFilteredHotels(hotels);
+    }, [hotels]);
 
     const handleFieldChange = (field, value) => {
       setFormState(prev => ({
@@ -457,12 +479,42 @@ function CircuitTransferTable() {
       try {
         console.log('Form state before submit:', formState);
         
-        // Pass the form state directly to handleSubmit
-        await handleSubmit(formState.circuit_transfer_id, formState);
+        // Find the event ID from the event name
+        const selectedEvent = events.find(e => e.event === formState.event_name);
+        if (!selectedEvent) {
+          throw new Error("Please select an event");
+        }
+
+        // Create the data object with the correct field names
+        const submitData = {
+          event_id: selectedEvent.event_id,
+          package_type: formState.package_type,
+          hotel_id: formState.hotel_id,
+          circuit_transfer_id: formState.circuit_transfer_id || crypto.randomUUID(),
+          transport_type: formState.transport_type,
+          coach_capacity: parseInt(formState.coach_capacity) || 0,
+          days: parseInt(formState.days) || 1,
+          quote_hours: parseInt(formState.quote_hours) || 8,
+          expected_hours: parseInt(formState.expected_hours) || 12,
+          provider_coach: formState.provider_coach || "TBC",
+          cost_per_day_invoice_ccy: parseFloat(formState.cost_per_day_invoice_ccy) || 0,
+          vat_tax_if_not_included_in_price: formState.vat_tax_if_not_included_in_price || "0%",
+          parking_ticket_per_coach_per_day: parseFloat(formState.parking_ticket_per_coach_per_day) || 0,
+          currency: formState.currency || "USD",
+          guide_included_in_coach_cost: formState.guide_included_in_coach_cost || "No",
+          guide_cost_per_day: parseFloat(formState.guide_cost_per_day) || 0,
+          vat_tax_if_not_included_in_guide_price: formState.vat_tax_if_not_included_in_guide_price || "0%",
+          provider_guides: formState.provider_guides || "TBC",
+          "utilisation_%": formState.utilisation_percent || "70%",
+          markup: formState.markup || "60%"
+        };
+
+        console.log('Submitting data:', submitData);
+        await handleSubmit(submitData);
         onCancel();
       } catch (error) {
         console.error("Error submitting form:", error);
-        toast.error(error.response?.data?.error || "Failed to submit form");
+        toast.error(error.message || "Failed to submit form");
       }
     };
 
@@ -531,22 +583,49 @@ function CircuitTransferTable() {
 
             <div>
               <label className="text-xs font-medium">Hotel</label>
-              <Select
-                value={formState.hotel_id}
-                onValueChange={(value) => handleFieldChange('hotel_id', value)}
-                disabled={!formState.event_name}
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder={formState.event_name ? "Select hotel" : "Select event first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredHotels.map((hotel) => (
-                    <SelectItem key={hotel.hotel_id} value={hotel.hotel_id}>
-                      {hotel.hotel_name} ({hotel.stars}★)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className={cn(
+                      "w-full justify-between h-8",
+                      !formState.hotel_id && "text-muted-foreground"
+                    )}
+                  >
+                    {formState.hotel_id
+                      ? hotels.find((hotel) => hotel.hotel_id === formState.hotel_id)?.hotel_name
+                      : "Select hotel"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Search hotel..." />
+                    <CommandEmpty>No hotel found.</CommandEmpty>
+                    <CommandGroup>
+                      {hotels.map((hotel) => (
+                        <CommandItem
+                          key={hotel.hotel_id}
+                          value={hotel.hotel_name}
+                          onSelect={() => {
+                            handleFieldChange('hotel_id', hotel.hotel_id);
+                            handleFieldChange('hotel_name', hotel.hotel_name);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formState.hotel_id === hotel.hotel_id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {hotel.hotel_name} ({hotel.stars}★)
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
@@ -1190,7 +1269,10 @@ function CircuitTransferTable() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDeleteTransfer(transfer.circuit_transfer_id)}
+                      onClick={() => {
+                        setTransferToDelete(transfer);
+                        setShowDeleteDialog(true);
+                      }}
                       className="h-7 w-7"
                     >
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -1314,6 +1396,46 @@ function CircuitTransferTable() {
                 </>
               ) : (
                 "Delete Selected"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Circuit Transfer</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this circuit transfer? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setTransferToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => handleDeleteTransfer(transferToDelete?.circuit_transfer_id)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
               )}
             </Button>
           </div>

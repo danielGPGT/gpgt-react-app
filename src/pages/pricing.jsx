@@ -31,8 +31,9 @@ const currencySymbols = {
 };
 
 function PricingSheet() {
-  const [numberOfAdults, setNumberOfAdults] = useState(2);
-  const [totalPrice, setTotalPrice] = useState(0);
+  const [numberOfAdults, setNumberOfAdults] = useState(1);
+  const [internalTotalPrice, setInternalTotalPrice] = useState(0);
+  const [externalTotalPrice, setExternalTotalPrice] = useState(0);
   const [role, setRole] = useState(""); // Track user role
   const [salesTeam, setSalesTeam] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -50,7 +51,7 @@ function PricingSheet() {
     to: null,
   });
   const [originalNights, setOriginalNights] = useState(0);
-  const [selectedCurrency, setSelectedCurrency] = useState("GBP"); // Add currency state
+  const [selectedCurrency, setSelectedCurrency] = useState("GBP");
   const [salesTeams, setSalesTeams] = useState([]);
   const [selectedCircuitTransfer, setSelectedCircuitTransfer] = useState(null);
   const [selectedAirportTransfer, setSelectedAirportTransfer] = useState(null);
@@ -245,7 +246,7 @@ function PricingSheet() {
   const handleBookingSubmit = async (formData) => {
     try {
       // Calculate payment amounts (assuming 3 equal payments)
-      const paymentAmount = totalPrice / 3;
+      const paymentAmount = internalTotalPrice / 3;
 
       // Format dates for the API
       const formatDate = (date) => {
@@ -372,8 +373,8 @@ function PricingSheet() {
                 <InternalPricing
                   numberOfAdults={numberOfAdults}
                   setNumberOfAdults={setNumberOfAdults}
-                  totalPrice={totalPrice}
-                  setTotalPrice={setTotalPrice}
+                  totalPrice={internalTotalPrice}
+                  setTotalPrice={setInternalTotalPrice}
                   selectedCurrency={selectedCurrency}
                   setSelectedCurrency={setSelectedCurrency}
                   createFlightBooking={createFlightBooking}
@@ -425,7 +426,7 @@ function PricingSheet() {
                 />
                 <BookingForm
                   numberOfAdults={numberOfAdults}
-                  totalPrice={totalPrice}
+                  totalPrice={internalTotalPrice}
                   selectedCurrency={selectedCurrency}
                   dateRange={dateRange}
                   onSubmit={handleBookingSubmit}
@@ -468,8 +469,8 @@ function PricingSheet() {
                       <InternalPricing
                         numberOfAdults={numberOfAdults}
                         setNumberOfAdults={setNumberOfAdults}
-                        totalPrice={totalPrice}
-                        setTotalPrice={setTotalPrice}
+                        totalPrice={internalTotalPrice}
+                        setTotalPrice={setInternalTotalPrice}
                         selectedCurrency={selectedCurrency}
                         setSelectedCurrency={setSelectedCurrency}
                         selectedEvent={selectedEvent}
@@ -521,7 +522,7 @@ function PricingSheet() {
                       />
                       <BookingForm
                         numberOfAdults={numberOfAdults}
-                        totalPrice={totalPrice}
+                        totalPrice={internalTotalPrice}
                         selectedCurrency={selectedCurrency}
                         dateRange={dateRange}
                         onSubmit={handleBookingSubmit}
@@ -555,8 +556,8 @@ function PricingSheet() {
                       <ExternalPricing
                         numberOfAdults={numberOfAdults}
                         setNumberOfAdults={setNumberOfAdults}
-                        totalPrice={totalPrice}
-                        setTotalPrice={setTotalPrice}
+                        totalPrice={externalTotalPrice}
+                        setTotalPrice={setExternalTotalPrice}
                         setSalesTeam={setSalesTeams}
                         selectedEvent={selectedEvent}
                         setSelectedEvent={setSelectedEvent}
@@ -657,7 +658,7 @@ function PricingSheet() {
                                   <p className="text-sm text-muted-foreground">Total Price</p>
                                   <h2 className="text-xl font-bold text-foreground">
                                     {currencySymbols[selectedCurrency]}
-                                    {Number(totalPrice).toFixed(0)}
+                                    {Number(externalTotalPrice).toFixed(0)}
                                   </h2>
                                 </div>
                                 <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
@@ -803,7 +804,7 @@ function PricingSheet() {
                                     </SelectContent>
                                   </Select>
                                   <span className="font-medium">
-                                    {currencySymbols[selectedCurrency]}{Math.round(totalPrice).toLocaleString()}
+                                    {currencySymbols[selectedCurrency]}{Math.round(externalTotalPrice).toLocaleString()}
                                   </span>
                                 </div>
                               </div>
@@ -818,7 +819,7 @@ function PricingSheet() {
                           <ScrollArea className="h-[600px] pr-4">
                             <RequestBooking
                               numberOfAdults={numberOfAdults}
-                              totalPrice={totalPrice}
+                              totalPrice={externalTotalPrice}
                               salesTeam={salesTeams[0]}
                               selectedEvent={selectedEvent}
                               selectedPackage={selectedPackage}
@@ -851,8 +852,8 @@ function PricingSheet() {
                 <ExternalPricing
                   numberOfAdults={numberOfAdults}
                   setNumberOfAdults={setNumberOfAdults}
-                  totalPrice={totalPrice}
-                  setTotalPrice={setTotalPrice}
+                  totalPrice={externalTotalPrice}
+                  setTotalPrice={setExternalTotalPrice}
                   setSalesTeam={setSalesTeams}
                   selectedEvent={selectedEvent}
                   setSelectedEvent={setSelectedEvent}
@@ -953,7 +954,7 @@ function PricingSheet() {
                             <p className="text-sm text-muted-foreground">Total Price</p>
                             <h2 className="text-xl font-bold text-foreground">
                               {currencySymbols[selectedCurrency]}
-                              {Number(totalPrice).toFixed(0)}
+                              {Number(externalTotalPrice).toFixed(0)}
                             </h2>
                           </div>
                           <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
@@ -1092,7 +1093,7 @@ function PricingSheet() {
                                 </SelectContent>
                               </Select>
                               <span className="font-medium">
-                                {currencySymbols[selectedCurrency]}{Math.round(totalPrice).toLocaleString()}
+                                {currencySymbols[selectedCurrency]}{Math.round(externalTotalPrice).toLocaleString()}
                               </span>
                             </div>
                           </div>
@@ -1107,7 +1108,7 @@ function PricingSheet() {
                       <ScrollArea className="h-[600px] pr-4">
                         <RequestBooking
                           numberOfAdults={numberOfAdults}
-                          totalPrice={totalPrice}
+                          totalPrice={externalTotalPrice}
                           salesTeam={salesTeams[0]}
                           selectedEvent={selectedEvent}
                           selectedPackage={selectedPackage}

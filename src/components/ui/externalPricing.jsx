@@ -63,6 +63,7 @@ import {
 import { jwtDecode } from "jwt-decode";
 import { X } from "lucide-react";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
+import PropTypes from "prop-types";
 
 function ExternalPricing({
   numberOfAdults,
@@ -102,9 +103,11 @@ function ExternalPricing({
   setDateRange,
   selectedCurrency,
   setSelectedCurrency,
+  flightQuantity,
+  setFlightQuantity,
 }) {
   const { theme } = useTheme();
-  const [selectedSport, setSelectedSport] = useState("");
+  const [selectedSport, setSelectedSport] = useState("all");
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [sports, setSports] = useState([]);
 
@@ -141,15 +144,16 @@ function ExternalPricing({
   const [salesTeams, setSalesTeams] = useState([]);
   const [loadingSalesTeams, setLoadingSalesTeams] = useState(false);
 
-  const [originalNights, setOriginalNights] = useState(0);
   const [exchangeRate, setExchangeRate] = useState(1);
-  const [spread, setSpread] = useState(0); // Will be set from /fx-spread
+  const [spread, setSpread] = useState(0);
+  const [originalNights, setOriginalNights] = useState(0);
+  const [b2bCommission, setB2bCommission] = useState(0);
+
+  const [transferDirection, setTransferDirection] = useState("both");
 
   const [packageTiers, setPackageTiers] = useState([]);
   const [loadingTiers, setLoadingTiers] = useState(false);
   const [selectedTier, setSelectedTier] = useState(null);
-
-  const [b2bCommission, setB2bCommission] = useState(0.1); // default 10%
 
   const minNights = selectedRoom?.nights || 1;
 
@@ -166,6 +170,29 @@ function ExternalPricing({
   const [selectedLocation, setSelectedLocation] = useState("none");
 
   const [carouselIndex, setCarouselIndex] = useState(0);
+
+  // Initialize quantities if not provided
+  const [localRoomQuantity, setLocalRoomQuantity] = useState(roomQuantity || 1);
+  const [localTicketQuantity, setLocalTicketQuantity] = useState(ticketQuantity || 0);
+  const [localLoungePassQuantity, setLocalLoungePassQuantity] = useState(loungePassQuantity || 0);
+  const [localCircuitTransferQuantity, setLocalCircuitTransferQuantity] = useState(circuitTransferQuantity || 0);
+  const [localAirportTransferQuantity, setLocalAirportTransferQuantity] = useState(airportTransferQuantity || 0);
+  const [localFlightQuantity, setLocalFlightQuantity] = useState(flightQuantity || 0);
+
+  // Use props if available, otherwise use local state
+  const effectiveRoomQuantity = roomQuantity ?? localRoomQuantity;
+  const effectiveTicketQuantity = ticketQuantity ?? localTicketQuantity;
+  const effectiveLoungePassQuantity = loungePassQuantity ?? localLoungePassQuantity;
+  const effectiveCircuitTransferQuantity = circuitTransferQuantity ?? localCircuitTransferQuantity;
+  const effectiveAirportTransferQuantity = airportTransferQuantity ?? localAirportTransferQuantity;
+  const effectiveFlightQuantity = flightQuantity ?? localFlightQuantity;
+
+  const setEffectiveRoomQuantity = setRoomQuantity ?? setLocalRoomQuantity;
+  const setEffectiveTicketQuantity = setTicketQuantity ?? setLocalTicketQuantity;
+  const setEffectiveLoungePassQuantity = setLoungePassQuantity ?? setLocalLoungePassQuantity;
+  const setEffectiveCircuitTransferQuantity = setCircuitTransferQuantity ?? setLocalCircuitTransferQuantity;
+  const setEffectiveAirportTransferQuantity = setAirportTransferQuantity ?? setLocalAirportTransferQuantity;
+  const setEffectiveFlightQuantity = setFlightQuantity ?? setLocalFlightQuantity;
 
   async function fetchExchangeRate(base = "GBP", target = "USD") {
     const res = await fetch(
@@ -219,6 +246,24 @@ function ExternalPricing({
     }
   }, [selectedSport, events]);
 
+  // Fetch B2B commission
+  useEffect(() => {
+    const fetchB2bCommission = async () => {
+      try {
+        const res = await api.get('/b2b-commission');
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          const commissionStr = res.data[0].b2b_commision;
+          const commissionValue = parseFloat(commissionStr.replace('%', '')) / 100;
+          setB2bCommission(commissionValue);
+        }
+      } catch (error) {
+        console.error('Failed to fetch B2B commission:', error);
+        setB2bCommission(0.1); // Default to 10% if fetch fails
+      }
+    };
+    fetchB2bCommission();
+  }, []);
+
   useEffect(() => {
     let total = 0;
 
@@ -238,9 +283,9 @@ function ExternalPricing({
       const needed = Math.ceil(
         numberOfAdults / (selectedAirportTransfer.max_capacity || 1)
       );
-      total += needed * Number(selectedAirportTransfer.price);
+      total += Number(selectedAirportTransfer.price) * needed;
     }
-    if (selectedFlight) total += Number(selectedFlight.price) * numberOfAdults;
+    if (selectedFlight) total += Number(selectedFlight.price) * flightQuantity;
     if (selectedLoungePass)
       total += Number(selectedLoungePass.price) * loungePassQuantity;
 
@@ -249,26 +294,28 @@ function ExternalPricing({
       return;
     }
 
-    // 🔥 Round first, THEN apply 1.1 multiplier
+    // First round to nearest 100 and subtract 2 (exactly like internal pricing)
     const rounded = Math.ceil(total / 100) * 100 - 2;
-    console.log("b2bCommission:", b2bCommission);
-    const finalTotal = rounded * (1 + b2bCommission);
-    //const finalRounded = Math.ceil(finalTotal / 100) * 100 - 2;
-    setTotalPrice(finalTotal * exchangeRate);
-    //setTotalPrice(finalRounded * exchangeRate);
+
+    // Then apply B2B commission
+    const withCommission = rounded * (1 + b2bCommission);
+
+    // Finally apply exchange rate
+    setTotalPrice(withCommission * exchangeRate);
   }, [
     selectedRoom,
+    dateRange,
+    originalNights,
+    roomQuantity,
     selectedTicket,
+    ticketQuantity,
     selectedCircuitTransfer,
     selectedAirportTransfer,
-    selectedFlight,
-    selectedLoungePass,
-    dateRange,
-    roomQuantity,
-    ticketQuantity,
     numberOfAdults,
+    selectedFlight,
+    flightQuantity,
+    selectedLoungePass,
     loungePassQuantity,
-    originalNights,
     exchangeRate,
     b2bCommission,
   ]);
@@ -280,7 +327,7 @@ function ExternalPricing({
         return;
       }
       const rate = await fetchExchangeRate("GBP", selectedCurrency);
-      const adjustedRate = rate + spread; // Use spread as absolute value
+      const adjustedRate = rate + spread;
       setExchangeRate(adjustedRate);
     }
 
@@ -467,9 +514,10 @@ function ExternalPricing({
       setLoadingTiers(true);
 
       // First get rooms for this package
-      const roomsRes = await api.get("/stock-rooms", {
+      const roomsRes = await api.get("/rooms", {
         params: { packageId },
       });
+      console.log('Rooms API Response:', roomsRes.data);
 
       // Extract unique hotel IDs from rooms
       const uniqueHotelIds = [...new Set(roomsRes.data.map(room => room.hotel_id))];
@@ -478,26 +526,25 @@ function ExternalPricing({
       const hotelsRes = await api.get("/hotels", {
         params: { hotelIds: uniqueHotelIds.join(',') },
       });
+      console.log('Hotels API Response:', hotelsRes.data);
 
       // Get other data in parallel
-      const [
-        ticketsRes,
-        flightsRes,
-        loungePassesRes,
-        circuitTransfersRes,
-        airportTransfersRes,
-        tiersRes
-      ] = await Promise.all([
-        api.get("/stock-tickets", { params: { packageId } }),
-        api.get("/stock-flights", { params: { packageId } }),
-        api.get("/stock-lounge-passes", { params: { packageId } }),
-        api.get("/stock-circuit-transfers", { params: { packageId } }),
-        api.get("/stock-airport-transfers", { params: { packageId } }),
+      const [ticketsRes, flightsRes, loungePassesRes, circuitTransfersRes, airportTransfersRes, tiersRes] = await Promise.all([
+        api.get("/tickets", { params: { packageId } }),
+        api.get("/flights", { params: { packageId } }),
+        api.get("/lounge-passes", { params: { packageId } }),
+        api.get("/circuit-transfers", { params: { packageId } }),
+        api.get("/airport-transfers", { params: { packageId } }),
         api.get("/package-tiers", { params: { packageId } })
       ]);
 
-      const packageData = packages.find((p) => p.package_id === packageId);
-      setSelectedPackage(packageData);
+      console.log('Tickets API Response:', ticketsRes.data);
+      console.log('Flights API Response:', flightsRes.data);
+      console.log('Lounge Passes API Response:', loungePassesRes.data);
+      console.log('Circuit Transfers API Response:', circuitTransfersRes.data);
+      console.log('Airport Transfers API Response:', airportTransfersRes.data);
+      console.log('Package Tiers API Response:', tiersRes.data);
+
       setRooms(roomsRes.data);
       setHotels(hotelsRes.data);
       setTickets(ticketsRes.data);
@@ -506,6 +553,9 @@ function ExternalPricing({
       setCircuitTransfers(circuitTransfersRes.data);
       setAirportTransfers(airportTransfersRes.data);
       setPackageTiers(tiersRes.data);
+
+      const foundPackage = packages.find((p) => p.package_id === packageId);
+      setSelectedPackage(foundPackage);
     } catch (error) {
       console.error("Failed to fetch package data:", error);
       toast.error("Failed to load package data. Please try again.");
@@ -715,7 +765,7 @@ function ExternalPricing({
                 );
                 if (circuitTransfer) {
                   setSelectedCircuitTransfer(circuitTransfer);
-                  setCircuitTransferQuantity(ticketQuantity);
+                  setCircuitTransferQuantity(effectiveTicketQuantity);
                 }
               }
 
@@ -772,22 +822,25 @@ function ExternalPricing({
 
       if (hotel) {
         // Get rooms for this hotel that match the selected package
-        const roomsRes = await api.get("/stock-rooms", {
+        const roomsRes = await api.get("/rooms", {
           params: { 
             hotelId: hotel.hotel_id,
             packageId: selectedPackage?.package_id 
           },
         });
+        console.log('Hotel Rooms API Response:', roomsRes.data);
 
         // Get transfers
         const [circuitRes, airportRes] = await Promise.all([
-          api.get("/stock-circuit-transfers", {
+          api.get("/circuit-transfers", {
             params: { hotelId: hotel.hotel_id },
           }),
-          api.get("/stock-airport-transfers", {
+          api.get("/airport-transfers", {
             params: { hotelId: hotel.hotel_id },
           }),
         ]);
+        console.log('Hotel Circuit Transfers API Response:', circuitRes.data);
+        console.log('Hotel Airport Transfers API Response:', airportRes.data);
 
         setRooms(roomsRes.data);
         setCircuitTransfers(circuitRes.data);
@@ -814,6 +867,7 @@ function ExternalPricing({
     try {
       setLoadingRooms(true);
       const room = rooms.find((r) => r.room_id === roomId);
+      console.log('Selected Room Full Data:', JSON.stringify(room, null, 2));
       if (room) {
         setSelectedRoom(room);
         // Set date range from room's check-in and check-out dates
@@ -841,9 +895,8 @@ function ExternalPricing({
     }
 
     const foundTicket = tickets.find((ticket) => ticket.ticket_id === ticketId);
+    console.log('Selected Ticket Data:', foundTicket);
     if (foundTicket) {
-      console.log('Selected Ticket:', foundTicket);
-      
       try {
         // Fetch category using category_id
         const categoryRes = await api.get("/categories", {
@@ -851,14 +904,11 @@ function ExternalPricing({
             categoryId: foundTicket.category_id
           }
         });
-        
-        console.log('Category Response:', categoryRes.data);
+        console.log('Ticket Category API Response:', categoryRes.data);
         
         if (categoryRes.data && categoryRes.data.length > 0) {
-          // Find the correct category by category_id
           const matchedCategory = categoryRes.data.find(cat => cat.category_id === foundTicket.category_id);
           if (matchedCategory) {
-            console.log('Found Category:', matchedCategory);
             const ticketWithCategory = {
               ...foundTicket,
               category: {
@@ -877,14 +927,14 @@ function ExternalPricing({
             setSelectedTicket(ticketWithCategory);
             setTicketQuantity(numberOfAdults);
             if (selectedCircuitTransfer) {
-              setCircuitTransferQuantity(numberOfAdults);
+              setCircuitTransferQuantity(effectiveTicketQuantity);
             }
           } else {
             console.warn('No matching category found for ticket:', foundTicket);
             setSelectedTicket(foundTicket);
             setTicketQuantity(numberOfAdults);
             if (selectedCircuitTransfer) {
-              setCircuitTransferQuantity(numberOfAdults);
+              setCircuitTransferQuantity(effectiveTicketQuantity);
             }
           }
         } else {
@@ -892,16 +942,15 @@ function ExternalPricing({
           setSelectedTicket(foundTicket);
           setTicketQuantity(numberOfAdults);
           if (selectedCircuitTransfer) {
-            setCircuitTransferQuantity(numberOfAdults);
+            setCircuitTransferQuantity(effectiveTicketQuantity);
           }
         }
       } catch (error) {
         console.error('Failed to fetch category:', error);
-        // Still set the ticket even if category fetch fails
         setSelectedTicket(foundTicket);
         setTicketQuantity(numberOfAdults);
         if (selectedCircuitTransfer) {
-          setCircuitTransferQuantity(numberOfAdults);
+          setCircuitTransferQuantity(effectiveTicketQuantity);
         }
       }
     }
@@ -913,11 +962,13 @@ function ExternalPricing({
       setCircuitTransferQuantity(0);
       return;
     }
-    const found = circuitTransfers.find(
-      (t) => t.circuit_transfer_id === transferId
+
+    const foundTransfer = circuitTransfers.find(
+      (transfer) => transfer.circuit_transfer_id === transferId
     );
-    setSelectedCircuitTransfer(found);
-    setCircuitTransferQuantity(ticketQuantity);
+    console.log('Selected Circuit Transfer Full Data:', JSON.stringify(foundTransfer, null, 2));
+    setSelectedCircuitTransfer(foundTransfer);
+    setCircuitTransferQuantity(effectiveTicketQuantity);
   };
 
   const handleAirportTransferSelect = (transferId) => {
@@ -926,28 +977,201 @@ function ExternalPricing({
       setAirportTransferQuantity(0);
       return;
     }
-    const found = airportTransfers.find(
-      (t) => t.airport_transfer_id === transferId
+
+    const foundTransfer = airportTransfers.find(
+      (transfer) => transfer.airport_transfer_id === transferId
     );
-    setSelectedAirportTransfer(found);
-    const needed = Math.ceil(numberOfAdults / (found.max_capacity || 1));
+    console.log('Selected Airport Transfer Full Data:', JSON.stringify(foundTransfer, null, 2));
+    setSelectedAirportTransfer(foundTransfer);
+    const needed = Math.ceil(
+      numberOfAdults / (foundTransfer.max_capacity || 1)
+    );
     setAirportTransferQuantity(needed);
   };
 
-  // Add effect to update circuit transfer quantity when ticket quantity changes
+  // Update circuit transfer quantity when ticket quantity changes
   useEffect(() => {
     if (selectedCircuitTransfer) {
-      setCircuitTransferQuantity(ticketQuantity);
+      setCircuitTransferQuantity(effectiveTicketQuantity);
     }
-  }, [ticketQuantity, selectedCircuitTransfer]);
+  }, [effectiveTicketQuantity, selectedCircuitTransfer]);
 
-  // Add effect to update airport transfer quantity when number of adults changes
+  // Update flight quantity when number of adults changes
   useEffect(() => {
-    if (selectedAirportTransfer) {
-      const needed = Math.ceil(numberOfAdults / (selectedAirportTransfer.max_capacity || 1));
-      setAirportTransferQuantity(needed);
+    if (selectedFlight) {
+      setEffectiveFlightQuantity(numberOfAdults);
     }
-  }, [numberOfAdults, selectedAirportTransfer]);
+  }, [numberOfAdults, selectedFlight]);
+
+  // Update the flight display in the UI
+  const renderFlightInfo = (flight) => {
+    if (!flight) return null;
+    
+    const formatFlightTime = (flightTime) => {
+      // Handle different date formats in the flight times
+      const parts = flightTime.split(' ');
+      const date = parts[0];
+      const time = parts[1];
+      const destination = parts[2];
+      const arrivalDate = parts[3];
+      const flightNumber = parts[4] ? `(${parts[4]})` : '';
+      
+      return `${date} ${time} ${destination} ${arrivalDate} ${flightNumber}`;
+    };
+
+    return (
+      <div className="text-xs space-y-1 pt-1">
+        <p className="text-foreground">Outbound: {formatFlightTime(flight.outbound_flight)}</p>
+        <p className="text-foreground">Inbound: {formatFlightTime(flight.inbound_flight)}</p>
+        <p className="text-foreground">
+          Total Price: {currencySymbols[selectedCurrency]}
+          {flight.unit_cost_local * effectiveFlightQuantity}
+        </p>
+      </div>
+    );
+  };
+
+  // Update the flight dialog content
+  const renderFlightDialog = () => (
+    <AlertDialog open={showFlightDialog} onOpenChange={setShowFlightDialog}>
+      <AlertDialogContent className="max-w-3xl">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-4 top-4"
+          onClick={() => setShowFlightDialog(false)}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Select Flight</AlertDialogTitle>
+          <AlertDialogDescription>
+            Choose your departure location and select a flight
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="space-y-4">
+          <Combobox
+            options={[
+              { value: "none", label: "No Flight" },
+              { value: "all", label: "All Locations" },
+              ...[...new Set(flights.map((f) => f.from_location))].map((location) => ({
+                value: location,
+                label: location,
+              })),
+            ]}
+            value={selectedLocation}
+            onChange={(value) => {
+              setSelectedLocation(value);
+              if (value === "none") {
+                setSelectedFlight(null);
+                setEffectiveFlightQuantity(0);
+                setShowFlightDialog(false);
+              }
+            }}
+            placeholder="Select departure location"
+          />
+
+          <ScrollArea className="h-[400px]">
+            <div className="space-y-2">
+              {selectedLocation === "none"
+                ? null
+                : flights
+                    .filter(
+                      (flight) =>
+                        !selectedLocation ||
+                        selectedLocation === "all" ||
+                        flight.from_location === selectedLocation
+                    )
+                    .map((flight) => (
+                      <div
+                        key={flight.flight_id}
+                        className={`p-3 border rounded-md cursor-pointer hover:bg-accent ${
+                          selectedFlight?.flight_id === flight.flight_id ? "bg-accent" : ""
+                        }`}
+                        onClick={() => {
+                          setSelectedFlight(flight);
+                          setEffectiveFlightQuantity(numberOfAdults);
+                          setShowFlightDialog(false);
+                        }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <p className="font-medium">
+                              {flight.airline} • {flight.class}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              From: {flight.from_location}
+                            </p>
+                            <div className="text-sm space-y-1">
+                              <p>Outbound: {flight.outbound_flight}</p>
+                              <p>Inbound: {flight.inbound_flight}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">
+                              {currencySymbols[selectedCurrency]}
+                              {flight.unit_cost_local * numberOfAdults}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {currencySymbols[selectedCurrency]}
+                              {flight.unit_cost_local} per person
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+            </div>
+          </ScrollArea>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  // Update the flight section in the main component
+  const renderFlightSection = () => (
+    <div className="p-2 border rounded-md space-y-1 bg-card">
+      <h2 className="text-xs font-semibold text-foreground">Flight</h2>
+      {loadingFlights ? (
+        <div className="text-xs text-muted-foreground">Loading flights...</div>
+      ) : (
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            className="w-full h-auto p-2 relative group hover:border-primary transition-colors text-left flex justify-start"
+            onClick={() => setShowFlightDialog(true)}
+          >
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors">
+              <Plane className="h-4 w-4 text-primary" />
+            </div>
+            {selectedFlight ? (
+              <div className="flex flex-col items-start gap-1 pr-8">
+                <span className="text-sm font-medium">
+                  {selectedFlight.airline} • {selectedFlight.class}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {selectedFlight.from_location}
+                </span>
+              </div>
+            ) : selectedLocation === "none" ? (
+              <div className="flex flex-col items-start gap-1 pr-8">
+                <span className="text-sm font-medium">No Flights Selected</span>
+                <span className="text-xs text-muted-foreground">Click to change selection</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-start gap-1 pr-8">
+                <span className="text-sm font-medium">Select Flight</span>
+                <span className="text-xs text-muted-foreground">Choose from available flights</span>
+              </div>
+            )}
+          </Button>
+
+          {renderFlightDialog()}
+          {selectedFlight && renderFlightInfo(selectedFlight)}
+        </div>
+      )}
+    </div>
+  );
 
   if (loadingEvents) {
     return <div className="p-8">Loading events...</div>;
@@ -1309,8 +1533,8 @@ function ExternalPricing({
                     </p>
                   </div>
                   <QuantitySelector
-                    value={roomQuantity}
-                    onChange={setRoomQuantity}
+                    value={effectiveRoomQuantity}
+                    onChange={setEffectiveRoomQuantity}
                     min={1}
                     max={parseInt(selectedRoom.remaining) || 10}
                   />
@@ -1519,8 +1743,8 @@ function ExternalPricing({
               </div>
 
               <QuantitySelector
-                value={ticketQuantity}
-                onChange={setTicketQuantity}
+                value={effectiveTicketQuantity}
+                onChange={setEffectiveTicketQuantity}
                 min={1}
                 max={parseInt(selectedTicket.remaining) || 100}
               />
@@ -1632,174 +1856,7 @@ function ExternalPricing({
       )}
 
       {/* Flights */}
-      {selectedEvent && (
-        <div className="p-3 border rounded-md space-y-2 bg-card">
-          <h2 className="text-xs font-semibold text-foreground">Flight</h2>
-          {loadingFlights ? (
-            <div className="text-xs text-muted-foreground">
-              Loading flights...
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <Button
-                variant="outline"
-                className="w-full h-auto p-4 relative group hover:border-primary transition-colors text-left flex justify-start"
-                onClick={() => setShowFlightDialog(true)}
-              >
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors">
-                  <Plane className="h-5 w-5" />
-                </div>
-                {selectedFlight ? (
-                  <div className="flex flex-col items-start gap-1 pr-10">
-                    <span className="text-sm font-medium">
-                      {selectedFlight.airline} • {selectedFlight.class}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {selectedFlight.outbound_flight.split(" ")[0]} -{" "}
-                      {selectedFlight.inbound_flight.split(" ")[0]}
-                    </span>
-                  </div>
-                ) : selectedLocation === "none" ? (
-                  <div className="flex flex-col items-start gap-1 pr-10">
-                    <span className="text-sm font-medium">
-                      No Flights Selected
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Click to change selection
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-start gap-1 pr-10">
-                    <span className="text-sm font-medium">Select Flight</span>
-                    <span className="text-xs text-muted-foreground">
-                      Choose from available flights
-                    </span>
-                  </div>
-                )}
-              </Button>
-
-              <AlertDialog
-                open={showFlightDialog}
-                onOpenChange={setShowFlightDialog}
-              >
-                <AlertDialogContent className="max-w-3xl">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-4 top-4"
-                    onClick={() => setShowFlightDialog(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Select Flight</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Choose your departure location and select a flight
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-
-                  <div className="space-y-4">
-                    <Combobox
-                      options={[
-                        { value: "none", label: "No Flight" },
-                        { value: "all", label: "All Locations" },
-                        ...[
-                          ...new Set(flights.map((f) => f.from_location)),
-                        ].map((location) => ({
-                          value: location,
-                          label: location,
-                        })),
-                      ]}
-                      value={selectedLocation}
-                      onChange={(value) => {
-                        setSelectedLocation(value);
-                        if (value === "none") {
-                          setSelectedFlight(null);
-                          setFlightQuantity(0);
-                          setShowFlightDialog(false);
-                        }
-                      }}
-                      placeholder="Select departure location"
-                    />
-
-                    <ScrollArea className="h-[400px]">
-                      <div className="space-y-2">
-                        {selectedLocation === "none"
-                          ? null
-                          : flights
-                              .filter(
-                                (flight) =>
-                                  !selectedLocation ||
-                                  selectedLocation === "all" ||
-                                  flight.from_location === selectedLocation
-                              )
-                              .map((flight) => (
-                                <div
-                                  key={flight.flight_id}
-                                  className={`p-4 border rounded-md cursor-pointer hover:bg-accent ${
-                                    selectedFlight?.flight_id ===
-                                    flight.flight_id
-                                      ? "bg-accent"
-                                      : ""
-                                  }`}
-                                  onClick={() => {
-                                    setSelectedFlight(flight);
-                                    setFlightQuantity(numberOfAdults);
-                                    setShowFlightDialog(false);
-                                  }}
-                                >
-                                  <div className="flex justify-between items-start">
-                                    <div className="space-y-1">
-                                      <p className="font-medium">
-                                        {flight.airline} • {flight.class}
-                                      </p>
-                                      <p className="text-sm text-muted-foreground">
-                                        From: {flight.from_location}
-                                      </p>
-                                      <div className="text-sm space-y-1">
-                                        <p>
-                                          Outbound: {flight.outbound_flight}
-                                        </p>
-                                        <p>Inbound: {flight.inbound_flight}</p>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="font-medium">
-                                        {currencySymbols[selectedCurrency]}
-                                        {flight.price * numberOfAdults}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {currencySymbols[selectedCurrency]}
-                                        {flight.price} per person
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-
-          {selectedFlight && (
-            <div className="text-xs space-y-1 pt-1">
-              <p className="text-foreground">
-                Outbound: {selectedFlight.outbound_flight}
-              </p>
-              <p className="text-foreground">
-                Inbound: {selectedFlight.inbound_flight}
-              </p>
-              <p className="text-foreground">
-                Total Price: {currencySymbols[selectedCurrency]}
-                {selectedFlight.price * numberOfAdults}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+      {selectedEvent && renderFlightSection()}
 
       {/* Lounge Pass */}
       {selectedEvent && (
@@ -1837,8 +1894,8 @@ function ExternalPricing({
             <div className="flex items-center justify-between pt-1 text-xs">
               <span className="text-foreground">Quantity:</span>
               <QuantitySelector
-                value={loungePassQuantity}
-                onChange={setLoungePassQuantity}
+                value={effectiveLoungePassQuantity}
+                onChange={setEffectiveLoungePassQuantity}
                 min={1}
                 max={10}
               />
@@ -1847,8 +1904,110 @@ function ExternalPricing({
         </div>
       )}
 
+      {/* Total Price Section */}
+      <div className="flex items-center justify-between border-b pb-3">
+        <div>
+          <p className="text-sm text-muted-foreground">Total Price</p>
+          <h2 className="text-xl font-bold text-foreground">
+            {currencySymbols[selectedCurrency]}
+            {Number(totalPrice || 0).toFixed(0)}
+          </h2>
+        </div>
+        <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+          <SelectTrigger className="w-20 h-8 text-xs bg-background">
+            <SelectValue placeholder="Select currency" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableCurrencies.map((curr) => (
+              <SelectItem key={curr} value={curr}>
+                {curr}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* More Info Section */}
+      {(selectedEvent || selectedPackage) && (
+        <div className="mt-4 p-4 border rounded-md bg-card space-y-4">
+          <h3 className="text-sm font-semibold text-foreground">More Information</h3>
+          
+          {selectedEvent && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-foreground">Event Consultant</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <p className="text-muted-foreground">Name:</p>
+                <p className="text-foreground">{selectedEvent.consultant_name || 'Not specified'}</p>
+                <p className="text-muted-foreground">Phone:</p>
+                <p className="text-foreground">{selectedEvent.consultant_phone || 'Not specified'}</p>
+                <p className="text-muted-foreground">Email:</p>
+                <p className="text-foreground">{selectedEvent.consultant_email || 'Not specified'}</p>
+              </div>
+            </div>
+          )}
+
+          {selectedPackage && selectedPackage.url && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-foreground">Package Details</h4>
+              <div className="text-xs">
+                <p className="text-muted-foreground mb-1">More Information:</p>
+                <a 
+                  href={selectedPackage.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  View Package Details
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
+ExternalPricing.propTypes = {
+  numberOfAdults: PropTypes.number,
+  setNumberOfAdults: PropTypes.func,
+  totalPrice: PropTypes.number,
+  setTotalPrice: PropTypes.func,
+  setSalesTeam: PropTypes.func,
+  selectedEvent: PropTypes.object,
+  setSelectedEvent: PropTypes.func,
+  selectedPackage: PropTypes.object,
+  setSelectedPackage: PropTypes.func,
+  selectedHotel: PropTypes.object,
+  setSelectedHotel: PropTypes.func,
+  selectedRoom: PropTypes.object,
+  setSelectedRoom: PropTypes.func,
+  selectedTicket: PropTypes.object,
+  setSelectedTicket: PropTypes.func,
+  selectedFlight: PropTypes.object,
+  setSelectedFlight: PropTypes.func,
+  selectedLoungePass: PropTypes.object,
+  setSelectedLoungePass: PropTypes.func,
+  selectedCircuitTransfer: PropTypes.object,
+  setSelectedCircuitTransfer: PropTypes.func,
+  selectedAirportTransfer: PropTypes.object,
+  setSelectedAirportTransfer: PropTypes.func,
+  circuitTransferQuantity: PropTypes.number,
+  setCircuitTransferQuantity: PropTypes.func,
+  airportTransferQuantity: PropTypes.number,
+  setAirportTransferQuantity: PropTypes.func,
+  roomQuantity: PropTypes.number,
+  setRoomQuantity: PropTypes.func,
+  ticketQuantity: PropTypes.number,
+  setTicketQuantity: PropTypes.func,
+  loungePassQuantity: PropTypes.number,
+  setLoungePassQuantity: PropTypes.func,
+  dateRange: PropTypes.object,
+  setDateRange: PropTypes.func,
+  selectedCurrency: PropTypes.string,
+  setSelectedCurrency: PropTypes.func,
+  flightQuantity: PropTypes.number,
+  setFlightQuantity: PropTypes.func,
+};
 
 export { ExternalPricing };
