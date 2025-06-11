@@ -23,6 +23,16 @@ import {
   RefreshCw,
   FileText,
   ExternalLink,
+  User,
+  UserCircle,
+  Users,
+  Ticket,
+  Hotel,
+  Car,
+  CreditCard,
+  Package,
+  Trophy,
+  UserPlus,
 } from "lucide-react";
 import {
   Pagination,
@@ -87,6 +97,8 @@ import { MoreHorizontal } from "lucide-react";
 import ItineraryPDF from "./ItineraryPDF";
 import { jwtDecode } from "jwt-decode";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { differenceInCalendarDays } from "date-fns";
 
 // Role-based column configurations
 const roleBasedColumns = {
@@ -210,6 +222,21 @@ function BookingsTable() {
   const [loungePasses, setLoungePasses] = useState([]);
   const [flights, setFlights] = useState([]);
   const [loadingComponents, setLoadingComponents] = useState(false);
+  const [formData, setFormData] = useState({
+    hotel_id: null,
+    room_id: null,
+    room_quantity: 0,
+    check_in_date: null,
+    check_out_date: null,
+    nights: 0,
+    event_id: null,
+    ticket_id: null,
+    ticket_quantity: 0,
+    circuit_transfer_id: null,
+    circuit_transfer_quantity: 0,
+    airport_transfer_id: null,
+    airport_transfer_quantity: 0
+  });
 
   // Add state for payment history
   const [paymentHistory, setPaymentHistory] = useState({
@@ -443,6 +470,10 @@ function BookingsTable() {
   const [bookingsWithItineraries, setBookingsWithItineraries] = useState(new Set());
   const [viewingItinerary, setViewingItinerary] = useState(null);
   const [isItineraryDialogOpen, setIsItineraryDialogOpen] = useState(false);
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
+  const [events, setEvents] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [tiers, setTiers] = useState([]);
 
   // Add this function to handle bulk itinerary generation
   const handleBulkGenerateItineraries = async () => {
@@ -766,94 +797,77 @@ function BookingsTable() {
 
   // Improve the calculateTotals function
   const calculateTotals = (formData) => {
-    // Calculate new component costs
-    const ticketCost = parseFloat(formData.get('ticket_quantity') || 0) * 
-      (tickets.find(t => t.ticket_id === formData.get('ticket_id'))?.price || 0);
-    
-    const roomCost = parseFloat(formData.get('room_quantity') || 0) * 
-      (rooms.find(r => r.room_id === formData.get('room_id'))?.price || 0);
-    
-    const airportTransferCost = parseFloat(formData.get('airport_transfer_quantity') || 0) * 
-      (airportTransfers.find(t => t.airport_transfer_id === formData.get('airport_transfer_id'))?.price || 0);
-    
-    const circuitTransferCost = parseFloat(formData.get('circuit_transfer_quantity') || 0) * 
-      (circuitTransfers.find(t => t.circuit_transfer_id === formData.get('circuit_transfer_id'))?.price || 0);
-    
-    const loungePassCost = parseFloat(formData.get('lounge_pass_quantity') || 0) * 
-      (loungePasses.find(p => p.lounge_pass_id === formData.get('lounge_pass_id'))?.price || 0);
+    let total = 0;
+    const currency = formData.currency || "GBP";
+    const currencySymbol = getCurrencySymbol(currency);
 
-    let total = ticketCost + roomCost + airportTransferCost + circuitTransferCost + loungePassCost;
-
-    if (total === 0) {
-            return {
-        totalCost: 0,
-        totalSold: 0,
-        paymentAmounts: [0, 0, 0],
-        amountDue: 0
-      };
-    }
-
-    // First round to nearest 100 and subtract 2 (exactly like combinedPricing)
-    const rounded = Math.ceil(total / 100) * 100 - 2;
-
-    // Apply B2B commission and currency conversion
-    let finalTotal;
-    if (userRole === "External B2B") {
-      // For external users, apply commission first, then exchange rate
-      const withCommission = rounded * (1 + b2bCommission);
-      finalTotal = withCommission * exchangeRate;
-    } else {
-      // For internal users, just apply exchange rate
-      finalTotal = rounded * exchangeRate;
-    }
-
-    // Ensure we have a valid number
-    if (isNaN(finalTotal)) {
-      console.error('Invalid total price calculation:', {
-        rounded,
-        b2bCommission,
-        exchangeRate,
-        spread,
-        userRole,
-        paymentCurrency: editingBooking?.payment_currency
-      });
-      finalTotal = 0;
-    }
-
-    // Calculate total paid amount
-    const totalPaid = paymentHistory.paidAmounts.reduce((sum, payment) => sum + payment.amount, 0);
-    
-    // Calculate remaining amount to be distributed
-    const remainingAmount = finalTotal - totalPaid;
-    
-    // Calculate new payment amounts
-    const paymentAmounts = [1, 2, 3].map(num => {
-      const existingPayment = paymentHistory.paidAmounts.find(p => p.num === num) ||
-                            paymentHistory.dueAmounts.find(p => p.num === num);
-      
-      if (existingPayment?.status === 'Paid') {
-        return existingPayment.amount; // Keep paid amounts unchanged
-      } else if (existingPayment?.status === 'Due') {
-        // Distribute remaining amount proportionally based on original due amounts
-        const originalDueTotal = paymentHistory.dueAmounts.reduce((sum, p) => sum + p.amount, 0);
-        const originalDueAmount = existingPayment.amount;
-        const proportion = originalDueTotal > 0 ? originalDueAmount / originalDueTotal : 0;
-        return remainingAmount * proportion;
+    // Calculate room cost
+    if (formData.room_id) {
+      const room = rooms.find(r => r.room_id === formData.room_id);
+      if (room) {
+        // Calculate nights as difference between check-in and check-out
+        let nights = formData.nights;
+        let defaultNights = room.nights;
+        let extraNights = Math.max(0, nights - defaultNights);
+        // Base price for default nights
+        const basePrice = Number(room.price) * formData.room_quantity;
+        // Extra nights price if applicable
+        const extraNightsPrice = extraNights > 0 
+          ? (Number(room.extra_night_price) * extraNights * formData.room_quantity)
+          : 0;
+        total += basePrice + extraNightsPrice;
       }
-      return 0; // For cancelled or new payments
-    });
+    }
 
-    // Calculate amount due (sum of due payments)
-    const amountDue = paymentAmounts.reduce((total, amount, index) => {
-      const status = formData.get(`payment_${index + 1}_status`) || editingBooking?.[`payment_${index + 1}_status`];
-      return status === 'Due' ? total + amount : total;
-    }, 0);
+    // Calculate ticket cost
+    if (formData.ticket_id) {
+      const ticket = tickets.find(t => t.ticket_id === formData.ticket_id);
+      if (ticket) {
+        total += Number(ticket.price) * formData.ticket_quantity;
+      }
+    }
 
-          return {
-      totalCost: finalTotal,
-      totalSold: finalTotal, // You might want to adjust this based on your pricing strategy
-      paymentAmounts,
-      amountDue
+    // Calculate circuit transfer cost
+    if (formData.circuit_transfer_id) {
+      const transfer = circuitTransfers.find(t => t.circuit_transfer_id === formData.circuit_transfer_id);
+      if (transfer) {
+        total += Number(transfer.price) * formData.circuit_transfer_quantity;
+      }
+    }
+
+    // Calculate airport transfer cost
+    if (formData.airport_transfer_id) {
+      const transfer = airportTransfers.find(t => t.airport_transfer_id === formData.airport_transfer_id);
+      if (transfer) {
+        total += Number(transfer.price) * formData.airport_transfer_quantity;
+      }
+    }
+
+    // Calculate flight cost
+    if (formData.flight_id) {
+      const flight = flights.find(f => f.flight_id === formData.flight_id);
+      if (flight) {
+        total += Number(flight.price) * formData.flight_quantity;
+      }
+    }
+
+    // Calculate lounge pass cost
+    if (formData.lounge_pass_id) {
+      const pass = loungePasses.find(p => p.lounge_pass_id === formData.lounge_pass_id);
+      if (pass) {
+        total += Number(pass.price) * formData.lounge_pass_quantity;
+      }
+    }
+
+    // ROUNDING LOGIC (match CombinedPricing)
+    const rounded = Math.ceil(total / 100) * 100 - 2;
+    // Optionally, apply B2B commission and exchange rate here if needed
+    // For now, just use rounded
+    return {
+      total: rounded,
+      currency,
+      currencySymbol,
+      formattedTotal: `${currencySymbol}${rounded.toFixed(2)}`
     };
   };
 
@@ -878,35 +892,343 @@ function BookingsTable() {
 
   // Add function to handle component changes
   const handleComponentChange = (value, name) => {
-    // Get the form element
-    const form = document.querySelector('form');
-    if (!form) return;
+    if (name === "hotel_id") {
+      if (value === "none") {
+        setFormData(prev => ({
+          ...prev,
+          hotel_id: null,
+          room_id: null,
+          room_quantity: 0,
+          check_in_date: null,
+          check_out_date: null,
+          nights: 0
+        }));
+        setDateRange({ from: null, to: null });
+        return;
+      }
 
-    const formData = new FormData(form);
+      // Find hotel from our existing data
+      const hotel = hotels.find(h => h.hotel_id === value);
+      if (hotel) {
+        setFormData(prev => ({
+          ...prev,
+          hotel_id: hotel.hotel_id,
+          room_id: null,
+          room_quantity: 0,
+          check_in_date: null,
+          check_out_date: null,
+          nights: 0
+        }));
+        setDateRange({ from: null, to: null });
 
-    // If this is a Select component event
-    if (name) {
-      formData.set(name, value);
+        // Filter rooms for this hotel from our existing rooms
+        const hotelRooms = rooms.filter(r => r.hotel_id === hotel.hotel_id);
+        setRooms(hotelRooms);
+      }
+    } else if (name === "room_id") {
+      if (value === "none") {
+        setFormData(prev => ({
+          ...prev,
+          room_id: null,
+          room_quantity: 0,
+          check_in_date: null,
+          check_out_date: null,
+          nights: 0
+        }));
+        setDateRange({ from: null, to: null });
+        return;
+      }
 
-      // Special handling for room selection
-      if (name === 'room_id') {
-        const selectedRoom = rooms.find(r => r.room_id === value);
-        const isBookedRoom = value === editingBooking?.room_id;
+      const room = rooms.find(r => r.room_id === value);
+      if (room) {
+        // Convert dates from DD/MM/YYYY to Date objects
+        const from = new Date(room.check_in_date.split('/').reverse().join('-'));
+        const to = new Date(room.check_out_date.split('/').reverse().join('-'));
+        setDateRange({ from, to });
         
-        // If it's the booked room, set quantity to original booking quantity
-        if (isBookedRoom) {
-          formData.set('room_quantity', editingBooking?.room_quantity);
-        }
-        // If it's a new room with 0 remaining, prevent selection
-        else if (selectedRoom?.remaining <= 0) {
-          toast.warning('This room is not available');
-          return;
+        // If this is the originally booked room, keep the original nights
+        // Otherwise use the room's default nights
+        const nights = room.room_id === editingBooking?.room_id 
+          ? editingBooking.nights  // Keep original booking nights
+          : room.nights;  // Use room's default nights
+        
+        setFormData(prev => ({
+          ...prev,
+          room_id: room.room_id,
+          room_quantity: room.room_id === editingBooking?.room_id ? editingBooking.room_quantity : 1,
+          check_in_date: room.check_in_date,
+          check_out_date: room.check_out_date,
+          nights
+        }));
+
+        // Show pricing information
+        const currencySymbol = getCurrencySymbol(room.currency);
+        if (nights > room.nights) {
+          const extraNights = nights - room.nights;
+          const extraNightsCost = room.extra_night_price * extraNights;
+          toast.info(
+            <div className="space-y-1">
+              <p>Room pricing breakdown:</p>
+              <p>• Base price ({room.nights} nights): {currencySymbol}{room.price}</p>
+              <p>• Extra nights ({extraNights} nights): {currencySymbol}{extraNightsCost}</p>
+              <p>• Total room cost: {currencySymbol}{(room.price + extraNightsCost).toFixed(2)}</p>
+            </div>
+          );
+        } else {
+          toast.info(
+            <div>
+              <p>Room price: {currencySymbol}{room.price} for {room.nights} nights</p>
+              <p>Extra nights available at {currencySymbol}{room.extra_night_price} per night</p>
+            </div>
+          );
         }
       }
+    } else if (name === "ticket_id") {
+      if (value === "none") {
+        setFormData(prev => ({
+          ...prev,
+          ticket_id: null,
+          ticket_quantity: 0,
+          circuit_transfer_id: null,
+          circuit_transfer_quantity: 0
+        }));
+          return;
+        }
+
+      const foundTicket = tickets.find(t => t.ticket_id === value);
+      if (foundTicket) {
+        // If this is the originally booked ticket, keep the original quantity
+        // Otherwise use the number of adults
+        const quantity = foundTicket.ticket_id === editingBooking?.ticket_id 
+          ? editingBooking.ticket_quantity 
+          : formData.number_of_adults;
+
+        setFormData(prev => ({
+          ...prev,
+          ticket_id: foundTicket.ticket_id,
+          ticket_quantity: quantity,
+          circuit_transfer_id: null,
+          circuit_transfer_quantity: 0
+        }));
+
+        // Show ticket info
+        const currencySymbol = getCurrencySymbol(foundTicket.currency);
+        toast.info(
+          <div>
+            <p>Ticket price: {currencySymbol}{foundTicket.price} per person</p>
+            <p>Total: {currencySymbol}{(foundTicket.price * quantity).toFixed(2)}</p>
+          </div>
+        );
+      }
+    } else if (name === "ticket_quantity") {
+      const quantity = parseInt(value);
+      const selectedTicket = tickets.find(t => t.ticket_id === formData.ticket_id);
+      
+      if (selectedTicket) {
+        // Allow selecting original quantity even if remaining is 0
+        const maxQuantity = selectedTicket.ticket_id === editingBooking?.ticket_id
+          ? Math.max(selectedTicket.remaining, editingBooking.ticket_quantity)
+          : selectedTicket.remaining;
+
+        if (quantity > maxQuantity) {
+          toast.warning(`Only ${maxQuantity} tickets remaining`);
+          return;
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          ticket_quantity: quantity,
+          circuit_transfer_quantity: quantity // Update circuit transfer quantity to match
+        }));
+      }
+    } else if (name === "circuit_transfer_id") {
+      if (value === "none") {
+        setFormData(prev => ({
+          ...prev,
+          circuit_transfer_id: null,
+          circuit_transfer_quantity: 0
+        }));
+        return;
+      }
+
+      const transfer = circuitTransfers.find(t => t.circuit_transfer_id === value);
+      if (transfer) {
+        // If this is the originally booked transfer, keep the original quantity
+        // Otherwise use the ticket quantity
+        const quantity = transfer.circuit_transfer_id === editingBooking?.circuit_transfer_id 
+          ? editingBooking.circuit_transfer_quantity 
+          : formData.ticket_quantity;
+
+        setFormData(prev => ({
+          ...prev,
+          circuit_transfer_id: transfer.circuit_transfer_id,
+          circuit_transfer_quantity: quantity
+        }));
+
+        // Show transfer info
+        const currencySymbol = getCurrencySymbol(transfer.currency);
+        toast.info(
+          <div>
+            <p>Circuit transfer price: {currencySymbol}{transfer.price} per person</p>
+            <p>Total: {currencySymbol}{(transfer.price * quantity).toFixed(2)}</p>
+          </div>
+        );
+      }
+    } else if (name === "circuit_transfer_quantity") {
+      const quantity = parseInt(value);
+      const selectedTransfer = circuitTransfers.find(t => t.circuit_transfer_id === formData.circuit_transfer_id);
+      
+      if (selectedTransfer) {
+        // Allow selecting original quantity even if remaining is 0
+        const maxQuantity = selectedTransfer.circuit_transfer_id === editingBooking?.circuit_transfer_id
+          ? Math.max(selectedTransfer.coach_capacity, editingBooking.circuit_transfer_quantity)
+          : selectedTransfer.coach_capacity;
+
+        if (quantity > maxQuantity) {
+          toast.warning(`Maximum capacity is ${maxQuantity} people`);
+          return;
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          circuit_transfer_quantity: quantity
+        }));
+      }
+    } else if (name === "airport_transfer_id") {
+      if (value === "none") {
+        setFormData(prev => ({
+          ...prev,
+          airport_transfer_id: null,
+          airport_transfer_quantity: 0
+        }));
+        return;
+      }
+
+      const transfer = airportTransfers.find(t => t.airport_transfer_id === value);
+      if (transfer) {
+        // If this is the originally booked transfer, keep the original quantity
+        // Otherwise use the ticket quantity
+        const quantity = transfer.airport_transfer_id === editingBooking?.airport_transfer_id 
+          ? editingBooking.airport_transfer_quantity 
+          : formData.ticket_quantity;
+
+        setFormData(prev => ({
+          ...prev,
+          airport_transfer_id: transfer.airport_transfer_id,
+          airport_transfer_quantity: quantity
+        }));
+
+        // Show transfer info
+        const currencySymbol = getCurrencySymbol(transfer.currency);
+        toast.info(
+          <div>
+            <p>Airport transfer price: {currencySymbol}{transfer.price} per person</p>
+            <p>Total: {currencySymbol}{(transfer.price * quantity).toFixed(2)}</p>
+          </div>
+        );
+      }
+    } else if (name === "airport_transfer_quantity") {
+      const quantity = parseInt(value);
+      const selectedTransfer = airportTransfers.find(t => t.airport_transfer_id === formData.airport_transfer_id);
+      
+      if (selectedTransfer) {
+        // Allow selecting original quantity even if remaining is 0
+        const maxQuantity = selectedTransfer.airport_transfer_id === editingBooking?.airport_transfer_id
+          ? Math.max(selectedTransfer.max_capacity, editingBooking.airport_transfer_quantity)
+          : selectedTransfer.max_capacity;
+
+        if (quantity > maxQuantity) {
+          toast.warning(`Maximum capacity is ${maxQuantity} people`);
+          return;
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          airport_transfer_quantity: quantity
+        }));
+      }
     }
-    
-    const newTotals = calculateTotals(formData);
-    setCalculatedTotals(newTotals);
+    // ... rest of the existing handleComponentChange function ...
+  };
+
+  // Add function to fetch rooms and hotels when event is selected
+  const handleEventSelect = async (eventId) => {
+    if (!eventId) return;
+
+    setLoadingComponents(true);
+    try {
+      // First get the package_id from the event
+      const roomsRes = await api.get("/rooms", {
+        params: { eventId }
+      });
+
+      // Get package_id from the first room
+      const packageId = roomsRes.data[0]?.package_id;
+      console.log("Package ID:", packageId);
+
+      // Get all rooms for this package
+      const packageRoomsRes = await api.get("/rooms", {
+        params: { packageId }
+      });
+
+      // Get unique hotel IDs from the rooms
+      const hotelIds = [...new Set(packageRoomsRes.data.map(room => room.hotel_id))];
+
+      // Then fetch hotels that have rooms for this package
+      const hotelsRes = await api.get("/hotels", {
+        params: { 
+          hotelIds: hotelIds.join(',')
+        }
+      });
+
+      // Fetch tickets for this package
+      const ticketsRes = await api.get("/tickets", {
+        params: { packageId }
+      });
+
+      // Fetch circuit transfers for this package
+      const circuitTransfersRes = await api.get("/circuit-transfers", {
+        params: { 
+          packageIds: packageId.split(',').map(id => id.trim()).join(',')
+        }
+      });
+      console.log("Circuit Transfers Response:", circuitTransfersRes.data);
+
+      // Fetch airport transfers for this package
+      const airportTransfersRes = await api.get("/airport-transfers", {
+        params: { 
+          packageIds: packageId.split(',').map(id => id.trim()).join(',')
+        }
+      });
+      console.log("Airport Transfers Response:", airportTransfersRes.data);
+
+      setRooms(packageRoomsRes.data);
+      setHotels(hotelsRes.data);
+      setTickets(ticketsRes.data);
+      setCircuitTransfers(circuitTransfersRes.data);
+      setAirportTransfers(airportTransfersRes.data);
+      setFormData(prev => ({
+        ...prev,
+        event_id: eventId,
+        hotel_id: null,
+        room_id: null,
+        room_quantity: 0,
+        check_in_date: null,
+        check_out_date: null,
+        nights: 0,
+        ticket_id: null,
+        ticket_quantity: 0,
+        circuit_transfer_id: null,
+        circuit_transfer_quantity: 0,
+        airport_transfer_id: null,
+        airport_transfer_quantity: 0
+      }));
+    } catch (error) {
+      console.error("Failed to fetch event components:", error);
+      toast.error("Failed to load event components. Please try again.");
+    } finally {
+      setLoadingComponents(false);
+    }
   };
 
   // Add function to handle input changes
@@ -924,55 +1246,75 @@ function BookingsTable() {
   const handleEditBooking = async (booking) => {
     setEditingBooking(booking);
     setIsEditDialogOpen(true);
-    
-    // Initialize payment history with the original booking data
-    setPaymentHistory({
-      originalTotal: booking.total_sold_for_local || booking.total_sold_gbp,
-      paidAmounts: [
-        {
-          num: 1,
-          amount: booking.payment_1,
-          date: booking.payment_1_date,
-          status: booking.payment_1_status
-        },
-        {
-          num: 2,
-          amount: booking.payment_2,
-          date: booking.payment_2_date,
-          status: booking.payment_2_status
-        },
-        {
-          num: 3,
-          amount: booking.payment_3,
-          date: booking.payment_3_date,
-          status: booking.payment_3_status
-        }
-      ].filter(payment => payment.status === 'Paid'),
-      dueAmounts: [
-        {
-          num: 1,
-          amount: booking.payment_1,
-          date: booking.payment_1_date,
-          status: booking.payment_1_status
-        },
-        {
-          num: 2,
-          amount: booking.payment_2,
-          date: booking.payment_2_date,
-          status: booking.payment_2_status
-        },
-        {
-          num: 3,
-          amount: booking.payment_3,
-          date: booking.payment_3_date,
-          status: booking.payment_3_status
-        }
-      ].filter(payment => payment.status === 'Due')
-    });
+    setLoadingComponents(true);
 
-    // Fetch package components
-    if (booking.package_id) {
-      await fetchPackageComponents(booking.package_id);
+    try {
+      const eventId = booking.event_id;
+      const packageId = booking.package_id;
+
+      // Get all rooms for this package
+      const roomsRes = await api.get("/rooms", {
+        params: { packageId }
+      });
+
+      // Get unique hotels from the rooms data
+      const uniqueHotels = roomsRes.data.reduce((acc, room) => {
+        if (!acc.find(h => h.hotel_id === room.hotel_id)) {
+          acc.push({
+            hotel_id: room.hotel_id,
+            hotel_name: room.hotel_name
+          });
+        }
+        return acc;
+      }, []);
+
+      // Fetch tickets for this package
+      const ticketsRes = await api.get("/tickets", {
+        params: { packageId }
+      });
+
+      // Fetch circuit transfers for this package
+      const circuitTransfersRes = await api.get("/circuit-transfers", {
+        params: { packageId }
+      });
+
+      // Fetch airport transfers for this package
+      const airportTransfersRes = await api.get("/airport-transfers", {
+        params: { packageId }
+      });
+
+      setRooms(roomsRes.data);
+      setHotels(uniqueHotels);
+      setTickets(ticketsRes.data);
+      setCircuitTransfers(circuitTransfersRes.data);
+      setAirportTransfers(airportTransfersRes.data);
+
+      // Convert dates from DD/MM/YYYY to Date objects
+      const from = new Date(booking.check_in_date.split('/').reverse().join('-'));
+      const to = new Date(booking.check_out_date.split('/').reverse().join('-'));
+      setDateRange({ from, to });
+
+      // Set initial form data with the original booking values
+      setFormData({
+        event_id: eventId,
+        hotel_id: booking.hotel_id,
+        room_id: booking.room_id,
+        room_quantity: booking.room_quantity,
+        check_in_date: booking.check_in_date,
+        check_out_date: booking.check_out_date,
+        nights: booking.nights,
+        ticket_id: booking.ticket_id,
+        ticket_quantity: booking.ticket_quantity,
+        circuit_transfer_id: booking.circuit_transfer_id,
+        circuit_transfer_quantity: booking.circuit_transfer_quantity,
+        airport_transfer_id: booking.airport_transfer_id,
+        airport_transfer_quantity: booking.airport_transfer_quantity
+      });
+    } catch (error) {
+      console.error("Failed to fetch booking components:", error);
+      toast.error("Failed to load booking components. Please try again.");
+    } finally {
+      setLoadingComponents(false);
     }
   };
 
@@ -1142,16 +1484,13 @@ function BookingsTable() {
 
   // Add this function to handle viewing an itinerary
   const handleViewItinerary = async (booking) => {
-    try {
-      const itinerary = await getItinerary(booking.booking_id);
-      if (itinerary) {
-        setViewingItinerary({ booking, itinerary: itinerary.content });
-        setIsItineraryDialogOpen(true);
-      }
-    } catch (error) {
-      console.error('Error loading itinerary:', error);
-      toast.error('Failed to load itinerary');
-    }
+    setViewingItinerary(booking);
+    setIsItineraryDialogOpen(true);
+  };
+
+  const handleViewBooking = (booking) => {
+    setViewingBooking(booking);
+    setIsViewDialogOpen(true);
   };
 
   const handleSort = (column) => {
@@ -1187,6 +1526,13 @@ function BookingsTable() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => handleViewBooking(booking)}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => handleViewItinerary(booking)}
             >
               <FileText className="h-4 w-4" />
@@ -1211,6 +1557,46 @@ function BookingsTable() {
         return booking[column];
     }
   };
+
+  useEffect(() => {
+    if (dateRange.from && dateRange.to) {
+      const nights = differenceInCalendarDays(dateRange.to, dateRange.from);
+      setFormData(prev => ({
+        ...prev,
+        check_in_date: format(dateRange.from, 'dd/MM/yyyy'),
+        check_out_date: format(dateRange.to, 'dd/MM/yyyy'),
+        nights
+      }));
+    }
+  }, [dateRange]);
+
+
+  const fetchPackages = async () => {
+    if (!editingBooking?.event_id) return;
+    
+    try {
+      setLoading(true);
+      const response = await api.get("packages", {
+        params: {
+          event_id: editingBooking.event_id
+        }
+      });
+      // Filter packages to only show ones for this event
+      const filteredPackages = response.data.filter(pkg => pkg.event_id === editingBooking.event_id);
+      setPackages(filteredPackages);
+    } catch (error) {
+      console.error("Failed to fetch packages:", error);
+      toast.error("Failed to load packages");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (editingBooking) {
+      fetchPackages();
+    }
+  }, [editingBooking]);
 
   if (loading) {
     return (
@@ -1350,14 +1736,21 @@ function BookingsTable() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleViewItinerary(booking)}
+                      onClick={() => handleViewBooking(booking)}
+                    >
+                            <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewItinerary(booking)}
                     >
                             <FileText className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                             size="sm"
-                            onClick={() => handleEditBooking(booking)}
+                      onClick={() => handleEditBooking(booking)}
                     >
                             <Pencil className="h-4 w-4" />
                     </Button>
@@ -2065,6 +2458,12 @@ function BookingsTable() {
                   </div>
                 </div>
               </div>
+
+              {/* Payment Information */}
+ 
+              
+                
+              
             </div>
           )}
           <DialogFooter className="pt-2">
@@ -2077,522 +2476,421 @@ function BookingsTable() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-[90vw] h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Edit Booking - {editingBooking?.booking_ref}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Edit Booking - {editingBooking?.booking_ref}
+            </DialogTitle>
             <DialogDescription>
               Make changes to the booking details below.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-6 h-full">
-            <div className="grid grid-cols-3 gap-6 overflow-y-auto pr-4 max-h-[calc(90vh-8rem)]">
-              {/* Package Components */}
-              <div className="col-span-3 grid grid-cols-3 gap-6">
-                {/* Tickets */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-3">Tickets</h4>
-                  <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-6 overflow-y-auto pr-4 max-h-[calc(90vh-8rem)]">
+              {/* Left Column */}
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="bg-muted/50 p-6 rounded-lg">
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Basic Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="ticket_id" className="text-sm">Ticket Type</Label>
-                      <Select 
-                        name="ticket_id" 
-                        defaultValue={editingBooking?.ticket_id}
-                        onValueChange={(value) => handleComponentChange(value, 'ticket_id')}
-                      >
+                      <Label htmlFor="status">Status</Label>
+                      <Select name="status" defaultValue={editingBooking?.status}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select ticket type" />
+                          <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent>
-                          {tickets.map((ticket) => (
-                            <SelectItem 
-                              key={ticket.ticket_id} 
-                              value={ticket.ticket_id}
-                              disabled={ticket.remaining <= 0 && ticket.ticket_id !== editingBooking?.ticket_id}
-                            >
-                              {ticket.ticket_name} - £{ticket.price} 
-                              {ticket.ticket_id === editingBooking?.ticket_id 
-                                ? ` (Currently Booked: ${editingBooking?.ticket_quantity})` 
-                                : ` (${ticket.remaining} remaining)`}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="Future">Future</SelectItem>
+                          <SelectItem value="Past">Past</SelectItem>
+                          <SelectItem value="Cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="ticket_quantity" className="text-sm">Ticket Quantity</Label>
-                      <Input 
-                        name="ticket_quantity" 
-                        type="number" 
-                        min="1"
-                        max={tickets.find(t => t.ticket_id === editingBooking?.ticket_id)?.remaining || 0}
-                        defaultValue={editingBooking?.ticket_quantity}
-                        onChange={(e) => {
-                          const selectedTicket = tickets.find(t => t.ticket_id === editingBooking?.ticket_id);
-                          const value = parseInt(e.target.value);
-                          if (selectedTicket && value > selectedTicket.remaining) {
-                            e.target.value = selectedTicket.remaining;
-                            toast.warning(`Only ${selectedTicket.remaining} tickets remaining`);
-                          }
-                          handleInputChange(e);
-                        }}
-                      />
-                      {editingBooking?.ticket_id && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {tickets.find(t => t.ticket_id === editingBooking.ticket_id)?.remaining <= 0 
-                            ? 'Currently booked ticket' 
-                            : `${tickets.find(t => t.ticket_id === editingBooking.ticket_id)?.remaining} tickets remaining`}
-                        </p>
-                      )}
+                      <Label htmlFor="booking_type">Booking Type</Label>
+                      <Select name="booking_type" defaultValue={editingBooking?.booking_type}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="actual">Actual</SelectItem>
+                          <SelectItem value="provisional">Provisional</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="acquisition">Acquisition</Label>
+                      <Select name="acquisition" defaultValue={editingBooking?.acquisition}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select acquisition" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new">New</SelectItem>
+                          <SelectItem value="repeat">Repeat</SelectItem>
+                          <SelectItem value="unknown">Unknown</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="atol_abtot">ATOL/ABTOT</Label>
+                      <Select name="atol_abtot" defaultValue={editingBooking?.atol_abtot}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="atol">ATOL</SelectItem>
+                          <SelectItem value="abtot">ABTOT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="booking_date">Booking Date</Label>
+                      <Input name="booking_date" type="date" defaultValue={formatDateForInput(editingBooking?.booking_date)} />
                     </div>
                   </div>
                 </div>
 
-                {/* Hotel */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-3">Hotel</h4>
-                  <div className="space-y-3">
+                {/* Booker Information */}
+                <div className="bg-muted/50 p-6 rounded-lg">
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <UserCircle className="h-5 w-5" />
+                    Booker Information
+                  </h3>
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="hotel_id" className="text-sm">Hotel</Label>
-                      <Select 
-                        name="hotel_id" 
-                        defaultValue={editingBooking?.hotel_id}
-                        onValueChange={(value) => handleComponentChange(value, 'hotel_id')}
-                      >
+                      <Label htmlFor="booker_name">Name</Label>
+                      <Input name="booker_name" defaultValue={editingBooking?.booker_name} />
+                    </div>
+                    <div>
+                      <Label htmlFor="booker_email">Email</Label>
+                      <Input name="booker_email" type="email" defaultValue={editingBooking?.booker_email} />
+                    </div>
+                    <div>
+                      <Label htmlFor="booker_phone">Phone</Label>
+                      <Input name="booker_phone" type="tel" defaultValue={editingBooking?.booker_phone} />
+                    </div>
+                    <div>
+                      <Label htmlFor="booker_address">Address</Label>
+                      <Textarea name="booker_address" defaultValue={editingBooking?.booker_address} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lead Traveller */}
+                <div className="bg-muted/50 p-6 rounded-lg">
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <UserPlus className="h-5 w-5" />
+                    Lead Traveller
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="lead_traveller_name">Name</Label>
+                      <Input name="lead_traveller_name" defaultValue={editingBooking?.lead_traveller_name} />
+                    </div>
+                    <div>
+                      <Label htmlFor="lead_traveller_email">Email</Label>
+                      <Input name="lead_traveller_email" type="email" defaultValue={editingBooking?.lead_traveller_email} />
+                    </div>
+                    <div>
+                      <Label htmlFor="lead_traveller_phone">Phone</Label>
+                      <Input name="lead_traveller_phone" type="tel" defaultValue={editingBooking?.lead_traveller_phone} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Guest Information */}
+                <div className="bg-muted/50 p-6 rounded-lg">
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Guest Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="guest_traveller_names">Guest Names</Label>
+                      <Input name="guest_traveller_names" defaultValue={editingBooking?.guest_traveller_names} />
+                    </div>
+                    <div>
+                      <Label htmlFor="adults">Number of Adults</Label>
+                      <Input name="adults" type="number" defaultValue={editingBooking?.adults} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-6">
+                {/* Event Details */}
+                <div className="bg-muted/50 p-6 rounded-lg">
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <Trophy className="h-5 w-5" />
+                    Event Details
+                  </h3>
+                  <div className="space-y-4">
+                  <div>
+                      <Label>{editingBooking?.sport}</Label>
+                    </div>
+                    <div>
+                      <Label>{editingBooking?.event_name || ""} </Label>
+                    </div>
+                    <div>
+                      <Label htmlFor="package_id">Package</Label>
+                      <Select name="package_id" defaultValue={editingBooking?.package_id} onValueChange={(value) => handleComponentChange(value, 'package_id')}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select hotel" />
+                          <SelectValue placeholder="Select package" />
                         </SelectTrigger>
                         <SelectContent>
-                          {hotels.map((hotel) => (
-                            <SelectItem 
-                              key={hotel.hotel_id} 
-                              value={hotel.hotel_id}
-                            >
-                              {hotel.hotel_name}
+                          {packages.map((pkg) => (
+                            <SelectItem key={pkg.package_id} value={pkg.package_id}>
+                              {pkg.package_name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label htmlFor="room_id" className="text-sm">Room Type</Label>
-                      <Select 
-                        name="room_id" 
-                        defaultValue={editingBooking?.room_id}
-                        onValueChange={(value) => handleComponentChange(value, 'room_id')}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select room type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {rooms.map((room) => {
-                            // Check if this is the exact room from the booking
-                            const isBookedRoom = room.room_id === editingBooking?.room_id;
-                            console.log('Room check:', {
-                              roomId: room.room_id,
-                              bookingRoomId: editingBooking?.room_id,
-                              isBookedRoom,
-                              remaining: room.remaining
-                            });
+                  </div>
+                </div>
+
+                {/* Package Components */}
+                <div className="bg-muted/50 p-6 rounded-lg">
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Package Components
+                  </h3>
+                  <div className="space-y-6">
+                    {/* Tickets */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Ticket className="h-4 w-4" />
+                        Tickets
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="ticket_id">Ticket Type</Label>
+                          <Select name="ticket_id" defaultValue={editingBooking?.ticket_id} onValueChange={(value) => handleComponentChange(value, 'ticket_id')}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select ticket" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {tickets.map((ticket) => {
+                                const isBookedTicket = ticket.ticket_id === editingBooking?.ticket_id;
+                                const displayText = isBookedTicket 
+                                  ? `${ticket.ticket_name} (Originally booked: ${editingBooking?.ticket_quantity})`
+                                  : `${ticket.ticket_name} (${ticket.remaining} remaining)`;
+                                return (
+                                  <SelectItem 
+                                    key={ticket.ticket_id} 
+                                    value={ticket.ticket_id}
+                                    disabled={!isBookedTicket && ticket.remaining <= 0}
+                                  >
+                                    {displayText}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="ticket_quantity">Quantity</Label>
+                          <Input name="ticket_quantity" type="number" defaultValue={editingBooking?.ticket_quantity} onChange={handleInputChange} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Hotel & Room Section */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Hotel className="h-4 w-4" />
+                        Hotel & Room
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="hotel_id">Hotel</Label>
+                          <Select name="hotel_id" defaultValue={editingBooking?.hotel_id} onValueChange={(value) => handleComponentChange(value, 'hotel_id')}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select hotel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {hotels.map((hotel) => (
+                                <SelectItem key={hotel.hotel_id} value={hotel.hotel_id}>
+                                  {hotel.hotel_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="room_id">Room Type</Label>
+                          <Select name="room_id" defaultValue={editingBooking?.room_id} onValueChange={(value) => handleComponentChange(value, 'room_id')}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select room" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {rooms.map((room) => {
+                                const isBookedRoom = room.room_id === editingBooking?.room_id;
+                                const displayText = isBookedRoom 
+                                  ? `${room.room_category} - ${room.room_type} (Originally booked: ${editingBooking?.room_quantity})`
+                                  : `${room.room_category} - ${room.room_type} (${room.remaining} remaining)`;
+                                return (
+                                  <SelectItem 
+                                    key={room.room_id} 
+                                    value={room.room_id}
+                                    disabled={!isBookedRoom && room.remaining <= 0}
+                                  >
+                                    {displayText}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="room_quantity">Room Quantity</Label>
+                          <Input name="room_quantity" type="number" defaultValue={editingBooking?.room_quantity} onChange={handleInputChange} />
+                        </div>
+                        <div>
+                          <Label>Check-in/Check-out</Label>
+                          <DatePickerWithRange
+                            date={dateRange}
+                            setDate={setDateRange}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="nights">Nights</Label>
+                          <Input name="nights" type="number" value={formData.nights} readOnly className="bg-muted" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Transfers */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Car className="h-4 w-4" />
+                        Transfers
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="circuit_transfer_id">Circuit Transfer</Label>
+                          <Select name="circuit_transfer_id" defaultValue={editingBooking?.circuit_transfer_id} onValueChange={(value) => handleComponentChange(value, 'circuit_transfer_id')}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select circuit transfer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {circuitTransfers.map((transfer) => (
+                                <SelectItem key={transfer.circuit_transfer_id} value={transfer.circuit_transfer_id}>
+                                  {transfer.transport_type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="circuit_transfer_quantity">Circuit Transfer Quantity</Label>
+                          <Input name="circuit_transfer_quantity" type="number" defaultValue={editingBooking?.circuit_transfer_quantity} onChange={handleInputChange} />
+                        </div>
+                        <div>
+                          <Label htmlFor="airport_transfer_id">Airport Transfer</Label>
+                          <Select name="airport_transfer_id" defaultValue={editingBooking?.airport_transfer_id} onValueChange={(value) => handleComponentChange(value, 'airport_transfer_id')}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select airport transfer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {airportTransfers.map((transfer) => (
+                                <SelectItem key={transfer.airport_transfer_id} value={transfer.airport_transfer_id}>
+                                  {transfer.transport_type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="airport_transfer_quantity">Airport Transfer Quantity</Label>
+                          <Input name="airport_transfer_quantity" type="number" defaultValue={editingBooking?.airport_transfer_quantity} onChange={handleInputChange} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Information */}
+                    <div className="rounded-lg pt-4 border-t border-muted">
+                      <div className="flex items-center gap-2 mb-6">
+                        <CreditCard className="h-5 w-5" />
+                        <h4 className="text-lg font-semibold">Payment Information</h4>
+                      </div>
+                      
+                      {/* Price Comparison */}
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-muted-foreground mb-3">Price Comparison</h5>
+                        <div className="grid grid-cols-2 gap-6 p-4 bg-background rounded-lg border">
+                          <div>
+                            <Label className="text-sm text-muted-foreground">Original Price</Label>
+                            <p className="font-bold mt-1 text-sm">
+                              £{editingBooking?.total_sold_for_local?.toLocaleString() || "0"}
+                            </p>
+                          </div>
+                          <div>
+                            <Label className="text-sm text-muted-foreground">Amended Price</Label>
+                            <p className="font-bold mt-1 text-sm">
+                              {calculateTotals(formData).formattedTotal}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Payment Schedule */}
+                      <div>
+                        <h5 className="text-sm font-medium text-muted-foreground mb-3">Payment Schedule</h5>
+                        <div className="grid grid-cols-3 gap-4">
+                          {[1, 2, 3].map((num) => {
+                            const paymentAmount = editingBooking?.[`payment_${num}`] || 0;
+                            const paymentStatus = editingBooking?.[`payment_${num}_status`] || "Pending";
+                            const isPaid = paymentStatus === "Paid";
+                            const newTotal = calculateTotals(formData).total;
+                            const paidAmount = [1, 2, 3].reduce((sum, n) => {
+                              return sum + (editingBooking?.[`payment_${n}_status`] === "Paid" ? (editingBooking?.[`payment_${n}`] || 0) : 0);
+                            }, 0);
+                            const remainingAmount = newTotal - paidAmount;
+                            const duePayments = [1, 2, 3].filter(n => editingBooking?.[`payment_${n}_status`] !== "Paid").length;
+                            const amendedAmount = isPaid ? paymentAmount : (duePayments > 0 ? remainingAmount / duePayments : 0);
+
                             return (
-                              <SelectItem 
-                                key={room.room_id} 
-                                value={room.room_id}
-                                disabled={!isBookedRoom && room.remaining <= 0}
-                              >
-                                {room.room_category} - {room.room_type} 
-                                {room.breakfast_included ? ' (Breakfast Included)' : ''} 
-                                - £{room.price} 
-                                {isBookedRoom 
-                                  ? ` (Currently Booked: ${editingBooking?.room_quantity})` 
-                                  : ` (${room.remaining} remaining)`}
-                              </SelectItem>
+                              <div key={num} className="p-3 bg-background rounded-lg border">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h6 className="text-sm font-semibold">Payment {num}</h6>
+                                  <Badge variant={isPaid ? "default" : "secondary"} className="text-xs">
+                                    {isPaid ? "Paid" : "Due"}
+                                  </Badge>
+                                </div>
+                                <div className="space-y-1">
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Amount</Label>
+                                    <p className="text-sm font-semibold">£{amendedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                  </div>
+                                  {!isPaid && (
+                                    <div>
+                                      <Label className="text-xs text-muted-foreground">Due Date</Label>
+                                      <p className="text-sm font-semibold">
+                                        {formatDateForDisplay(editingBooking?.[`payment_${num}_date`])}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  {isPaid ? "Original payment amount" : "Amended payment amount"}
+                                </div>
+                              </div>
                             );
                           })}
-                        </SelectContent>
-                      </Select>
-                      {editingBooking?.room_id && (
-                        <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                          <p>
-                            {editingBooking?.room_id === rooms.find(r => r.room_id === editingBooking?.room_id)?.room_id 
-                              ? `Originally booked: ${editingBooking?.room_quantity} rooms` 
-                              : `${rooms.find(r => r.room_id === editingBooking?.room_id)?.remaining} rooms remaining`}
-                          </p>
-                          <p>
-                            Max guests: {rooms.find(r => r.room_id === editingBooking?.room_id)?.max_guests}
-                          </p>
-                          <p>
-                            {rooms.find(r => r.room_id === editingBooking?.room_id)?.nights} nights
-                            {rooms.find(r => r.room_id === editingBooking?.room_id)?.extra_night_price && 
-                              ` (Extra night: £${rooms.find(r => r.room_id === editingBooking?.room_id)?.extra_night_price})`
-                            }
-                      </p>
                         </div>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="room_quantity" className="text-sm">Room Quantity</Label>
-                      <Input
-                        name="room_quantity" 
-                        type="number" 
-                        min="1"
-                        max={editingBooking?.room_id === rooms.find(r => r.room_id === editingBooking?.room_id)?.room_id 
-                          ? editingBooking?.room_quantity 
-                          : rooms.find(r => r.room_id === editingBooking?.room_id)?.remaining || 0}
-                        defaultValue={editingBooking?.room_quantity}
-                        onChange={(e) => {
-                          const selectedRoom = rooms.find(r => r.room_id === editingBooking?.room_id);
-                          const value = parseInt(e.target.value);
-                          if (selectedRoom) {
-                            if (value < 1) {
-                              e.target.value = 1;
-                              toast.warning('Minimum 1 room required');
-                            } else if (selectedRoom.room_id === editingBooking?.room_id) {
-                              if (value > editingBooking?.room_quantity) {
-                                e.target.value = editingBooking?.room_quantity;
-                                toast.warning(`Cannot exceed original booking quantity of ${editingBooking?.room_quantity}`);
-                              }
-                            } else if (value > selectedRoom.remaining) {
-                              e.target.value = selectedRoom.remaining;
-                              toast.warning(`Only ${selectedRoom.remaining} rooms remaining`);
-                            }
-                          }
-                          handleInputChange(e);
-                        }}
-                      />
+                      </div>
+                      {/* Payment Status */}
+                     
                     </div>
                   </div>
                 </div>
-
-                {/* Transfers */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-3">Transfers</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="airport_transfer_id" className="text-sm">Airport Transfer Type</Label>
-                      <Select 
-                        name="airport_transfer_id" 
-                        defaultValue={editingBooking?.airport_transfer_id}
-                        onValueChange={(value) => handleComponentChange(value, 'airport_transfer_id')}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select transfer type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {airportTransfers.map((transfer) => (
-                            <SelectItem 
-                              key={transfer.airport_transfer_id} 
-                              value={transfer.airport_transfer_id}
-                            >
-                              {transfer.transport_type} - Max {transfer.max_capacity} passengers
-                              - £{transfer.price} per transfer
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {editingBooking?.airport_transfer_id && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          <p>
-                            Max capacity: {airportTransfers.find(t => t.airport_transfer_id === editingBooking.airport_transfer_id)?.max_capacity} passengers
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <Label htmlFor="airport_transfer_quantity" className="text-sm">Number of Transfers</Label>
-                      <Input
-                        name="airport_transfer_quantity" 
-                        type="number" 
-                        min="1"
-                        defaultValue={editingBooking?.airport_transfer_quantity}
-                        onChange={(e) => {
-                          const selectedTransfer = airportTransfers.find(t => t.airport_transfer_id === editingBooking?.airport_transfer_id);
-                          const value = parseInt(e.target.value);
-                          if (selectedTransfer && value < 1) {
-                            e.target.value = 1;
-                            toast.warning('Minimum 1 transfer required');
-                          }
-                          handleInputChange(e);
-                        }}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Price per transfer: £{airportTransfers.find(t => t.airport_transfer_id === editingBooking?.airport_transfer_id)?.price || 0}
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="circuit_transfer_id" className="text-sm">Circuit Transfer Type</Label>
-                      <Select 
-                        name="circuit_transfer_id" 
-                        defaultValue={editingBooking?.circuit_transfer_id}
-                        onValueChange={(value) => handleComponentChange(value, 'circuit_transfer_id')}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select transfer type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {circuitTransfers.map((transfer) => (
-                            <SelectItem 
-                              key={transfer.circuit_transfer_id} 
-                              value={transfer.circuit_transfer_id}
-                            >
-                              {transfer.transport_type} - {transfer.coach_capacity} seats
-                              - £{transfer.price} per person
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {editingBooking?.circuit_transfer_id && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          <p>
-                            Coach capacity: {circuitTransfers.find(t => t.circuit_transfer_id === editingBooking.circuit_transfer_id)?.coach_capacity} seats
-                          </p>
-                          <p>
-                            Transfer days: {circuitTransfers.find(t => t.circuit_transfer_id === editingBooking.circuit_transfer_id)?.transport_type.match(/\((.*?)\)/)?.[1] || 'All days'}
-                      </p>
-                    </div>
-                      )}
-                  </div>
-                    <div>
-                      <Label htmlFor="circuit_transfer_quantity" className="text-sm">Number of Passengers</Label>
-                      <Input 
-                        name="circuit_transfer_quantity" 
-                        type="number" 
-                        min="1"
-                        max={circuitTransfers.find(t => t.circuit_transfer_id === editingBooking?.circuit_transfer_id)?.coach_capacity || 0}
-                        defaultValue={editingBooking?.circuit_transfer_quantity}
-                        onChange={(e) => {
-                          const selectedTransfer = circuitTransfers.find(t => t.circuit_transfer_id === editingBooking?.circuit_transfer_id);
-                          const value = parseInt(e.target.value);
-                          if (selectedTransfer) {
-                            if (value < 1) {
-                              e.target.value = 1;
-                              toast.warning('Minimum 1 passenger required');
-                            } else if (value > selectedTransfer.coach_capacity) {
-                              e.target.value = selectedTransfer.coach_capacity;
-                              toast.warning(`Maximum ${selectedTransfer.coach_capacity} passengers allowed`);
-                            }
-                          }
-                          handleInputChange(e);
-                        }}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Price per person: £{circuitTransfers.find(t => t.circuit_transfer_id === editingBooking?.circuit_transfer_id)?.price || 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lounge Passes */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-3">Lounge Passes</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="lounge_pass_id" className="text-sm">Lounge Type</Label>
-                      <Select name="lounge_pass_id" defaultValue={editingBooking?.lounge_pass_id} onValueChange={(value) => handleComponentChange(value, 'lounge_pass_id')}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select lounge type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {loungePasses.map((pass) => (
-                            <SelectItem key={pass.lounge_pass_id} value={pass.lounge_pass_id}>
-                              {pass.lounge_pass_variant} - £{pass.price}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="lounge_pass_quantity" className="text-sm">Quantity</Label>
-                      <Input name="lounge_pass_quantity" type="number" defaultValue={editingBooking?.lounge_pass_quantity} onChange={handleInputChange} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Basic Information */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-3">Basic Information</h4>
-                  <div className="space-y-3">
-                    {getEditableFields().includes("status") && (
-                    <div>
-                        <Label htmlFor="status" className="text-sm">Status</Label>
-                        <Select name="status" defaultValue={editingBooking?.status} onValueChange={(value) => handleComponentChange(value, 'status')}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Confirmed">Confirmed</SelectItem>
-                            <SelectItem value="Pending">Pending</SelectItem>
-                            <SelectItem value="Cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                    </div>
-                    )}
-                    {getEditableFields().includes("package_type") && (
-                    <div>
-                        <Label htmlFor="package_type" className="text-sm">Package Type</Label>
-                        <Select name="package_type" defaultValue={editingBooking?.package_type} onValueChange={(value) => handleComponentChange(value, 'package_type')}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select package type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Standard">Standard</SelectItem>
-                            <SelectItem value="Premium">Premium</SelectItem>
-                            <SelectItem value="VIP">VIP</SelectItem>
-                          </SelectContent>
-                        </Select>
-                    </div>
-                    )}
-                    {getEditableFields().includes("payment_status") && (
-                    <div>
-                        <Label htmlFor="payment_status" className="text-sm">Payment Status</Label>
-                        <Select name="payment_status" defaultValue={editingBooking?.payment_status} onValueChange={(value) => handleComponentChange(value, 'payment_status')}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select payment status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Paid">Paid</SelectItem>
-                            <SelectItem value="Pending">Pending</SelectItem>
-                            <SelectItem value="Cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                    </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Payment Schedule */}
-                <div className="bg-muted/50 p-4 rounded-lg col-span-3">
-                  <h4 className="font-medium mb-3">Payment Schedule</h4>
-                  <div className="grid grid-cols-3 gap-6">
-                    {[1, 2, 3].map((num) => {
-                      const isPaid = editingBooking?.[`payment_${num}_status`] === "Paid";
-                      const payment = paymentHistory.paidAmounts.find(p => p.num === num) ||
-                                     paymentHistory.dueAmounts.find(p => p.num === num);
-                      
-                      return (
-                        <div key={num} className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h5 className="text-sm font-medium">Payment {num}</h5>
-                            <Badge
-                              className={`${
-                                isPaid
-                                  ? "bg-success text-success-foreground"
-                                  : editingBooking?.[`payment_${num}_status`] === "Due"
-                                  ? "bg-warning text-warning-foreground"
-                                  : "bg-destructive text-destructive-foreground"
-                              }`}
-                            >
-                              {editingBooking?.[`payment_${num}_status`]}
-                            </Badge>
-                    </div>
-                    <div>
-                            <Label htmlFor={`payment_${num}`} className="text-sm">
-                              Amount ({editingBooking?.payment_currency})
-                              {isPaid && <span className="text-xs text-muted-foreground ml-1">(Paid)</span>}
-                            </Label>
-                            <Input
-                              name={`payment_${num}`}
-                              type="number"
-                              step="0.01"
-                              value={calculatedTotals.paymentAmounts[num - 1]}
-                              disabled={isPaid}
-                              readOnly
-                              className={isPaid ? "bg-muted" : ""}
-                            />
-                            {payment && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {isPaid ? 'Paid on ' : 'Due on '}
-                                {formatDateForDisplay(payment.date)}
-                              </p>
-                            )}
-                    </div>
-                    <div>
-                            <Label htmlFor={`payment_${num}_date`} className="text-sm">Due Date</Label>
-                            <Input
-                              name={`payment_${num}_date`}
-                              type="date"
-                              defaultValue={formatDateForInput(editingBooking?.[`payment_${num}_date`])}
-                              disabled={isPaid}
-                            />
-                    </div>
-                    <div>
-                            <Label htmlFor={`payment_${num}_status`} className="text-sm">Status</Label>
-                            <Select
-                              name={`payment_${num}_status`}
-                              defaultValue={editingBooking?.[`payment_${num}_status`]}
-                              onValueChange={(value) => handlePaymentStatusChange(num, value)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Paid">Paid</SelectItem>
-                                <SelectItem value="Due">Due</SelectItem>
-                                <SelectItem value="Cancelled">Cancelled</SelectItem>
-                              </SelectContent>
-                            </Select>
-                    </div>
-                    </div>
-                      );
-                    })}
-                    </div>
-                  <div className="mt-4 grid grid-cols-3 gap-6">
-                    <div>
-                      <Label htmlFor="amount_due" className="text-sm">Amount Due</Label>
-                      <Input
-                        name="amount_due"
-                        type="number"
-                        step="0.01"
-                        value={calculatedTotals.amountDue}
-                        disabled
-                        readOnly
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="total_sold_gbp" className="text-sm">Total Sold (GBP)</Label>
-                      <Input
-                        name="total_sold_gbp"
-                        type="number"
-                        step="0.01"
-                        value={calculatedTotals.totalSold}
-                        disabled={!getEditableFields().includes("total_sold_gbp")}
-                        readOnly
-                      />
-                    </div>
-                    {getEditableFields().includes("total_cost") && (
-                    <div>
-                        <Label htmlFor="total_cost" className="text-sm">Total Cost</Label>
-                        <Input
-                          name="total_cost"
-                          type="number"
-                          step="0.01"
-                          value={calculatedTotals.totalCost}
-                          readOnly
-                        />
-                    </div>
-                    )}
-                    </div>
-                  <div className="mt-4 p-3 bg-muted rounded-lg">
-                    <h5 className="text-sm font-medium mb-2">Payment Summary</h5>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <span className="text-muted-foreground">Original Total:</span>
-                        <span className="ml-2">{currencySymbols[editingBooking?.payment_currency || 'GBP']}{paymentHistory.originalTotal.toLocaleString()}</span>
-                    </div>
-                    <div>
-                        <span className="text-muted-foreground">New Total:</span>
-                        <span className="ml-2">{currencySymbols[editingBooking?.payment_currency || 'GBP']}{calculatedTotals.totalCost.toLocaleString()}</span>
-                    </div>
-                    <div>
-                        <span className="text-muted-foreground">Total Paid:</span>
-                        <span className="ml-2">{currencySymbols[editingBooking?.payment_currency || 'GBP']}{paymentHistory.paidAmounts.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</span>
-                    </div>
-                    <div>
-                        <span className="text-muted-foreground">Amount Due:</span>
-                        <span className="ml-2">{currencySymbols[editingBooking?.payment_currency || 'GBP']}{calculatedTotals.amountDue.toLocaleString()}</span>
-                    </div>
-                    </div>
-                    </div>
-                    </div>
-                  </div>
-                </div>
+              </div>
+            </div>
 
             <DialogFooter className="mt-6">
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
