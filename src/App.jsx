@@ -1,6 +1,5 @@
 import { Login } from "@/pages/login";
 import { Dashboard } from "@/pages/dashboard";
-import { PricingSheet } from "@/pages/pricing";
 import { InventoryPage } from "@/pages/inventory";
 import { BookingsPage } from "@/pages/bookings";
 import { FlightsPage } from "@/pages/flights";
@@ -17,7 +16,7 @@ import RoleBasedRoute from "./components/roleBasedRoute";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 import { Toaster } from "sonner";
-import NewPricing from "@/pages/newPricing";
+import Pricing from "@/pages/Pricing";
 
 function App() {
   return (
@@ -37,7 +36,7 @@ function App() {
           path="/pricing"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "External B2B"]}>
-              <PricingSheet />
+              <Pricing />
             </RoleBasedRoute>
           }
         />
@@ -124,7 +123,6 @@ function App() {
         <Route path="/my-account" element={<RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
         <MyAccount />
         </RoleBasedRoute>} />
-        <Route path="/new-pricing" element={<NewPricing />} />
       </Routes>
     </ThemeProvider>
   );

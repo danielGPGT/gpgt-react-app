@@ -140,7 +140,7 @@ const menuItems = [
   // Sales & Pricing
   {
     title: "Pricing",
-    url: "/new-pricing",
+    url: "/pricing",
     icon: BadgePoundSterling,
     allowedRoles: ["Admin", "Internal Sales", "External B2B"],
   },
@@ -399,7 +399,10 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="mr- text-muted-foreground group-data-[collapsible=icon]:hidden text-xs font-medium px-2 py-1">
+          <SidebarGroupLabel className={cn(
+            "mr- text-muted-foreground group-data-[collapsible=icon]:hidden text-xs font-medium px-2 py-1",
+            filteredMenuItems.slice(2, 5).length === 0 && "hidden"
+          )}>
             Event Setup
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -525,7 +528,10 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="mr- text-muted-foreground group-data-[collapsible=icon]:hidden text-xs font-medium px-2 py-1">
+          <SidebarGroupLabel className={cn(
+            "mr- text-muted-foreground group-data-[collapsible=icon]:hidden text-xs font-medium px-2 py-1",
+            filteredMenuItems.slice(5, 7).length === 0 && "hidden"
+          )}>
             Package Management
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -651,7 +657,10 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="mr- text-muted-foreground group-data-[collapsible=icon]:hidden text-xs font-medium px-2 py-1">
+          <SidebarGroupLabel className={cn(
+            "mr- text-muted-foreground group-data-[collapsible=icon]:hidden text-xs font-medium px-2 py-1",
+            filteredMenuItems.slice(7, 9).length === 0 && "hidden"
+          )}>
             Sales & Pricing
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -777,7 +786,10 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="mr- text-muted-foreground group-data-[collapsible=icon]:hidden text-xs font-medium px-2 py-1">
+          <SidebarGroupLabel className={cn(
+            "mr- text-muted-foreground group-data-[collapsible=icon]:hidden text-xs font-medium px-2 py-1",
+            filteredMenuItems.slice(9).length === 0 && "hidden"
+          )}>
             Travel & Itinerary
           </SidebarGroupLabel>
           <SidebarGroupContent>

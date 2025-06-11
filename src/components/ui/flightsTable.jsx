@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, Search, Filter, Pencil, Loader2, CheckCircle2, X } from "lucide-react";
+import { Plus, Trash2, Search, Filter, Pencil, Loader2, CheckCircle2, X, ChevronsUpDown } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -37,6 +37,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -65,6 +78,7 @@ function FlightsTable() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [flightToDelete, setFlightToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [open, setOpen] = useState(false);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -139,8 +153,8 @@ function FlightsTable() {
   const fetchInitialData = async () => {
     try {
       const [flightsRes, eventsRes] = await Promise.all([
-        api.get("stock - flights"),
-        api.get("event"),
+        api.get("stock-flights"),
+        api.get("events"),
       ]);
 
       const validFlights = Array.isArray(flightsRes.data) ? flightsRes.data : [];
@@ -245,40 +259,13 @@ function FlightsTable() {
 
       if (isEdit) {
         setIsEditing(true);
-        // Update each field individually
-        const updates = Object.entries(flightData).map(async ([column, value]) => {
-          if (value !== editingFlight[column]) {
-            // Map frontend column names to sheet column names
-            const columnMap = {
-              'event_name': 'Event Name',
-              'airline': 'Airline',
-              'class': 'Class',
-              'outbound_flight': 'Outbound Flight',
-              'inbound_flight': 'Inbound Flight',
-              'from_location': 'From Location',
-              'cost': 'Cost',
-              'margin': 'Margin',
-              'currency': 'Currency',
-              'source': 'Source',
-              'used': 'Used'
-            };
-            
-            const sheetColumn = columnMap[column];
-            if (sheetColumn) {
-              await api.put(`stock - flights/Flight ID/${editingFlight.flight_id}`, {
-                column: sheetColumn,
-                value: value
-              });
-            }
-          }
-        });
-        
-        await Promise.all(updates);
+        // Send the entire updated flight data
+        await api.put(`stock-flights/flight_id/${editingFlight.flight_id}`, flightData);
         setSuccessMessage("Flight updated successfully!");
         setIsEditDialogOpen(false);
       } else {
         setIsAdding(true);
-        await api.post("stock - flights", flightData);
+        await api.post("stock-flights", flightData);
         setSuccessMessage("Flight added successfully!");
         setIsAddDialogOpen(false);
       }
@@ -300,7 +287,7 @@ function FlightsTable() {
   const handleDeleteFlight = async (flightId) => {
     try {
       setIsDeleting(true);
-      await api.delete(`stock - flights/Flight ID/${flightId}`);
+      await api.delete(`stock-flights/flight_id/${flightId}`);
       toast.success("Flight deleted successfully");
       fetchInitialData();
     } catch (error) {
@@ -605,23 +592,41 @@ function FlightsTable() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="event_name">Event</Label>
-                <Select
-                  value={formData.event_name}
-                  onValueChange={(value) => {
-                    handleFieldChange('event_name', value);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an event" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {events.map((event) => (
-                      <SelectItem key={event.event_id} value={event.event}>
-                        {event.event}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={open}
+                      className="w-full justify-between"
+                    >
+                      {formData.event_name
+                        ? events.find((event) => event.event === formData.event_name)?.event
+                        : "Select an event..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search events..." />
+                      <CommandEmpty>No event found.</CommandEmpty>
+                      <CommandGroup>
+                        {events.map((event) => (
+                          <CommandItem
+                            key={event.event_id}
+                            value={event.event}
+                            onSelect={(currentValue) => {
+                              handleFieldChange('event_name', currentValue);
+                              setOpen(false);
+                            }}
+                          >
+                            {event.event}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 {errors.event_name && (
                   <p className="text-sm text-red-500">{errors.event_name}</p>
                 )}

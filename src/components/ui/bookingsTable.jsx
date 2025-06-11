@@ -85,6 +85,104 @@ import { ItineraryGenerator } from './ItineraryGenerator';
 import { Checkbox } from "@/components/ui/checkbox";
 import { MoreHorizontal } from "lucide-react";
 import ItineraryPDF from "./ItineraryPDF";
+import { jwtDecode } from "jwt-decode";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Role-based column configurations
+const roleBasedColumns = {
+  "Admin": [
+    "booking_ref",
+    "status",
+    "event_name",
+    "package_type",
+    "booker_name",
+    "booking_date",
+    "total_cost",
+    "total_sold_gbp",
+    "p&l",
+    "payment_status",
+    "actions"
+  ],
+  "Internal Sales": [
+    "booking_ref",
+    "status",
+    "event_name",
+    "package_type",
+    "booker_name",
+    "booking_date",
+    "total_sold_gbp",
+    "payment_status",
+    "actions"
+  ],
+  "Operations": [
+    "booking_ref",
+    "status",
+    "event_name",
+    "package_type",
+    "booker_name",
+    "booking_date",
+    "total_cost",
+    "payment_status",
+    "actions"
+  ]
+};
+
+// Role-based editable fields
+const roleBasedEditableFields = {
+  "Admin": [
+    "status",
+    "package_type",
+    "booker_name",
+    "booker_email",
+    "booker_phone",
+    "lead_traveller_name",
+    "lead_traveller_email",
+    "lead_traveller_phone",
+    "guest_traveller_names",
+    "adults",
+    "total_cost",
+    "total_sold_gbp",
+    "payment_status",
+    "tickets",
+    "hotel_rooms",
+    "circuit_transfers",
+    "airport_transfers",
+    "lounge_passes"
+  ],
+  "Internal Sales": [
+    "status",
+    "package_type",
+    "booker_name",
+    "booker_email",
+    "booker_phone",
+    "lead_traveller_name",
+    "lead_traveller_email",
+    "lead_traveller_phone",
+    "guest_traveller_names",
+    "adults",
+    "total_sold_gbp",
+    "payment_status",
+    "tickets",
+    "hotel_rooms",
+    "circuit_transfers",
+    "airport_transfers",
+    "lounge_passes"
+  ],
+  "Operations": [
+    "status",
+    "package_type",
+    "booker_name",
+    "booker_email",
+    "booker_phone",
+    "lead_traveller_name",
+    "lead_traveller_email",
+    "lead_traveller_phone",
+    "guest_traveller_names",
+    "adults",
+    "total_cost",
+    "payment_status"
+  ]
+};
 
 function BookingsTable() {
   const [bookings, setBookings] = useState([]);
@@ -101,7 +199,107 @@ function BookingsTable() {
   const [viewingBooking, setViewingBooking] = useState(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const [selectedRole, setSelectedRole] = useState(null);
   const itemsPerPage = 15;
+  const [tickets, setTickets] = useState([]);
+  const [hotels, setHotels] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [circuitTransfers, setCircuitTransfers] = useState([]);
+  const [airportTransfers, setAirportTransfers] = useState([]);
+  const [loungePasses, setLoungePasses] = useState([]);
+  const [flights, setFlights] = useState([]);
+  const [loadingComponents, setLoadingComponents] = useState(false);
+
+  // Add state for payment history
+  const [paymentHistory, setPaymentHistory] = useState({
+    originalTotal: 0,
+    paidAmounts: [],
+    dueAmounts: []
+  });
+
+  // Add state for calculated totals
+  const [calculatedTotals, setCalculatedTotals] = useState({
+    totalCost: 0,
+    totalSold: 0,
+    paymentAmounts: [0, 0, 0],
+    amountDue: 0
+  });
+
+  // Add state for pricing
+  const [exchangeRate, setExchangeRate] = useState(1);
+  const [spread, setSpread] = useState(0);
+  const [b2bCommission, setB2bCommission] = useState(0);
+
+  // Add currency symbols
+  const currencySymbols = {
+    GBP: "£",
+    USD: "$",
+    EUR: "€",
+    AUD: "A$",
+    CAD: "C$",
+  };
+
+  // Add available currencies
+  const availableCurrencies = ["GBP", "USD", "EUR", "AUD", "CAD"];
+
+  // Fetch spread for currency conversion
+  useEffect(() => {
+    const fetchSpread = async () => {
+      try {
+        const res = await api.get("/fx-spread");
+        if (res.data && res.data.length > 0) {
+          setSpread(Number(res.data[0].spread));
+        }
+      } catch (error) {
+        console.error("Failed to fetch spread:", error);
+        setSpread(0.02); // Default to 2% if fetch fails
+      }
+    };
+    fetchSpread();
+  }, []);
+
+  // Fetch B2B commission for external users
+  useEffect(() => {
+    const fetchB2bCommission = async () => {
+      if (userRole === "External B2B") {
+        try {
+          const res = await api.get("/b2b-commission");
+          if (res.data && res.data.length > 0) {
+            setB2bCommission(Number(res.data[0].b2b_commision) / 100);
+          }
+        } catch (error) {
+          console.error("Failed to fetch B2B commission:", error);
+          setB2bCommission(0.1); // Default to 10% if fetch fails
+        }
+      }
+    };
+    fetchB2bCommission();
+  }, [userRole]);
+
+  // Get user role from token on component mount
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setUserRole(decoded.role);
+        setSelectedRole(decoded.role);
+      } catch (error) {
+        console.error("Failed to decode token:", error);
+      }
+    }
+  }, []);
+
+  // Get visible columns based on role
+  const getVisibleColumns = () => {
+    return roleBasedColumns[selectedRole] || roleBasedColumns["Internal Sales"];
+  };
+
+  // Get editable fields based on role
+  const getEditableFields = () => {
+    return roleBasedEditableFields[selectedRole] || roleBasedEditableFields["Internal Sales"];
+  };
 
   // Add sorting state
   const [sortColumn, setSortColumn] = useState(null);
@@ -109,7 +307,6 @@ function BookingsTable() {
 
   // Define sortable columns
   const sortColumns = [
-    { value: null, label: "No Sorting" },
     { value: "booking_ref", label: "Booking Reference" },
     { value: "status", label: "Status" },
     { value: "event_name", label: "Event" },
@@ -132,36 +329,6 @@ function BookingsTable() {
     consultant: "all",
     bookingDateRange: { from: null, to: null },
   });
-
-  const currencySymbols = {
-    GBP: "£",
-    USD: "$",
-    EUR: "€",
-    AUD: "A$",
-    CAD: "C$",
-    NZD: "NZ$",
-    JPY: "¥",
-    CHF: "Fr",
-    CNY: "¥",
-    INR: "₹",
-    BRL: "R$",
-    ZAR: "R",
-    SGD: "S$",
-    HKD: "HK$",
-    SEK: "kr",
-    NOK: "kr",
-    DKK: "kr",
-    PLN: "zł",
-    MXN: "Mex$",
-    RUB: "₽",
-    TRY: "₺",
-    KRW: "₩",
-    THB: "฿",
-    IDR: "Rp",
-    MYR: "RM",
-    PHP: "₱",
-    VND: "₫",
-  };
 
   const getCurrencySymbol = (currencyCode) => {
     return currencySymbols[currencyCode] || currencyCode;
@@ -528,130 +695,344 @@ function BookingsTable() {
     }
   };
 
-  const handleEditBooking = async (formData) => {
-    if (isSubmitting) {
-      console.log("Already submitting, ignoring duplicate submission");
-      return;
-    }
-
-    // If status is being set to Cancelled, set all quantity fields to 0
-    if (formData.status === "Cancelled") {
-      formData.ticket_quantity = 0;
-      formData.room_quantity = 0;
-      formData.airport_transfer_quantity = 0;
-      formData.circuit_transfer_quantity = 0;
-      formData.payment_1_status = "Cancelled";
-      formData.payment_2_status = "Cancelled";
-      formData.payment_3_status = "Cancelled";
-    }
+  // Add function to fetch package components
+  const fetchPackageComponents = async (packageId) => {
+    if (!packageId) return;
 
     try {
-      setIsSubmitting(true);
-      console.log("Starting update for booking:", editingBooking.booking_id);
+      setLoadingComponents(true);
 
-      // Convert form data to array of updates, but only include changed fields
-      const updates = Object.entries(formData)
-        .filter(([column, value]) => {
-          // Skip booking_id field as it's managed by the backend
-          if (column === "booking_id") return false;
+      // First get rooms for this package
+      const roomsRes = await api.get("/rooms", {
+        params: { packageId },
+      });
 
-          // Compare with original value, handling different data types
-          const originalValue = editingBooking[column];
+      // Extract unique hotel IDs from rooms
+      const uniqueHotelIds = [...new Set(roomsRes.data.map(room => room.hotel_id))];
 
-          // Special handling for date fields
-          if (
-            column.includes("date") ||
-            column === "booking_date" ||
-            column === "check_in_date" ||
-            column === "check_out_date" ||
-            column === "payment_1_date" ||
-            column === "payment_2_date" ||
-            column === "payment_3_date" ||
-            column === "ticketing_deadline"
-          ) {
-            // Format both values to DD-MMM-YYYY for comparison
-            const formattedOriginal = formatDateForBackend(originalValue);
-            const formattedNew = formatDateForBackend(value);
+      // Get hotels for these IDs
+      const hotelsRes = await api.get("/hotels", {
+        params: { hotelIds: uniqueHotelIds.join(',') },
+      });
 
-            console.log(`Date comparison for ${column}:`, {
-              originalValue,
-              newValue: value,
-              formattedOriginal,
-              formattedNew,
-              isDifferent: formattedOriginal !== formattedNew,
-            });
+      // Get other data in parallel
+      const [
+        ticketsRes,
+        circuitTransfersRes,
+        airportTransfersRes,
+        loungePassesRes,
+        flightsRes
+      ] = await Promise.all([
+        api.get("/tickets", { params: { packageId } }),
+        api.get("/circuit-transfers", { params: { packageId } }),
+        api.get("/airport-transfers", { params: { packageId } }),
+        api.get("/lounge-passes", { params: { packageId } }),
+        api.get("/flights", { params: { packageId } })
+      ]);
 
-            return formattedOriginal !== formattedNew;
-          }
+      setRooms(roomsRes.data);
+      setHotels(hotelsRes.data);
+      setTickets(ticketsRes.data);
+      setCircuitTransfers(circuitTransfersRes.data);
+      setAirportTransfers(airportTransfersRes.data);
+      setLoungePasses(loungePassesRes.data);
+      setFlights(flightsRes.data);
 
-          // Handle numbers
-          if (typeof originalValue === "number") {
-            return Number(value) !== originalValue;
-          }
-
-          // Handle other types
-          return String(value) !== String(originalValue);
-        })
-        .map(([column, value]) => {
-          // Format date fields
-          if (
-            column.includes("date") ||
-            column === "booking_date" ||
-            column === "check_in_date" ||
-            column === "check_out_date" ||
-            column === "payment_1_date" ||
-            column === "payment_2_date" ||
-            column === "payment_3_date" ||
-            column === "ticketing_deadline"
-          ) {
-            return {
-              column: bookingFieldMappings[column] || column,
-              value: formatDateForBackend(value),
-            };
-          }
-          return {
-            column: bookingFieldMappings[column] || column,
-            value,
-          };
+      // If we have a selected hotel, filter transfers for that hotel
+      if (editingBooking?.hotel_id) {
+        const filteredCircuitTransfers = circuitTransfersRes.data.filter(transfer => {
+          const packageIds = transfer.package_id.split(',').map(id => id.trim());
+          return packageIds.includes(packageId) && 
+                 transfer.hotel_id === editingBooking.hotel_id;
         });
-
-      console.log("Updates to process:", updates);
-
-      // Make individual cell updates only for changed fields
-      for (const update of updates) {
-        console.log("Updating field:", update.column);
-        const response = await api.put(
-          `bookingFile/booking_id/${editingBooking.booking_id}`,
-          {
-            column: update.column,
-            value: update.value,
-          }
-        );
-
-        if (!response.data) {
-          throw new Error("Update failed");
-        }
+        
+        const filteredAirportTransfers = airportTransfersRes.data.filter(transfer => {
+          const packageIds = transfer.package_id.split(',').map(id => id.trim());
+          return packageIds.includes(packageId) && 
+                 transfer.hotel_id === editingBooking.hotel_id;
+        });
+        
+        setCircuitTransfers(filteredCircuitTransfers);
+        setAirportTransfers(filteredAirportTransfers);
       }
 
-      console.log("All updates completed successfully");
-      await fetchBookings(); // Refresh the bookings list
+    } catch (error) {
+      console.error("Failed to fetch package components:", error);
+      toast.error("Failed to load package components");
+    } finally {
+      setLoadingComponents(false);
+    }
+  };
+
+  // Improve the calculateTotals function
+  const calculateTotals = (formData) => {
+    // Calculate new component costs
+    const ticketCost = parseFloat(formData.get('ticket_quantity') || 0) * 
+      (tickets.find(t => t.ticket_id === formData.get('ticket_id'))?.price || 0);
+    
+    const roomCost = parseFloat(formData.get('room_quantity') || 0) * 
+      (rooms.find(r => r.room_id === formData.get('room_id'))?.price || 0);
+    
+    const airportTransferCost = parseFloat(formData.get('airport_transfer_quantity') || 0) * 
+      (airportTransfers.find(t => t.airport_transfer_id === formData.get('airport_transfer_id'))?.price || 0);
+    
+    const circuitTransferCost = parseFloat(formData.get('circuit_transfer_quantity') || 0) * 
+      (circuitTransfers.find(t => t.circuit_transfer_id === formData.get('circuit_transfer_id'))?.price || 0);
+    
+    const loungePassCost = parseFloat(formData.get('lounge_pass_quantity') || 0) * 
+      (loungePasses.find(p => p.lounge_pass_id === formData.get('lounge_pass_id'))?.price || 0);
+
+    let total = ticketCost + roomCost + airportTransferCost + circuitTransferCost + loungePassCost;
+
+    if (total === 0) {
+            return {
+        totalCost: 0,
+        totalSold: 0,
+        paymentAmounts: [0, 0, 0],
+        amountDue: 0
+      };
+    }
+
+    // First round to nearest 100 and subtract 2 (exactly like combinedPricing)
+    const rounded = Math.ceil(total / 100) * 100 - 2;
+
+    // Apply B2B commission and currency conversion
+    let finalTotal;
+    if (userRole === "External B2B") {
+      // For external users, apply commission first, then exchange rate
+      const withCommission = rounded * (1 + b2bCommission);
+      finalTotal = withCommission * exchangeRate;
+    } else {
+      // For internal users, just apply exchange rate
+      finalTotal = rounded * exchangeRate;
+    }
+
+    // Ensure we have a valid number
+    if (isNaN(finalTotal)) {
+      console.error('Invalid total price calculation:', {
+        rounded,
+        b2bCommission,
+        exchangeRate,
+        spread,
+        userRole,
+        paymentCurrency: editingBooking?.payment_currency
+      });
+      finalTotal = 0;
+    }
+
+    // Calculate total paid amount
+    const totalPaid = paymentHistory.paidAmounts.reduce((sum, payment) => sum + payment.amount, 0);
+    
+    // Calculate remaining amount to be distributed
+    const remainingAmount = finalTotal - totalPaid;
+    
+    // Calculate new payment amounts
+    const paymentAmounts = [1, 2, 3].map(num => {
+      const existingPayment = paymentHistory.paidAmounts.find(p => p.num === num) ||
+                            paymentHistory.dueAmounts.find(p => p.num === num);
+      
+      if (existingPayment?.status === 'Paid') {
+        return existingPayment.amount; // Keep paid amounts unchanged
+      } else if (existingPayment?.status === 'Due') {
+        // Distribute remaining amount proportionally based on original due amounts
+        const originalDueTotal = paymentHistory.dueAmounts.reduce((sum, p) => sum + p.amount, 0);
+        const originalDueAmount = existingPayment.amount;
+        const proportion = originalDueTotal > 0 ? originalDueAmount / originalDueTotal : 0;
+        return remainingAmount * proportion;
+      }
+      return 0; // For cancelled or new payments
+    });
+
+    // Calculate amount due (sum of due payments)
+    const amountDue = paymentAmounts.reduce((total, amount, index) => {
+      const status = formData.get(`payment_${index + 1}_status`) || editingBooking?.[`payment_${index + 1}_status`];
+      return status === 'Due' ? total + amount : total;
+    }, 0);
+
+          return {
+      totalCost: finalTotal,
+      totalSold: finalTotal, // You might want to adjust this based on your pricing strategy
+      paymentAmounts,
+      amountDue
+    };
+  };
+
+  // Add function to handle payment status changes
+  const handlePaymentStatusChange = (num, newStatus) => {
+    const formData = new FormData();
+    // Get all current form values
+    const form = document.querySelector('form');
+    if (form) {
+      new FormData(form).forEach((value, key) => {
+        formData.append(key, value);
+      });
+    }
+    
+    // Update payment status
+    formData.set(`payment_${num}_status`, newStatus);
+    
+    // Recalculate totals
+    const newTotals = calculateTotals(formData);
+    setCalculatedTotals(newTotals);
+  };
+
+  // Add function to handle component changes
+  const handleComponentChange = (value, name) => {
+    // Get the form element
+    const form = document.querySelector('form');
+    if (!form) return;
+
+    const formData = new FormData(form);
+
+    // If this is a Select component event
+    if (name) {
+      formData.set(name, value);
+
+      // Special handling for room selection
+      if (name === 'room_id') {
+        const selectedRoom = rooms.find(r => r.room_id === value);
+        const isBookedRoom = value === editingBooking?.room_id;
+        
+        // If it's the booked room, set quantity to original booking quantity
+        if (isBookedRoom) {
+          formData.set('room_quantity', editingBooking?.room_quantity);
+        }
+        // If it's a new room with 0 remaining, prevent selection
+        else if (selectedRoom?.remaining <= 0) {
+          toast.warning('This room is not available');
+          return;
+        }
+      }
+    }
+    
+    const newTotals = calculateTotals(formData);
+    setCalculatedTotals(newTotals);
+  };
+
+  // Add function to handle input changes
+  const handleInputChange = (e) => {
+    const selectedTicket = tickets.find(t => t.ticket_id === editingBooking?.ticket_id);
+    const value = parseInt(e.target.value);
+    if (selectedTicket && value > selectedTicket.remaining) {
+      e.target.value = selectedTicket.remaining;
+      toast.warning(`Only ${selectedTicket.remaining} tickets remaining`);
+    }
+    handleComponentChange(e.target.value, e.target.name);
+  };
+
+  // Modify handleEditBooking to initialize payment history
+  const handleEditBooking = async (booking) => {
+    setEditingBooking(booking);
+    setIsEditDialogOpen(true);
+    
+    // Initialize payment history with the original booking data
+    setPaymentHistory({
+      originalTotal: booking.total_sold_for_local || booking.total_sold_gbp,
+      paidAmounts: [
+        {
+          num: 1,
+          amount: booking.payment_1,
+          date: booking.payment_1_date,
+          status: booking.payment_1_status
+        },
+        {
+          num: 2,
+          amount: booking.payment_2,
+          date: booking.payment_2_date,
+          status: booking.payment_2_status
+        },
+        {
+          num: 3,
+          amount: booking.payment_3,
+          date: booking.payment_3_date,
+          status: booking.payment_3_status
+        }
+      ].filter(payment => payment.status === 'Paid'),
+      dueAmounts: [
+        {
+          num: 1,
+          amount: booking.payment_1,
+          date: booking.payment_1_date,
+          status: booking.payment_1_status
+        },
+        {
+          num: 2,
+          amount: booking.payment_2,
+          date: booking.payment_2_date,
+          status: booking.payment_2_status
+        },
+        {
+          num: 3,
+          amount: booking.payment_3,
+          date: booking.payment_3_date,
+          status: booking.payment_3_status
+        }
+      ].filter(payment => payment.status === 'Due')
+    });
+
+    // Fetch package components
+    if (booking.package_id) {
+      await fetchPackageComponents(booking.package_id);
+    }
+  };
+
+  // Modify handleSubmit to handle the new data structure
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingBooking) return;
+
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData(e.target);
+      const updatedData = {
+        booking_id: editingBooking.booking_id,
+        status: formData.get("status"),
+        package_type: formData.get("package_type"),
+        booker_name: formData.get("booker_name"),
+        booker_email: formData.get("booker_email"),
+        booker_phone: formData.get("booker_phone"),
+        lead_traveller_name: formData.get("lead_traveller_name"),
+        lead_traveller_email: formData.get("lead_traveller_email"),
+        lead_traveller_phone: formData.get("lead_traveller_phone"),
+        guest_traveller_names: formData.get("guest_traveller_names"),
+        adults: parseInt(formData.get("adults")),
+        total_sold_gbp: parseFloat(formData.get("total_sold_gbp")),
+        payment_status: formData.get("payment_status"),
+        // Package components
+        ticket_id: formData.get("ticket_id"),
+        ticket_quantity: parseInt(formData.get("ticket_quantity")),
+        hotel_id: formData.get("hotel_id"),
+        room_id: formData.get("room_id"),
+        room_quantity: parseInt(formData.get("room_quantity")),
+        check_in_date: formData.get("check_in_date"),
+        check_out_date: formData.get("check_out_date"),
+        circuit_transfer_id: formData.get("circuit_transfer_id"),
+        circuit_transfer_quantity: parseInt(formData.get("circuit_transfer_quantity")),
+        airport_transfer_id: formData.get("airport_transfer_id"),
+        airport_transfer_quantity: parseInt(formData.get("airport_transfer_quantity")),
+        lounge_pass_id: formData.get("lounge_pass_id"),
+        lounge_pass_quantity: parseInt(formData.get("lounge_pass_quantity"))
+      };
+
+      // Only include total_cost if it's editable for the current role
+      if (getEditableFields().includes("total_cost")) {
+        updatedData.total_cost = parseFloat(formData.get("total_cost"));
+      }
+
+      const response = await api.put(`/bookings/${editingBooking.booking_id}`, updatedData);
+      
+      if (response.status === 200) {
+        toast.success("Booking updated successfully");
       setIsEditDialogOpen(false);
       setEditingBooking(null);
-      toast.success("Booking updated successfully");
+        fetchBookings(); // Refresh the bookings list
+      }
     } catch (error) {
       console.error("Failed to update booking:", error);
       toast.error("Failed to update booking");
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  // Update the form submission handler
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
-    handleEditBooking(data);
   };
 
   // Add this helper function to format dates
@@ -773,6 +1154,64 @@ function BookingsTable() {
     }
   };
 
+  const handleSort = (column) => {
+    setSortColumn(column);
+    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  };
+
+  const renderCell = (booking, column) => {
+    switch (column) {
+      case "status":
+        return <Badge variant="secondary">{booking.status}</Badge>;
+      case "payment_status":
+        return (
+          <Badge
+            className={`${
+              booking.payment_status === "Paid"
+                ? "bg-success text-primary-foreground"
+                : booking.payment_status === "Cancelled"
+                ? "bg-secondary text-secondary-foreground"
+                : "bg-destructive text-primary-foreground"
+            }`}
+          >
+            {booking.payment_status}
+          </Badge>
+        );
+      case "total_cost":
+      case "total_sold_gbp":
+      case "p&l":
+        return `£ ${booking[column].toLocaleString()}`;
+      case "actions":
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleViewItinerary(booking)}
+            >
+              <FileText className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleEditBooking(booking)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeleteBooking(booking.booking_id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      default:
+        return booking[column];
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center text-muted-foreground">
@@ -783,351 +1222,161 @@ function BookingsTable() {
 
   return (
     <div className="space-y-4 w-full">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">View and edit Bookings</h3>
+      {/* Role Switcher for Admin users */}
+      {userRole === "Admin" && (
+        <div className="flex justify-end mb-4">
+          <Tabs value={selectedRole} onValueChange={setSelectedRole} className="w-[400px]">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="Admin">Admin View</TabsTrigger>
+              <TabsTrigger value="Internal Sales">Sales View</TabsTrigger>
+              <TabsTrigger value="Operations">Operations View</TabsTrigger>
+            </TabsList>
+          </Tabs>
       </div>
+      )}
 
-      {/* Filters */}
-      <div className="flex gap-4 items-center flex-wrap">
-        <div className="flex-1 min-w-[200px]">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+      {/* Table Header with Actions */}
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
             <Input
               placeholder="Search bookings..."
               value={filters.search}
-              onChange={(e) =>
-                setFilters({ ...filters, search: e.target.value })
-              }
-              className="pl-8"
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            className="w-[300px]"
             />
-          </div>
-        </div>
-        <Select
-          value={filters.status}
-          onValueChange={(value) => setFilters({ ...filters, status: value })}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[200px]">
+              <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={filters.status === "all"}
+                onCheckedChange={() => setFilters({ ...filters, status: "all" })}
+              >
+                All
+              </DropdownMenuCheckboxItem>
             {getUniqueValues("status").map((status) => (
-              <SelectItem key={status} value={status}>
+                <DropdownMenuCheckboxItem
+                  key={status}
+                  checked={filters.status === status}
+                  onCheckedChange={() => setFilters({ ...filters, status })}
+                >
                 {status}
-              </SelectItem>
+                </DropdownMenuCheckboxItem>
             ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.event}
-          onValueChange={(value) => setFilters({ ...filters, event: value })}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Filter by Event</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={filters.event === "all"}
+                onCheckedChange={() => setFilters({ ...filters, event: "all" })}
         >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Event" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Events</SelectItem>
+                All
+              </DropdownMenuCheckboxItem>
             {getUniqueValues("event_name").map((event) => (
-              <SelectItem key={event} value={event}>
+                <DropdownMenuCheckboxItem
+                  key={event}
+                  checked={filters.event === event}
+                  onCheckedChange={() => setFilters({ ...filters, event })}
+                >
                 {event}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.package}
-          onValueChange={(value) => setFilters({ ...filters, package: value })}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Package" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Packages</SelectItem>
-            {getUniqueValues("package_type").map((pkg) => (
-              <SelectItem key={pkg} value={pkg}>
-                {pkg}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.consultant}
-          onValueChange={(value) =>
-            setFilters({ ...filters, consultant: value })
-          }
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by Consultant" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Consultants</SelectItem>
-            {getUniqueValues("consultant").map((consultant) => (
-              <SelectItem key={consultant} value={consultant}>
-                {consultant}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <div className="flex items-center gap-2">
-          <Label>Booking Date:</Label>
-          <DatePickerWithRange
-            date={filters.bookingDateRange}
-            setDate={(range) =>
-              setFilters({ ...filters, bookingDateRange: range })
-            }
-          />
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={() =>
-              setFilters({
-                ...filters,
-                bookingDateRange: { from: null, to: null },
-              })
-            }
+            onClick={() => fetchBookings()}
+            disabled={loading}
           >
-            Clear
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setIsAddDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Booking
           </Button>
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <div className="flex items-center gap-2 p-2 justify-between">
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="default" size="sm" className="flex items-center gap-2">
-                  Sort <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                {sortColumns.map((col) => (
-                  <DropdownMenuItem
-                    key={col.value}
-                    onClick={() => setSortColumn(col.value)}
-                    className={
-                      sortColumn === col.value
-                        ? "font-semibold text-primary"
-                        : ""
-                    }
-                  >
-                    {col.label} {sortColumn === col.value && "✓"}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Direction</DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => setSortDirection("asc")}
-                  className={
-                    sortDirection === "asc"
-                      ? "font-semibold text-primary"
-                      : ""
-                  }
-                >
-                  Ascending {sortDirection === "asc" && "▲"}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setSortDirection("desc")}
-                  className={
-                    sortDirection === "desc"
-                      ? "font-semibold text-primary"
-                      : ""
-                  }
-                >
-                  Descending {sortDirection === "desc" && "▼"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <span className="text-sm text-muted-foreground">
-              {sortColumn ? (
-                <>
-                  Sorted by{" "}
-                  <span className="font-medium">
-                    {sortColumns.find((c) => c.value === sortColumn)?.label}
-                  </span>{" "}
-                  ({sortDirection === "asc" ? "A-Z" : "Z-A"})
-                </>
-              ) : (
-                "No sorting applied"
-              )}
-            </span>
-          </div>
-
-          {selectedBookings.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                {selectedBookings.length} selected
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    Bulk Actions <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={handleBulkGenerateItineraries}
-                    disabled={isBulkGenerating}
-                  >
-                    {isBulkGenerating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Generate New Itineraries
-                      </>
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleBulkUpdateItineraries}
-                    disabled={isBulkGenerating}
-                  >
-                    {isBulkGenerating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Update Existing Itineraries
-                      </>
-                    )}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-        </div>
+      {/* Table */}
+      <div className="rounded-md border w-full">
         <Table>
-          <TableHeader className="bg-muted">
-            <TableRow className="hover:bg-muted">
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={selectedBookings.length === currentItems.length}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Select all"
-                />
+          <TableHeader>
+            <TableRow>
+              {getVisibleColumns().map((column) => (
+                <TableHead key={column} className="w-auto">
+                  {column === "actions" ? (
+                    <div className="flex items-center justify-end">
+                      <span>Actions</span>
+          </div>
+                  ) : (
+                    <span>{column.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}</span>
+                  )}
               </TableHead>
-              <TableHead className="text-xs py-2">Booking Ref</TableHead>
-              <TableHead className="text-xs py-2">Status</TableHead>
-              <TableHead className="text-xs py-2">Event</TableHead>
-              <TableHead className="text-xs py-2">Package</TableHead>
-              <TableHead className="text-xs py-2">Booker</TableHead>
-              <TableHead className="text-xs py-2">Booking Date</TableHead>
-              <TableHead className="text-xs py-2">Total Cost</TableHead>
-              <TableHead className="text-xs py-2">Total Sold (GBP)</TableHead>
-              <TableHead className="text-xs py-2">P&L</TableHead>
-              <TableHead className="text-xs py-2">Payment Status</TableHead>
-              <TableHead className="text-xs py-2">Itinerary</TableHead>
-              <TableHead className="text-xs py-2">Actions</TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentItems.map((booking) => (
-              <TableRow key={booking.booking_id} className="hover:bg-muted/50">
-                <TableCell>
-                  <Checkbox
-                    checked={selectedBookings.some(b => b.booking_id === booking.booking_id)}
-                    onCheckedChange={() => handleSelectBooking(booking)}
-                    aria-label={`Select booking ${booking.booking_ref}`}
-                  />
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={getVisibleColumns().length} className="h-24 text-center">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 </TableCell>
-                <TableCell className="text-xs py-1.5 font-medium">
-                  {booking.booking_ref}
+              </TableRow>
+            ) : filteredBookings.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={getVisibleColumns().length} className="h-24 text-center">
+                  No bookings found.
                 </TableCell>
-                <TableCell className="text-xs py-1.5">
-                  <Badge variant="secondary">{booking.status}</Badge>
-                </TableCell>
-                <TableCell className="text-xs py-1.5">{booking.event_name}</TableCell>
-                <TableCell className="text-xs py-1.5">{booking.package_type}</TableCell>
-                <TableCell className="text-xs py-1.5">{booking.booker_name}</TableCell>
-                <TableCell className="text-xs py-1.5">{booking.booking_date}</TableCell>
-                <TableCell className="text-xs py-1.5">£ {booking.total_cost.toLocaleString()}</TableCell>
-                <TableCell className="text-xs py-1.5">
-                  £ {booking.total_sold_gbp.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-xs py-1.5">
-                  <span
-                    className={
-                      booking["p&l"] >= 0 ? "text-success" : "text-destructive"
-                    }
-                  >
-                    £ {booking["p&l"].toLocaleString()}
-                  </span>
-                </TableCell>
-                <TableCell className="text-xs py-1.5">
-                  <Badge
-                    className={`${
-                      booking.payment_status === "Paid"
-                        ? "bg-success text-primary-foreground"
-                        : booking.payment_status === "Cancelled"
-                        ? "bg-secondary text-secondary-foreground"
-                        : "bg-destructive text-primary-foreground"
-                    }`}
-                  >
-                    {booking.payment_status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs py-1.5">
-                  {bookingsWithItineraries.has(booking.booking_id) ? (
+              </TableRow>
+            ) : (
+              filteredBookings.map((booking) => (
+                <TableRow key={booking.booking_id}>
+                  {getVisibleColumns().map((column) => (
+                    <TableCell key={column} className="w-auto">
+                      {column === "actions" ? (
+                        <div className="flex items-center justify-end gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="flex items-center gap-1 h-6 px-2"
                       onClick={() => handleViewItinerary(booking)}
                     >
-                      <FileText className="h-3 w-3" />
-                      <span>View Itinerary</span>
-                      <ExternalLink className="h-3 w-3 ml-1" />
+                            <FileText className="h-4 w-4" />
                     </Button>
-                  ) : (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <FileText className="h-3 w-3" />
-                      Not Generated
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs py-1.5">
-                  <div className="flex gap-1">
                     <Button
                       variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setViewingBooking(booking);
-                        setIsViewDialogOpen(true);
-                      }}
-                      className="h-7 w-7"
+                            size="sm"
+                            onClick={() => handleEditBooking(booking)}
                     >
-                      <Eye className="h-3.5 w-3.5" />
+                            <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setEditingBooking(booking);
-                        setIsEditDialogOpen(true);
-                      }}
-                      className="h-7 w-7"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                            size="sm"
                       onClick={() => handleDeleteBooking(booking.booking_id)}
-                      className="h-7 w-7"
                     >
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
+                      ) : (
+                        renderCell(booking, column)
+                      )}
                 </TableCell>
-              </TableRow>
             ))}
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -1307,9 +1556,7 @@ function BookingsTable() {
 
               {/* Booker Information */}
               <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4 ">
-                <h3 className="text-sm font-semibold mb-2">
-                  Booker Information
-                </h3>
+                <h3 className="text-sm font-semibold mb-2">Booker Information</h3>
                 <div className="space-y-2 grid grid-cols-2 gap-3">
                   <div>
                     <span className="text-xs text-muted-foreground">Name</span>
@@ -1826,412 +2073,528 @@ function BookingsTable() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Booking Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-[1400px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="pb-2">
-            <DialogTitle>
-              Edit Booking - {editingBooking?.booking_ref}
-            </DialogTitle>
+        <DialogContent className="max-w-[90vw] h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Edit Booking - {editingBooking?.booking_ref}</DialogTitle>
+            <DialogDescription>
+              Make changes to the booking details below.
+            </DialogDescription>
           </DialogHeader>
-          {editingBooking && (
-            <form onSubmit={handleSubmit}>
-              <div className="w-full columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6 h-full">
+            <div className="grid grid-cols-3 gap-6 overflow-y-auto pr-4 max-h-[calc(90vh-8rem)]">
+              {/* Package Components */}
+              <div className="col-span-3 grid grid-cols-3 gap-6">
+                {/* Tickets */}
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-3">Tickets</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="ticket_id" className="text-sm">Ticket Type</Label>
+                      <Select 
+                        name="ticket_id" 
+                        defaultValue={editingBooking?.ticket_id}
+                        onValueChange={(value) => handleComponentChange(value, 'ticket_id')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select ticket type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tickets.map((ticket) => (
+                            <SelectItem 
+                              key={ticket.ticket_id} 
+                              value={ticket.ticket_id}
+                              disabled={ticket.remaining <= 0 && ticket.ticket_id !== editingBooking?.ticket_id}
+                            >
+                              {ticket.ticket_name} - £{ticket.price} 
+                              {ticket.ticket_id === editingBooking?.ticket_id 
+                                ? ` (Currently Booked: ${editingBooking?.ticket_quantity})` 
+                                : ` (${ticket.remaining} remaining)`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="ticket_quantity" className="text-sm">Ticket Quantity</Label>
+                      <Input 
+                        name="ticket_quantity" 
+                        type="number" 
+                        min="1"
+                        max={tickets.find(t => t.ticket_id === editingBooking?.ticket_id)?.remaining || 0}
+                        defaultValue={editingBooking?.ticket_quantity}
+                        onChange={(e) => {
+                          const selectedTicket = tickets.find(t => t.ticket_id === editingBooking?.ticket_id);
+                          const value = parseInt(e.target.value);
+                          if (selectedTicket && value > selectedTicket.remaining) {
+                            e.target.value = selectedTicket.remaining;
+                            toast.warning(`Only ${selectedTicket.remaining} tickets remaining`);
+                          }
+                          handleInputChange(e);
+                        }}
+                      />
+                      {editingBooking?.ticket_id && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {tickets.find(t => t.ticket_id === editingBooking.ticket_id)?.remaining <= 0 
+                            ? 'Currently booked ticket' 
+                            : `${tickets.find(t => t.ticket_id === editingBooking.ticket_id)?.remaining} tickets remaining`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hotel */}
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-3">Hotel</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="hotel_id" className="text-sm">Hotel</Label>
+                      <Select 
+                        name="hotel_id" 
+                        defaultValue={editingBooking?.hotel_id}
+                        onValueChange={(value) => handleComponentChange(value, 'hotel_id')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select hotel" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {hotels.map((hotel) => (
+                            <SelectItem 
+                              key={hotel.hotel_id} 
+                              value={hotel.hotel_id}
+                            >
+                              {hotel.hotel_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="room_id" className="text-sm">Room Type</Label>
+                      <Select 
+                        name="room_id" 
+                        defaultValue={editingBooking?.room_id}
+                        onValueChange={(value) => handleComponentChange(value, 'room_id')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select room type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rooms.map((room) => {
+                            // Check if this is the exact room from the booking
+                            const isBookedRoom = room.room_id === editingBooking?.room_id;
+                            console.log('Room check:', {
+                              roomId: room.room_id,
+                              bookingRoomId: editingBooking?.room_id,
+                              isBookedRoom,
+                              remaining: room.remaining
+                            });
+                            return (
+                              <SelectItem 
+                                key={room.room_id} 
+                                value={room.room_id}
+                                disabled={!isBookedRoom && room.remaining <= 0}
+                              >
+                                {room.room_category} - {room.room_type} 
+                                {room.breakfast_included ? ' (Breakfast Included)' : ''} 
+                                - £{room.price} 
+                                {isBookedRoom 
+                                  ? ` (Currently Booked: ${editingBooking?.room_quantity})` 
+                                  : ` (${room.remaining} remaining)`}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      {editingBooking?.room_id && (
+                        <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                          <p>
+                            {editingBooking?.room_id === rooms.find(r => r.room_id === editingBooking?.room_id)?.room_id 
+                              ? `Originally booked: ${editingBooking?.room_quantity} rooms` 
+                              : `${rooms.find(r => r.room_id === editingBooking?.room_id)?.remaining} rooms remaining`}
+                          </p>
+                          <p>
+                            Max guests: {rooms.find(r => r.room_id === editingBooking?.room_id)?.max_guests}
+                          </p>
+                          <p>
+                            {rooms.find(r => r.room_id === editingBooking?.room_id)?.nights} nights
+                            {rooms.find(r => r.room_id === editingBooking?.room_id)?.extra_night_price && 
+                              ` (Extra night: £${rooms.find(r => r.room_id === editingBooking?.room_id)?.extra_night_price})`
+                            }
+                      </p>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="room_quantity" className="text-sm">Room Quantity</Label>
+                      <Input
+                        name="room_quantity" 
+                        type="number" 
+                        min="1"
+                        max={editingBooking?.room_id === rooms.find(r => r.room_id === editingBooking?.room_id)?.room_id 
+                          ? editingBooking?.room_quantity 
+                          : rooms.find(r => r.room_id === editingBooking?.room_id)?.remaining || 0}
+                        defaultValue={editingBooking?.room_quantity}
+                        onChange={(e) => {
+                          const selectedRoom = rooms.find(r => r.room_id === editingBooking?.room_id);
+                          const value = parseInt(e.target.value);
+                          if (selectedRoom) {
+                            if (value < 1) {
+                              e.target.value = 1;
+                              toast.warning('Minimum 1 room required');
+                            } else if (selectedRoom.room_id === editingBooking?.room_id) {
+                              if (value > editingBooking?.room_quantity) {
+                                e.target.value = editingBooking?.room_quantity;
+                                toast.warning(`Cannot exceed original booking quantity of ${editingBooking?.room_quantity}`);
+                              }
+                            } else if (value > selectedRoom.remaining) {
+                              e.target.value = selectedRoom.remaining;
+                              toast.warning(`Only ${selectedRoom.remaining} rooms remaining`);
+                            }
+                          }
+                          handleInputChange(e);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transfers */}
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-3">Transfers</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="airport_transfer_id" className="text-sm">Airport Transfer Type</Label>
+                      <Select 
+                        name="airport_transfer_id" 
+                        defaultValue={editingBooking?.airport_transfer_id}
+                        onValueChange={(value) => handleComponentChange(value, 'airport_transfer_id')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transfer type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {airportTransfers.map((transfer) => (
+                            <SelectItem 
+                              key={transfer.airport_transfer_id} 
+                              value={transfer.airport_transfer_id}
+                            >
+                              {transfer.transport_type} - Max {transfer.max_capacity} passengers
+                              - £{transfer.price} per transfer
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {editingBooking?.airport_transfer_id && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          <p>
+                            Max capacity: {airportTransfers.find(t => t.airport_transfer_id === editingBooking.airport_transfer_id)?.max_capacity} passengers
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="airport_transfer_quantity" className="text-sm">Number of Transfers</Label>
+                      <Input
+                        name="airport_transfer_quantity" 
+                        type="number" 
+                        min="1"
+                        defaultValue={editingBooking?.airport_transfer_quantity}
+                        onChange={(e) => {
+                          const selectedTransfer = airportTransfers.find(t => t.airport_transfer_id === editingBooking?.airport_transfer_id);
+                          const value = parseInt(e.target.value);
+                          if (selectedTransfer && value < 1) {
+                            e.target.value = 1;
+                            toast.warning('Minimum 1 transfer required');
+                          }
+                          handleInputChange(e);
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Price per transfer: £{airportTransfers.find(t => t.airport_transfer_id === editingBooking?.airport_transfer_id)?.price || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="circuit_transfer_id" className="text-sm">Circuit Transfer Type</Label>
+                      <Select 
+                        name="circuit_transfer_id" 
+                        defaultValue={editingBooking?.circuit_transfer_id}
+                        onValueChange={(value) => handleComponentChange(value, 'circuit_transfer_id')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transfer type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {circuitTransfers.map((transfer) => (
+                            <SelectItem 
+                              key={transfer.circuit_transfer_id} 
+                              value={transfer.circuit_transfer_id}
+                            >
+                              {transfer.transport_type} - {transfer.coach_capacity} seats
+                              - £{transfer.price} per person
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {editingBooking?.circuit_transfer_id && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          <p>
+                            Coach capacity: {circuitTransfers.find(t => t.circuit_transfer_id === editingBooking.circuit_transfer_id)?.coach_capacity} seats
+                          </p>
+                          <p>
+                            Transfer days: {circuitTransfers.find(t => t.circuit_transfer_id === editingBooking.circuit_transfer_id)?.transport_type.match(/\((.*?)\)/)?.[1] || 'All days'}
+                      </p>
+                    </div>
+                      )}
+                  </div>
+                    <div>
+                      <Label htmlFor="circuit_transfer_quantity" className="text-sm">Number of Passengers</Label>
+                      <Input 
+                        name="circuit_transfer_quantity" 
+                        type="number" 
+                        min="1"
+                        max={circuitTransfers.find(t => t.circuit_transfer_id === editingBooking?.circuit_transfer_id)?.coach_capacity || 0}
+                        defaultValue={editingBooking?.circuit_transfer_quantity}
+                        onChange={(e) => {
+                          const selectedTransfer = circuitTransfers.find(t => t.circuit_transfer_id === editingBooking?.circuit_transfer_id);
+                          const value = parseInt(e.target.value);
+                          if (selectedTransfer) {
+                            if (value < 1) {
+                              e.target.value = 1;
+                              toast.warning('Minimum 1 passenger required');
+                            } else if (value > selectedTransfer.coach_capacity) {
+                              e.target.value = selectedTransfer.coach_capacity;
+                              toast.warning(`Maximum ${selectedTransfer.coach_capacity} passengers allowed`);
+                            }
+                          }
+                          handleInputChange(e);
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Price per person: £{circuitTransfers.find(t => t.circuit_transfer_id === editingBooking?.circuit_transfer_id)?.price || 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lounge Passes */}
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-3">Lounge Passes</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="lounge_pass_id" className="text-sm">Lounge Type</Label>
+                      <Select name="lounge_pass_id" defaultValue={editingBooking?.lounge_pass_id} onValueChange={(value) => handleComponentChange(value, 'lounge_pass_id')}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select lounge type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {loungePasses.map((pass) => (
+                            <SelectItem key={pass.lounge_pass_id} value={pass.lounge_pass_id}>
+                              {pass.lounge_pass_variant} - £{pass.price}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="lounge_pass_quantity" className="text-sm">Quantity</Label>
+                      <Input name="lounge_pass_quantity" type="number" defaultValue={editingBooking?.lounge_pass_quantity} onChange={handleInputChange} />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Basic Information */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-3">Basic Information</h4>
+                  <div className="space-y-3">
+                    {getEditableFields().includes("status") && (
                     <div>
-                      <Label htmlFor="status" className="text-xs">
-                        Status
-                      </Label>
-                      <Select name="status" defaultValue={editingBooking.status}>
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Future">Future</SelectItem>
-                          <SelectItem value="Past">Past</SelectItem>
-                          <SelectItem value="Cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <Label htmlFor="status" className="text-sm">Status</Label>
+                        <Select name="status" defaultValue={editingBooking?.status} onValueChange={(value) => handleComponentChange(value, 'status')}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Confirmed">Confirmed</SelectItem>
+                            <SelectItem value="Pending">Pending</SelectItem>
+                            <SelectItem value="Cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
                     </div>
+                    )}
+                    {getEditableFields().includes("package_type") && (
                     <div>
-                      <Label htmlFor="booking_type" className="text-xs">
-                        Booking Type
-                      </Label>
-                      <Select name="booking_type" defaultValue={editingBooking.booking_type}>
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Select booking type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="provisional">Provisional</SelectItem>
-                          <SelectItem value="actual">Actual</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <Label htmlFor="package_type" className="text-sm">Package Type</Label>
+                        <Select name="package_type" defaultValue={editingBooking?.package_type} onValueChange={(value) => handleComponentChange(value, 'package_type')}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select package type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Standard">Standard</SelectItem>
+                            <SelectItem value="Premium">Premium</SelectItem>
+                            <SelectItem value="VIP">VIP</SelectItem>
+                          </SelectContent>
+                        </Select>
                     </div>
+                    )}
+                    {getEditableFields().includes("payment_status") && (
                     <div>
-                      <Label htmlFor="consultant" className="text-xs">
-                        Consultant
-                      </Label>
-                      <p className="text-sm font-medium mt-1">
-                        {editingBooking.consultant}
-                      </p>
+                        <Label htmlFor="payment_status" className="text-sm">Payment Status</Label>
+                        <Select name="payment_status" defaultValue={editingBooking?.payment_status} onValueChange={(value) => handleComponentChange(value, 'payment_status')}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select payment status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Paid">Paid</SelectItem>
+                            <SelectItem value="Pending">Pending</SelectItem>
+                            <SelectItem value="Cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
                     </div>
-                    <div>
-                      <Label htmlFor="acquisition" className="text-xs">
-                        Acquisition
-                      </Label>
-                      <Input
-                        name="acquisition"
-                        defaultValue={editingBooking.acquisition}
-                        className="h-8"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="atol_abtot" className="text-xs">
-                        ATOL/ABTOT
-                      </Label>
-                      <Select name="atol_abtot" defaultValue={editingBooking.atol_abtot}>
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Select ATOL/ABTOT" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="atol">ATOL</SelectItem>
-                          <SelectItem value="abtot">ABTOT</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="booking_date" className="text-xs">
-                        Booking Date
-                      </Label>
-                      <Input
-                        name="booking_date"
-                        type="date"
-                        defaultValue={formatDateForInput(editingBooking.booking_date)}
-                        className="h-8"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="sport" className="text-xs">
-                        Sport
-                      </Label>
-                      <p className="text-sm font-medium mt-1">
-                        {editingBooking.sport}
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="event_name" className="text-xs">
-                        Event
-                      </Label>
-                      <p className="text-sm font-medium mt-1">
-                        {editingBooking.event_name}
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="package_type" className="text-xs">
-                        Package Type
-                      </Label>
-                      <p className="text-sm font-medium mt-1">
-                        {editingBooking.package_type}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Booker Information */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4 ">
-                  <h3 className="text-sm font-semibold mb-2">Booker Information</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="booker_name" className="text-xs">Name</Label>
-                      <Input name="booker_name" defaultValue={editingBooking.booker_name} className="h-8" />
-                    </div>
-                    <div>
-                      <Label htmlFor="booker_email" className="text-xs">Email</Label>
-                      <Input name="booker_email" type="email" defaultValue={editingBooking.booker_email} className="h-8" />
-                    </div>
-                    <div>
-                      <Label htmlFor="booker_phone" className="text-xs">Phone</Label>
-                      <Input name="booker_phone" type="tel" defaultValue={editingBooking.booker_phone} className="h-8" />
-                    </div>
-                    <div>
-                      <Label htmlFor="booker_address" className="text-xs">Address</Label>
-                      <textarea name="booker_address" className="w-full min-h-[120px] p-2 border rounded-md text-sm" defaultValue={editingBooking.booker_address} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lead Traveller */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Lead Traveller</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="lead_traveller_name" className="text-xs">Name</Label>
-                      <Input name="lead_traveller_name" defaultValue={editingBooking.lead_traveller_name} className="h-8" />
-                    </div>
-                    <div>
-                      <Label htmlFor="lead_traveller_email" className="text-xs">Email</Label>
-                      <Input name="lead_traveller_email" type="email" defaultValue={editingBooking.lead_traveller_email} className="h-8" />
-                    </div>
-                    <div>
-                      <Label htmlFor="lead_traveller_phone" className="text-xs">Phone</Label>
-                      <Input name="lead_traveller_phone" type="tel" defaultValue={editingBooking.lead_traveller_phone} className="h-8" />
-                    </div>
-                    <div>
-                      <Label htmlFor="adults" className="text-xs">Adults</Label>
-                      <Input name="adults" type="number" defaultValue={editingBooking.adults} className="h-8" />
-                    </div>
-                    <div>
-                      <Label htmlFor="guest_traveller_names" className="text-xs">Guest Travellers</Label>
-                      <Input name="guest_traveller_names" defaultValue={editingBooking.guest_traveller_names} className="h-8" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ticket Information */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Ticket Information</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Ticket Name</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.ticket_name} x {editingBooking.ticket_quantity}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Cost</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.ticket_cost?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Price</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.ticket_price?.toLocaleString() || "0"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Hotel Information */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Hotel Information</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Hotel Name</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.hotel_name}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Room Type</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.room_type}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Check-in/Check-out Dates</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.check_in_date} - {editingBooking.check_out_date}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Nights</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.nights} {editingBooking.extra_nights ? `(+${editingBooking.extra_nights})` : ""}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Room Cost</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.room_cost?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Room Price</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.room_price?.toLocaleString() || "0"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Transfer Information */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Transfer Information</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Airport Transfer Type</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.airport_transfer_type}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Quantity</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.airport_transfer_quantity}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Cost</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.airport_transfer_cost?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Price</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.airport_transfer_price?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Circuit Transfer Type</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.circuit_transfer_type}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Quantity</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.circuit_transfer_quantity}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Cost</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.circuit_transfer_cost?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Price</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.circuit_transfer_price?.toLocaleString() || "0"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Flight Information */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Flight Information</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Outbound</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.flight_outbound}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Inbound</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.flight_inbound}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Class</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.flight_class}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Carrier</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.flight_carrier}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Source</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.flight_source}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Booking Reference</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.flight_booking_reference}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Ticketing Deadline</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.ticketing_deadline}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Status</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.flight_status}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Quantity</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.flight_quantity}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Cost</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.flight_cost?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Price</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.flight_price?.toLocaleString() || "0"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lounge Pass Information */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Lounge Pass Information</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Variant</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.lounge_pass_variant}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Quantity</span>
-                      <p className="text-sm font-medium mt-1">{editingBooking.lounge_pass_quantity}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Cost</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.lounge_pass_cost?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Price</span>
-                      <p className="text-sm font-medium mt-1">£{editingBooking.lounge_pass_price?.toLocaleString() || "0"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Summary */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Payment Summary</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Currency</span>
-                      <p className="text-sm font-medium">{getCurrencySymbol(editingBooking.payment_currency)} ({editingBooking.payment_currency})</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Total Cost</span>
-                      <p className="text-sm font-medium">£{editingBooking.total_cost?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Total Sold (Local)</span>
-                      <p className="text-sm font-medium">{getCurrencySymbol(editingBooking.payment_currency)}{editingBooking.total_sold_for_local?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Total Sold (GBP)</span>
-                      <p className="text-sm font-medium">£{editingBooking.total_sold_gbp?.toLocaleString() || "0"}</p>
-                    </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Payment Schedule */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Payment Schedule</h3>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="py-1 pr-4 font-normal">Payment</TableHead>
-                          <TableHead className="py-1 pr-4 font-normal">Amount</TableHead>
-                          <TableHead className="py-1 font-normal">Due Date</TableHead>
-                          <TableHead className="py-1 pr-4 font-normal">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {[1, 2, 3].map((num) => (
-                          <TableRow key={num} className="align-top">
-                            <TableCell className="py-1 pr-4 font-medium">{`Payment ${num}`}</TableCell>
-                            <TableCell className="py-1 pr-4">{getCurrencySymbol(editingBooking.payment_currency)}{editingBooking[`payment_${num}`]?.toLocaleString() || "0"}</TableCell>
-                            <TableCell className="py-1">{editingBooking[`payment_${num}_date`]}</TableCell>
-                            <TableCell className="py-1 pr-4">
-                              <Select name={`payment_${num}_status`} defaultValue={editingBooking[`payment_${num}_status`]}>
-                                <SelectTrigger className="h-8 min-w-[90px]">
-                                  <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Paid">Paid</SelectItem>
-                                  <SelectItem value="Due">Due</SelectItem>
-                                  <SelectItem value="Overdue">Overdue</SelectItem>
-                                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                <div className="bg-muted/50 p-4 rounded-lg col-span-3">
+                  <h4 className="font-medium mb-3">Payment Schedule</h4>
+                  <div className="grid grid-cols-3 gap-6">
+                    {[1, 2, 3].map((num) => {
+                      const isPaid = editingBooking?.[`payment_${num}_status`] === "Paid";
+                      const payment = paymentHistory.paidAmounts.find(p => p.num === num) ||
+                                     paymentHistory.dueAmounts.find(p => p.num === num);
+                      
+                      return (
+                        <div key={num} className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-medium">Payment {num}</h5>
+                            <Badge
+                              className={`${
+                                isPaid
+                                  ? "bg-success text-success-foreground"
+                                  : editingBooking?.[`payment_${num}_status`] === "Due"
+                                  ? "bg-warning text-warning-foreground"
+                                  : "bg-destructive text-destructive-foreground"
+                              }`}
+                            >
+                              {editingBooking?.[`payment_${num}_status`]}
+                            </Badge>
+                    </div>
+                    <div>
+                            <Label htmlFor={`payment_${num}`} className="text-sm">
+                              Amount ({editingBooking?.payment_currency})
+                              {isPaid && <span className="text-xs text-muted-foreground ml-1">(Paid)</span>}
+                            </Label>
+                            <Input
+                              name={`payment_${num}`}
+                              type="number"
+                              step="0.01"
+                              value={calculatedTotals.paymentAmounts[num - 1]}
+                              disabled={isPaid}
+                              readOnly
+                              className={isPaid ? "bg-muted" : ""}
+                            />
+                            {payment && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {isPaid ? 'Paid on ' : 'Due on '}
+                                {formatDateForDisplay(payment.date)}
+                              </p>
+                            )}
+                    </div>
+                    <div>
+                            <Label htmlFor={`payment_${num}_date`} className="text-sm">Due Date</Label>
+                            <Input
+                              name={`payment_${num}_date`}
+                              type="date"
+                              defaultValue={formatDateForInput(editingBooking?.[`payment_${num}_date`])}
+                              disabled={isPaid}
+                            />
+                    </div>
+                    <div>
+                            <Label htmlFor={`payment_${num}_status`} className="text-sm">Status</Label>
+                            <Select
+                              name={`payment_${num}_status`}
+                              defaultValue={editingBooking?.[`payment_${num}_status`]}
+                              onValueChange={(value) => handlePaymentStatusChange(num, value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Paid">Paid</SelectItem>
+                                <SelectItem value="Due">Due</SelectItem>
+                                <SelectItem value="Cancelled">Cancelled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                    </div>
+                    </div>
+                      );
+                    })}
+                    </div>
+                  <div className="mt-4 grid grid-cols-3 gap-6">
+                    <div>
+                      <Label htmlFor="amount_due" className="text-sm">Amount Due</Label>
+                      <Input
+                        name="amount_due"
+                        type="number"
+                        step="0.01"
+                        value={calculatedTotals.amountDue}
+                        disabled
+                        readOnly
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="total_sold_gbp" className="text-sm">Total Sold (GBP)</Label>
+                      <Input
+                        name="total_sold_gbp"
+                        type="number"
+                        step="0.01"
+                        value={calculatedTotals.totalSold}
+                        disabled={!getEditableFields().includes("total_sold_gbp")}
+                        readOnly
+                      />
+                    </div>
+                    {getEditableFields().includes("total_cost") && (
+                    <div>
+                        <Label htmlFor="total_cost" className="text-sm">Total Cost</Label>
+                        <Input
+                          name="total_cost"
+                          type="number"
+                          step="0.01"
+                          value={calculatedTotals.totalCost}
+                          readOnly
+                        />
+                    </div>
+                    )}
+                    </div>
+                  <div className="mt-4 p-3 bg-muted rounded-lg">
+                    <h5 className="text-sm font-medium mb-2">Payment Summary</h5>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span className="text-muted-foreground">Original Total:</span>
+                        <span className="ml-2">{currencySymbols[editingBooking?.payment_currency || 'GBP']}{paymentHistory.originalTotal.toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <span className="text-muted-foreground">New Total:</span>
+                        <span className="ml-2">{currencySymbols[editingBooking?.payment_currency || 'GBP']}{calculatedTotals.totalCost.toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <span className="text-muted-foreground">Total Paid:</span>
+                        <span className="ml-2">{currencySymbols[editingBooking?.payment_currency || 'GBP']}{paymentHistory.paidAmounts.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <span className="text-muted-foreground">Amount Due:</span>
+                        <span className="ml-2">{currencySymbols[editingBooking?.payment_currency || 'GBP']}{calculatedTotals.amountDue.toLocaleString()}</span>
+                    </div>
+                    </div>
+                    </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Payment Status */}
-                <div className="break-inside-avoid bg-muted/50 p-3 rounded-lg mb-4">
-                  <h3 className="text-sm font-semibold mb-2">Payment Status</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Amount Due</span>
-                      <p className="text-sm font-medium mt-1">{getCurrencySymbol(editingBooking.payment_currency)} {editingBooking.amount_due?.toLocaleString() || "0"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Status</span>
-                      <div className="mt-0.5">
-                        <Badge className={`${editingBooking.payment_status === "Paid" ? "bg-success text-success-foreground" : editingBooking.payment_status === "Cancelled" ? "bg-secondary text-secondary-foreground" : "bg-destructive text-destructive-foreground"}`}>{editingBooking.payment_status}</Badge>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <DialogFooter className="pt-2">
+            <DialogFooter className="mt-6">
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
@@ -2247,7 +2610,6 @@ function BookingsTable() {
                 </Button>
               </DialogFooter>
             </form>
-          )}
         </DialogContent>
       </Dialog>
 
