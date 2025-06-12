@@ -801,6 +801,14 @@ function BookingsTable() {
     const currency = formData.currency || "GBP";
     const currencySymbol = getCurrencySymbol(currency);
 
+    // Parse all quantities as numbers, defaulting to 0
+    const roomQuantity = Number(formData.room_quantity) || 0;
+    const ticketQuantity = Number(formData.ticket_quantity) || 0;
+    const circuitTransferQuantity = Number(formData.circuit_transfer_quantity) || 0;
+    const airportTransferQuantity = Number(formData.airport_transfer_quantity) || 0;
+    const flightQuantity = Number(formData.flight_quantity) || 0;
+    const loungePassQuantity = Number(formData.lounge_pass_quantity) || 0;
+
     // Calculate room cost
     if (formData.room_id) {
       const room = rooms.find(r => r.room_id === formData.room_id);
@@ -810,10 +818,10 @@ function BookingsTable() {
         let defaultNights = room.nights;
         let extraNights = Math.max(0, nights - defaultNights);
         // Base price for default nights
-        const basePrice = Number(room.price) * formData.room_quantity;
+        const basePrice = Number(room.price) * roomQuantity;
         // Extra nights price if applicable
         const extraNightsPrice = extraNights > 0 
-          ? (Number(room.extra_night_price) * extraNights * formData.room_quantity)
+          ? (Number(room.extra_night_price) * extraNights * roomQuantity)
           : 0;
         total += basePrice + extraNightsPrice;
       }
@@ -823,7 +831,7 @@ function BookingsTable() {
     if (formData.ticket_id) {
       const ticket = tickets.find(t => t.ticket_id === formData.ticket_id);
       if (ticket) {
-        total += Number(ticket.price) * formData.ticket_quantity;
+        total += Number(ticket.price) * ticketQuantity;
       }
     }
 
@@ -831,7 +839,7 @@ function BookingsTable() {
     if (formData.circuit_transfer_id) {
       const transfer = circuitTransfers.find(t => t.circuit_transfer_id === formData.circuit_transfer_id);
       if (transfer) {
-        total += Number(transfer.price) * formData.circuit_transfer_quantity;
+        total += Number(transfer.price) * circuitTransferQuantity;
       }
     }
 
@@ -839,7 +847,7 @@ function BookingsTable() {
     if (formData.airport_transfer_id) {
       const transfer = airportTransfers.find(t => t.airport_transfer_id === formData.airport_transfer_id);
       if (transfer) {
-        total += Number(transfer.price) * formData.airport_transfer_quantity;
+        total += Number(transfer.price) * airportTransferQuantity;
       }
     }
 
@@ -847,7 +855,7 @@ function BookingsTable() {
     if (formData.flight_id) {
       const flight = flights.find(f => f.flight_id === formData.flight_id);
       if (flight) {
-        total += Number(flight.price) * formData.flight_quantity;
+        total += Number(flight.price) * flightQuantity;
       }
     }
 
@@ -855,7 +863,7 @@ function BookingsTable() {
     if (formData.lounge_pass_id) {
       const pass = loungePasses.find(p => p.lounge_pass_id === formData.lounge_pass_id);
       if (pass) {
-        total += Number(pass.price) * formData.lounge_pass_quantity;
+        total += Number(pass.price) * loungePassQuantity;
       }
     }
 
@@ -892,263 +900,40 @@ function BookingsTable() {
 
   // Add function to handle component changes
   const handleComponentChange = (value, name) => {
-    if (name === "hotel_id") {
-      if (value === "none") {
-        setFormData(prev => ({
+    console.log('handleComponentChange called with:', { name, value });
+    
+    if (name === 'check_in_date' || name === 'check_out_date') {
+      // For date fields, just update the date range state
+      setDateRange(prev => ({
           ...prev,
-          hotel_id: null,
-          room_id: null,
-          room_quantity: 0,
-          check_in_date: null,
-          check_out_date: null,
-          nights: 0
-        }));
-        setDateRange({ from: null, to: null });
-        return;
-      }
+        [name === 'check_in_date' ? 'from' : 'to']: value
+      }));
+      return;
+    }
 
-      // Find hotel from our existing data
-      const hotel = hotels.find(h => h.hotel_id === value);
-      if (hotel) {
-        setFormData(prev => ({
-          ...prev,
-          hotel_id: hotel.hotel_id,
-          room_id: null,
-          room_quantity: 0,
-          check_in_date: null,
-          check_out_date: null,
-          nights: 0
-        }));
-        setDateRange({ from: null, to: null });
+    // For other fields
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
 
-        // Filter rooms for this hotel from our existing rooms
-        const hotelRooms = rooms.filter(r => r.hotel_id === hotel.hotel_id);
-        setRooms(hotelRooms);
-      }
-    } else if (name === "room_id") {
-      if (value === "none") {
-        setFormData(prev => ({
-          ...prev,
-          room_id: null,
-          room_quantity: 0,
-          check_in_date: null,
-          check_out_date: null,
-          nights: 0
-        }));
-        setDateRange({ from: null, to: null });
-        return;
-      }
+    // If package_id changes, fetch the new package components
+    if (name === 'package_id' && value) {
+      console.log('Package changed, fetching new components');
+      fetchPackageComponents(value);
+    }
 
-      const room = rooms.find(r => r.room_id === value);
-      if (room) {
-        // Convert dates from DD/MM/YYYY to Date objects
-        const from = new Date(room.check_in_date.split('/').reverse().join('-'));
-        const to = new Date(room.check_out_date.split('/').reverse().join('-'));
-        setDateRange({ from, to });
-        
-        // If this is the originally booked room, keep the original nights
-        // Otherwise use the room's default nights
-        const nights = room.room_id === editingBooking?.room_id 
-          ? editingBooking.nights  // Keep original booking nights
-          : room.nights;  // Use room's default nights
-        
-        setFormData(prev => ({
-          ...prev,
-          room_id: room.room_id,
-          room_quantity: room.room_id === editingBooking?.room_id ? editingBooking.room_quantity : 1,
-          check_in_date: room.check_in_date,
-          check_out_date: room.check_out_date,
-          nights
-        }));
-
-        // Show pricing information
-        const currencySymbol = getCurrencySymbol(room.currency);
-        if (nights > room.nights) {
-          const extraNights = nights - room.nights;
-          const extraNightsCost = room.extra_night_price * extraNights;
-          toast.info(
-            <div className="space-y-1">
-              <p>Room pricing breakdown:</p>
-              <p>• Base price ({room.nights} nights): {currencySymbol}{room.price}</p>
-              <p>• Extra nights ({extraNights} nights): {currencySymbol}{extraNightsCost}</p>
-              <p>• Total room cost: {currencySymbol}{(room.price + extraNightsCost).toFixed(2)}</p>
-            </div>
-          );
-        } else {
-          toast.info(
-            <div>
-              <p>Room price: {currencySymbol}{room.price} for {room.nights} nights</p>
-              <p>Extra nights available at {currencySymbol}{room.extra_night_price} per night</p>
-            </div>
-          );
-        }
-      }
-    } else if (name === "ticket_id") {
-      if (value === "none") {
-        setFormData(prev => ({
-          ...prev,
-          ticket_id: null,
-          ticket_quantity: 0,
-          circuit_transfer_id: null,
-          circuit_transfer_quantity: 0
-        }));
-          return;
-        }
-
-      const foundTicket = tickets.find(t => t.ticket_id === value);
-      if (foundTicket) {
-        // If this is the originally booked ticket, keep the original quantity
-        // Otherwise use the number of adults
-        const quantity = foundTicket.ticket_id === editingBooking?.ticket_id 
-          ? editingBooking.ticket_quantity 
-          : formData.number_of_adults;
-
-        setFormData(prev => ({
-          ...prev,
-          ticket_id: foundTicket.ticket_id,
-          ticket_quantity: quantity,
-          circuit_transfer_id: null,
-          circuit_transfer_quantity: 0
-        }));
-
-        // Show ticket info
-        const currencySymbol = getCurrencySymbol(foundTicket.currency);
-        toast.info(
-          <div>
-            <p>Ticket price: {currencySymbol}{foundTicket.price} per person</p>
-            <p>Total: {currencySymbol}{(foundTicket.price * quantity).toFixed(2)}</p>
-          </div>
-        );
-      }
-    } else if (name === "ticket_quantity") {
-      const quantity = parseInt(value);
-      const selectedTicket = tickets.find(t => t.ticket_id === formData.ticket_id);
-      
+    // If ticket_id changes, set the ticket price
+    if (name === 'ticket_id' && value) {
+      const selectedTicket = tickets.find(t => t.ticket_id === value);
       if (selectedTicket) {
-        // Allow selecting original quantity even if remaining is 0
-        const maxQuantity = selectedTicket.ticket_id === editingBooking?.ticket_id
-          ? Math.max(selectedTicket.remaining, editingBooking.ticket_quantity)
-          : selectedTicket.remaining;
-
-        if (quantity > maxQuantity) {
-          toast.warning(`Only ${maxQuantity} tickets remaining`);
-          return;
-        }
-
+        console.log('Setting ticket price:', selectedTicket.price);
         setFormData(prev => ({
           ...prev,
-          ticket_quantity: quantity,
-          circuit_transfer_quantity: quantity // Update circuit transfer quantity to match
-        }));
-      }
-    } else if (name === "circuit_transfer_id") {
-      if (value === "none") {
-        setFormData(prev => ({
-          ...prev,
-          circuit_transfer_id: null,
-          circuit_transfer_quantity: 0
-        }));
-        return;
-      }
-
-      const transfer = circuitTransfers.find(t => t.circuit_transfer_id === value);
-      if (transfer) {
-        // If this is the originally booked transfer, keep the original quantity
-        // Otherwise use the ticket quantity
-        const quantity = transfer.circuit_transfer_id === editingBooking?.circuit_transfer_id 
-          ? editingBooking.circuit_transfer_quantity 
-          : formData.ticket_quantity;
-
-        setFormData(prev => ({
-          ...prev,
-          circuit_transfer_id: transfer.circuit_transfer_id,
-          circuit_transfer_quantity: quantity
-        }));
-
-        // Show transfer info
-        const currencySymbol = getCurrencySymbol(transfer.currency);
-        toast.info(
-          <div>
-            <p>Circuit transfer price: {currencySymbol}{transfer.price} per person</p>
-            <p>Total: {currencySymbol}{(transfer.price * quantity).toFixed(2)}</p>
-          </div>
-        );
-      }
-    } else if (name === "circuit_transfer_quantity") {
-      const quantity = parseInt(value);
-      const selectedTransfer = circuitTransfers.find(t => t.circuit_transfer_id === formData.circuit_transfer_id);
-      
-      if (selectedTransfer) {
-        // Allow selecting original quantity even if remaining is 0
-        const maxQuantity = selectedTransfer.circuit_transfer_id === editingBooking?.circuit_transfer_id
-          ? Math.max(selectedTransfer.coach_capacity, editingBooking.circuit_transfer_quantity)
-          : selectedTransfer.coach_capacity;
-
-        if (quantity > maxQuantity) {
-          toast.warning(`Maximum capacity is ${maxQuantity} people`);
-          return;
-        }
-
-        setFormData(prev => ({
-          ...prev,
-          circuit_transfer_quantity: quantity
-        }));
-      }
-    } else if (name === "airport_transfer_id") {
-      if (value === "none") {
-        setFormData(prev => ({
-          ...prev,
-          airport_transfer_id: null,
-          airport_transfer_quantity: 0
-        }));
-        return;
-      }
-
-      const transfer = airportTransfers.find(t => t.airport_transfer_id === value);
-      if (transfer) {
-        // If this is the originally booked transfer, keep the original quantity
-        // Otherwise use the ticket quantity
-        const quantity = transfer.airport_transfer_id === editingBooking?.airport_transfer_id 
-          ? editingBooking.airport_transfer_quantity 
-          : formData.ticket_quantity;
-
-        setFormData(prev => ({
-          ...prev,
-          airport_transfer_id: transfer.airport_transfer_id,
-          airport_transfer_quantity: quantity
-        }));
-
-        // Show transfer info
-        const currencySymbol = getCurrencySymbol(transfer.currency);
-        toast.info(
-          <div>
-            <p>Airport transfer price: {currencySymbol}{transfer.price} per person</p>
-            <p>Total: {currencySymbol}{(transfer.price * quantity).toFixed(2)}</p>
-          </div>
-        );
-      }
-    } else if (name === "airport_transfer_quantity") {
-      const quantity = parseInt(value);
-      const selectedTransfer = airportTransfers.find(t => t.airport_transfer_id === formData.airport_transfer_id);
-      
-      if (selectedTransfer) {
-        // Allow selecting original quantity even if remaining is 0
-        const maxQuantity = selectedTransfer.airport_transfer_id === editingBooking?.airport_transfer_id
-          ? Math.max(selectedTransfer.max_capacity, editingBooking.airport_transfer_quantity)
-          : selectedTransfer.max_capacity;
-
-        if (quantity > maxQuantity) {
-          toast.warning(`Maximum capacity is ${maxQuantity} people`);
-          return;
-        }
-
-        setFormData(prev => ({
-          ...prev,
-          airport_transfer_quantity: quantity
+          ticket_price: selectedTicket.price
         }));
       }
     }
-    // ... rest of the existing handleComponentChange function ...
   };
 
   // Add function to fetch rooms and hotels when event is selected
@@ -1246,129 +1031,327 @@ function BookingsTable() {
   const handleEditBooking = async (booking) => {
     setEditingBooking(booking);
     setIsEditDialogOpen(true);
-    setLoadingComponents(true);
-
-    try {
-      const eventId = booking.event_id;
-      const packageId = booking.package_id;
-
-      // Get all rooms for this package
-      const roomsRes = await api.get("/rooms", {
-        params: { packageId }
-      });
-
-      // Get unique hotels from the rooms data
-      const uniqueHotels = roomsRes.data.reduce((acc, room) => {
-        if (!acc.find(h => h.hotel_id === room.hotel_id)) {
-          acc.push({
-            hotel_id: room.hotel_id,
-            hotel_name: room.hotel_name
-          });
-        }
-        return acc;
-      }, []);
-
-      // Fetch tickets for this package
-      const ticketsRes = await api.get("/tickets", {
-        params: { packageId }
-      });
-
-      // Fetch circuit transfers for this package
-      const circuitTransfersRes = await api.get("/circuit-transfers", {
-        params: { packageId }
-      });
-
-      // Fetch airport transfers for this package
-      const airportTransfersRes = await api.get("/airport-transfers", {
-        params: { packageId }
-      });
-
-      setRooms(roomsRes.data);
-      setHotels(uniqueHotels);
-      setTickets(ticketsRes.data);
-      setCircuitTransfers(circuitTransfersRes.data);
-      setAirportTransfers(airportTransfersRes.data);
-
-      // Convert dates from DD/MM/YYYY to Date objects
-      const from = new Date(booking.check_in_date.split('/').reverse().join('-'));
-      const to = new Date(booking.check_out_date.split('/').reverse().join('-'));
-      setDateRange({ from, to });
-
-      // Set initial form data with the original booking values
-      setFormData({
-        event_id: eventId,
-        hotel_id: booking.hotel_id,
-        room_id: booking.room_id,
-        room_quantity: booking.room_quantity,
-        check_in_date: booking.check_in_date,
-        check_out_date: booking.check_out_date,
-        nights: booking.nights,
-        ticket_id: booking.ticket_id,
-        ticket_quantity: booking.ticket_quantity,
-        circuit_transfer_id: booking.circuit_transfer_id,
-        circuit_transfer_quantity: booking.circuit_transfer_quantity,
-        airport_transfer_id: booking.airport_transfer_id,
-        airport_transfer_quantity: booking.airport_transfer_quantity
-      });
-    } catch (error) {
-      console.error("Failed to fetch booking components:", error);
-      toast.error("Failed to load booking components. Please try again.");
-    } finally {
-      setLoadingComponents(false);
+    
+    // Initialize form data with current values
+    const initialFormData = {
+      ...booking,
+      number_of_adults: booking.adults || 1,
+      guest_traveler_names: booking.guest_traveller_names ? 
+        (Array.isArray(booking.guest_traveller_names) ? 
+          booking.guest_traveller_names : 
+          [booking.guest_traveller_names]
+        ) : 
+        Array(booking.adults || 1).fill('')
+    };
+    
+    setFormData(initialFormData);
+    
+    // Initialize date range for the DatePickerWithRange component
+    if (booking.check_in_date && booking.check_out_date) {
+      const from = formatDateForDatePicker(booking.check_in_date);
+      const to = formatDateForDatePicker(booking.check_out_date);
+      if (from && to) {
+        setDateRange({ from, to });
+      }
+    }
+    
+    // Fetch package components
+    if (booking.package_id) {
+      await fetchPackageComponents(booking.package_id);
     }
   };
 
   // Modify handleSubmit to handle the new data structure
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!editingBooking) return;
-
     setIsSubmitting(true);
     try {
+      const updates = [];
+      
+      // Get the current booking data from the API
+      const currentBookingResponse = await api.get('/bookingFile', {
+        params: {
+          bookingId: editingBooking.booking_id
+        }
+      });
+      const currentBooking = currentBookingResponse.data[0]; // Get first matching booking
+
+      // Get form data
       const formData = new FormData(e.target);
-      const updatedData = {
-        booking_id: editingBooking.booking_id,
-        status: formData.get("status"),
-        package_type: formData.get("package_type"),
-        booker_name: formData.get("booker_name"),
-        booker_email: formData.get("booker_email"),
-        booker_phone: formData.get("booker_phone"),
-        lead_traveller_name: formData.get("lead_traveller_name"),
-        lead_traveller_email: formData.get("lead_traveller_email"),
-        lead_traveller_phone: formData.get("lead_traveller_phone"),
-        guest_traveller_names: formData.get("guest_traveller_names"),
-        adults: parseInt(formData.get("adults")),
-        total_sold_gbp: parseFloat(formData.get("total_sold_gbp")),
-        payment_status: formData.get("payment_status"),
-        // Package components
-        ticket_id: formData.get("ticket_id"),
-        ticket_quantity: parseInt(formData.get("ticket_quantity")),
-        hotel_id: formData.get("hotel_id"),
-        room_id: formData.get("room_id"),
-        room_quantity: parseInt(formData.get("room_quantity")),
-        check_in_date: formData.get("check_in_date"),
-        check_out_date: formData.get("check_out_date"),
-        circuit_transfer_id: formData.get("circuit_transfer_id"),
-        circuit_transfer_quantity: parseInt(formData.get("circuit_transfer_quantity")),
-        airport_transfer_id: formData.get("airport_transfer_id"),
-        airport_transfer_quantity: parseInt(formData.get("airport_transfer_quantity")),
-        lounge_pass_id: formData.get("lounge_pass_id"),
-        lounge_pass_quantity: parseInt(formData.get("lounge_pass_quantity"))
+      const formValues = Object.fromEntries(formData.entries());
+      console.log('Raw form data:', formValues);
+
+      // Merge form values with state
+      const mergedValues = {
+        ...formData,
+        ...formValues
       };
 
-      // Only include total_cost if it's editable for the current role
-      if (getEditableFields().includes("total_cost")) {
-        updatedData.total_cost = parseFloat(formData.get("total_cost"));
+      // Handle date changes
+      if (dateRange.from && dateRange.to) {
+        const checkInDate = formatDateForBackend(dateRange.from);
+        const checkOutDate = formatDateForBackend(dateRange.to);
+        
+        // Calculate nights
+        const nights = Math.ceil((dateRange.to - dateRange.from) / (1000 * 60 * 60 * 24));
+        
+        console.log('Date changes:', {
+          checkInDate,
+          checkOutDate,
+          nights,
+          dateRange
+        });
+
+        updates.push({
+          column: 'check_in_date',
+          value: checkInDate
+        });
+        updates.push({
+          column: 'check_out_date',
+          value: checkOutDate
+        });
+        updates.push({
+          column: 'nights',
+          value: nights.toString()
+        });
+
+        // Calculate extra nights if room is selected
+        if (mergedValues.room_id) {
+          const room = rooms.find(r => r.room_id === mergedValues.room_id);
+          if (room) {
+            const defaultNights = room.nights;
+            const extraNights = Math.max(0, nights - defaultNights);
+            
+            console.log('Extra nights calculation:', {
+              nights,
+              defaultNights,
+              extraNights
+            });
+
+            updates.push({
+              column: 'extra_nights',
+              value: extraNights.toString()
+            });
+          }
+        }
       }
 
-      const response = await api.put(`/bookings/${editingBooking.booking_id}`, updatedData);
-      
-      if (response.status === 200) {
-        toast.success("Booking updated successfully");
-      setIsEditDialogOpen(false);
-      setEditingBooking(null);
-        fetchBookings(); // Refresh the bookings list
+      // Helper function to compare payment amounts
+      const hasPaymentChanged = (originalAmount, newAmount) => {
+        // Convert both to numbers, defaulting to 0 if undefined/null
+        const original = parseFloat(originalAmount) || 0;
+        const newVal = parseFloat(newAmount) || 0;
+        
+        console.log('Payment comparison:', {
+          originalAmount,
+          newAmount,
+          originalParsed: original,
+          newParsed: newVal,
+          isDifferent: Math.abs(original - newVal) > 0.01 // Use small epsilon for float comparison
+        });
+        
+        return Math.abs(original - newVal) > 0.01;
+      };
+
+      // Check payment 1
+      if (currentBooking.payment_1_date && currentBooking.payment_1_status) {
+        // Remove currency symbol and commas, then parse
+        const newPayment1 = parseFloat(mergedValues.payment_1?.replace(/[£,]/g, '')) || 0;
+        console.log('Checking payment 1:', {
+          date: currentBooking.payment_1_date,
+          status: currentBooking.payment_1_status,
+          originalAmount: currentBooking.payment_1,
+          newAmount: newPayment1,
+          formData: mergedValues
+        });
+        
+        // Always update payment 1
+        console.log('Adding payment 1 to updates');
+        updates.push({
+          column: 'payment_1',
+          value: newPayment1.toString()
+        });
+        updates.push({
+          column: 'payment_1_status',
+          value: mergedValues.payment_1_status || currentBooking.payment_1_status
+        });
       }
+
+      // Check payment 2
+      if (currentBooking.payment_2_date && currentBooking.payment_2_status) {
+        // Remove currency symbol and commas, then parse
+        const newPayment2 = parseFloat(mergedValues.payment_2?.replace(/[£,]/g, '')) || 0;
+        console.log('Checking payment 2:', {
+          date: currentBooking.payment_2_date,
+          status: currentBooking.payment_2_status,
+          originalAmount: currentBooking.payment_2,
+          newAmount: newPayment2,
+          formData: mergedValues
+        });
+        
+        // Always update payment 2
+        console.log('Adding payment 2 to updates');
+        updates.push({
+          column: 'payment_2',
+          value: newPayment2.toString()
+        });
+        updates.push({
+          column: 'payment_2_status',
+          value: mergedValues.payment_2_status || currentBooking.payment_2_status
+        });
+      }
+
+      // Check payment 3
+      if (currentBooking.payment_3_date && currentBooking.payment_3_status) {
+        // Remove currency symbol and commas, then parse
+        const newPayment3 = parseFloat(mergedValues.payment_3?.replace(/[£,]/g, '')) || 0;
+        console.log('Checking payment 3:', {
+          date: currentBooking.payment_3_date,
+          status: currentBooking.payment_3_status,
+          originalAmount: currentBooking.payment_3,
+          newAmount: newPayment3,
+          formData: mergedValues
+        });
+        
+        // Always update payment 3
+        console.log('Adding payment 3 to updates');
+        updates.push({
+          column: 'payment_3',
+          value: newPayment3.toString()
+        });
+        updates.push({
+          column: 'payment_3_status',
+          value: mergedValues.payment_3_status || currentBooking.payment_3_status
+        });
+      }
+
+      // Check for ticket changes
+      if (mergedValues.ticket_id !== currentBooking.ticket_id || mergedValues.ticket_quantity !== currentBooking.ticket_quantity) {
+        console.log('Ticket has changed, adding to updates');
+        const selectedTicket = tickets.find(t => t.ticket_id === mergedValues.ticket_id);
+        console.log('Selected ticket:', selectedTicket);
+        if (selectedTicket) {
+          const ticketPrice = selectedTicket.price * (mergedValues.ticket_quantity || 1);
+          console.log('Calculating ticket price:', {
+            ticketId: mergedValues.ticket_id,
+            ticketPrice: selectedTicket.price,
+            quantity: mergedValues.ticket_quantity,
+            totalPrice: ticketPrice
+          });
+          updates.push({
+            column: 'ticket_id',
+            value: mergedValues.ticket_id
+          });
+          updates.push({
+            column: 'ticket_quantity',
+            value: mergedValues.ticket_quantity
+          });
+          updates.push({
+            column: 'ticket_price',
+            value: ticketPrice.toString()
+          });
+        } else {
+          console.warn('Selected ticket not found in tickets array:', {
+            ticketId: mergedValues.ticket_id,
+            availableTickets: tickets
+          });
+        }
+      }
+
+      // Check for circuit transfer changes
+      if (mergedValues.circuit_transfer_id !== currentBooking.circuit_transfer_id || mergedValues.circuit_transfer_quantity !== currentBooking.circuit_transfer_quantity) {
+        console.log('Circuit transfer has changed, adding to updates');
+        const selectedTransfer = circuitTransfers.find(t => t.circuit_transfer_id === mergedValues.circuit_transfer_id);
+        if (selectedTransfer) {
+          const transferPrice = selectedTransfer.price * (mergedValues.circuit_transfer_quantity || 1);
+          updates.push({
+            column: 'circuit_transfer_id',
+            value: mergedValues.circuit_transfer_id
+          });
+          updates.push({
+            column: 'circuit_transfer_quantity',
+            value: mergedValues.circuit_transfer_quantity
+          });
+          updates.push({
+            column: 'circuit_transfer_price',
+            value: transferPrice.toString()
+          });
+        }
+      }
+
+      // Check for airport transfer changes
+      if (mergedValues.airport_transfer_id !== currentBooking.airport_transfer_id || mergedValues.airport_transfer_quantity !== currentBooking.airport_transfer_quantity) {
+        console.log('Airport transfer has changed, adding to updates');
+        const selectedTransfer = airportTransfers.find(t => t.airport_transfer_id === mergedValues.airport_transfer_id);
+        if (selectedTransfer) {
+          const transferPrice = selectedTransfer.price * (mergedValues.airport_transfer_quantity || 1);
+          updates.push({
+            column: 'airport_transfer_id',
+            value: mergedValues.airport_transfer_id
+          });
+          updates.push({
+            column: 'airport_transfer_quantity',
+            value: mergedValues.airport_transfer_quantity
+          });
+          updates.push({
+            column: 'airport_transfer_price',
+            value: transferPrice.toString()
+          });
+        }
+      }
+
+      // Calculate room price and extra nights
+      if (mergedValues.room_id) {
+        const room = rooms.find(r => r.room_id === mergedValues.room_id);
+        if (room) {
+          // Calculate nights as difference between check-in and check-out
+          let nights = parseInt(mergedValues.nights) || 0;
+          let defaultNights = room.nights;
+          let extraNights = Math.max(0, nights - defaultNights);
+          
+          // Base price for default nights
+          const basePrice = Number(room.price) * (mergedValues.room_quantity || 1);
+          // Extra nights price if applicable
+          const extraNightsPrice = extraNights > 0 
+            ? (Number(room.extra_night_price) * extraNights * (mergedValues.room_quantity || 1))
+            : 0;
+          
+          const newRoomPrice = basePrice + extraNightsPrice;
+
+          // Always update room price and extra nights
+          updates.push({
+            column: 'room_price',
+            value: newRoomPrice.toString()
+          });
+          updates.push({
+            column: 'extra_nights',
+            value: extraNights.toString()
+          });
+        }
+      }
+
+      // Log the final request data
+      console.log('Sending bulk update request with data:', {
+        bookingId: editingBooking.booking_id,
+        updates,
+        formData: mergedValues
+      });
+
+      // Send all updates in a single request
+      const response = await api.put(
+        `/bookingFile/booking_id/${editingBooking.booking_id}/bulk`,
+        updates
+      );
+      
+      if (!response.data) {
+        throw new Error('Failed to update booking');
+      }
+
+      console.log('Bulk update completed successfully');
+      toast.success("Booking updated successfully");
+      setEditingBooking(null);
+      setIsEditDialogOpen(false);
+      fetchBookings();
     } catch (error) {
       console.error("Failed to update booking:", error);
       toast.error("Failed to update booking");
@@ -1560,12 +1543,16 @@ function BookingsTable() {
 
   useEffect(() => {
     if (dateRange.from && dateRange.to) {
-      const nights = differenceInCalendarDays(dateRange.to, dateRange.from);
+      console.log('Date range changed in useEffect:', dateRange);
+      const formattedCheckIn = formatDateForBackend(dateRange.from);
+      const formattedCheckOut = formatDateForBackend(dateRange.to);
+      console.log('Formatted dates:', { formattedCheckIn, formattedCheckOut });
+      
       setFormData(prev => ({
         ...prev,
-        check_in_date: format(dateRange.from, 'dd/MM/yyyy'),
-        check_out_date: format(dateRange.to, 'dd/MM/yyyy'),
-        nights
+        check_in_date: formattedCheckIn,
+        check_out_date: formattedCheckOut,
+        nights: differenceInCalendarDays(dateRange.to, dateRange.from)
       }));
     }
   }, [dateRange]);
@@ -2608,13 +2595,36 @@ function BookingsTable() {
                   </h3>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="guest_traveller_names">Guest Names</Label>
-                      <Input name="guest_traveller_names" defaultValue={editingBooking?.guest_traveller_names} />
+                      <Label htmlFor="number_of_adults">Number of Adults</Label>
+                      <Input 
+                        name="number_of_adults" 
+                        type="number" 
+                        value={formData.number_of_adults || 1}
+                        onChange={(e) => handleComponentChange(e.target.value, 'number_of_adults')}
+                      />
                     </div>
-                    <div>
-                      <Label htmlFor="adults">Number of Adults</Label>
-                      <Input name="adults" type="number" defaultValue={editingBooking?.adults} />
+                    {formData.number_of_adults > 1 && (
+                      <div className="space-y-2">
+                        <Label>Additional Guest Names</Label>
+                        <div className="grid gap-2">
+                          {Array.from({ length: formData.number_of_adults - 1 }).map((_, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <Label htmlFor={`guest_name_${index}`} className="w-20 text-sm">
+                                Guest {index + 1}
+                              </Label>
+                              <Input
+                                id={`guest_name_${index}`}
+                                name={`guest_name_${index}`}
+                                value={formData.guest_traveler_names?.[index] || ''}
+                                onChange={(e) => handleComponentChange(e.target.value, `guest_name_${index}`)}
+                                placeholder={`Enter guest ${index + 1} name`}
+                                className="flex-1"
+                              />
                     </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2693,7 +2703,15 @@ function BookingsTable() {
                         </div>
                         <div>
                           <Label htmlFor="ticket_quantity">Quantity</Label>
-                          <Input name="ticket_quantity" type="number" defaultValue={editingBooking?.ticket_quantity} onChange={handleInputChange} />
+                          <Input
+                            name="ticket_quantity"
+                            type="number"
+                            value={formData.ticket_quantity || editingBooking?.ticket_quantity}
+                            onChange={(e) => handleComponentChange(e.target.value, 'ticket_quantity')}
+                            min={1}
+                            step={1}
+                            className="max-w-[100px]"
+                          />
                         </div>
                       </div>
                     </div>
@@ -2747,15 +2765,25 @@ function BookingsTable() {
                         </div>
                         <div>
                           <Label htmlFor="room_quantity">Room Quantity</Label>
-                          <Input name="room_quantity" type="number" defaultValue={editingBooking?.room_quantity} onChange={handleInputChange} />
+                          <Input name="room_quantity" type="number" value={formData.room_quantity || editingBooking?.room_quantity} onChange={(e) => handleComponentChange(e.target.value, 'room_quantity')} min={1} max={rooms.find(room => room.room_id === formData.room_id)?.remaining || 1} step={1} disabled={!formData.room_id} />
                         </div>
-                        <div>
-                          <Label>Check-in/Check-out</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Check-in Date</Label>
                           <DatePickerWithRange
                             date={dateRange}
-                            setDate={setDateRange}
-                            className="w-full"
-                          />
+                              setDate={(range) => {
+                                console.log('Date range changed:', range);
+                                if (range?.from) {
+                                  handleComponentChange(range.from, 'check_in_date');
+                                }
+                                if (range?.to) {
+                                  handleComponentChange(range.to, 'check_out_date');
+                                }
+                                setDateRange(range);
+                              }}
+                            />
+                          </div>
                         </div>
                         <div>
                           <Label htmlFor="nights">Nights</Label>
@@ -2865,7 +2893,17 @@ function BookingsTable() {
                                 <div className="space-y-1">
                                   <div>
                                     <Label className="text-xs text-muted-foreground">Amount</Label>
-                                    <p className="text-sm font-semibold">£{amendedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                    <Input
+                                      type="text"
+                                      name={`payment_${num}`}
+                                      value={amendedAmount.toFixed(2)}
+                                      onChange={(e) => {
+                                        // Remove currency symbol and commas before updating
+                                        const value = e.target.value.replace(/[£,]/g, '');
+                                        handleComponentChange(value, `payment_${num}`);
+                                      }}
+                                      className="text-sm font-semibold"
+                                    />
                                   </div>
                                   {!isPaid && (
                                     <div>
