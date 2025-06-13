@@ -2298,7 +2298,6 @@ function TicketTable() {
                 />
               </TableCell>
               <TableCell className="text-xs py-1.5">Event</TableCell>
-              <TableCell className="text-xs py-1.5">Package</TableCell>
               <TableCell className="text-xs py-1.5">Ticket</TableCell>
               <TableCell className="text-xs py-1.5">Supplier</TableCell>
               <TableCell className="text-xs py-1.5">Ref</TableCell>
@@ -2329,7 +2328,6 @@ function TicketTable() {
                     />
                   </TableCell>
                   <TableCell className="text-xs py-1.5">{ticket.event}</TableCell>
-                  <TableCell className="text-xs py-1.5">{ticket.package_type}</TableCell>
                   <TableCell className="text-xs py-1.5">{ticket.ticket_name}</TableCell>
                   <TableCell className="text-xs py-1.5">{ticket.supplier || "-"}</TableCell>
                   <TableCell className="text-xs py-1.5">{ticket.ref || "-"}</TableCell>
