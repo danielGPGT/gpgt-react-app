@@ -27,7 +27,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Loader2, ChevronDown, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, ChevronDown, Sparkles, Tv, Umbrella, Hash } from "lucide-react";
 import api, { fetchCategoryInfo } from "@/lib/api";
 import { toast } from "sonner";
 import { Combobox } from "@/components/ui/combobox";
@@ -64,6 +64,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function CategoriesTable() {
   const [categories, setCategories] = useState([]);
@@ -86,6 +87,8 @@ export function CategoriesTable() {
   const [successMessage, setSuccessMessage] = useState("");
   const [formErrors, setFormErrors] = useState({});
   const [isGeneratingInfo, setIsGeneratingInfo] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Sorting options
   const sortColumns = [
@@ -132,6 +135,15 @@ export function CategoriesTable() {
       .sort((a, b) => a.venue_name.localeCompare(b.venue_name));
   }, [venues]);
 
+  // Enhanced venue options with city information
+  const venueOptions = useMemo(() => {
+    return allVenues.map(venue => ({
+      value: venue.venue_id,
+      label: `${venue.venue_name} (${venue.city})`,
+      city: venue.city
+    }));
+  }, [allVenues]);
+
   // Fetch categories and venues
   useEffect(() => {
     fetchCategories();
@@ -142,7 +154,6 @@ export function CategoriesTable() {
     try {
       setLoading(true);
       const response = await api.get("/categories");
-      console.log("Categories response:", response.data);
       setCategories(response.data);
     } catch (error) {
       console.error("Failed to fetch categories:", error);
@@ -155,7 +166,6 @@ export function CategoriesTable() {
   const fetchVenues = async () => {
     try {
       const response = await api.get("/venues");
-      console.log("Venues response:", response.data);
       setVenues(response.data);
     } catch (error) {
       console.error("Failed to fetch venues:", error);
@@ -212,11 +222,28 @@ export function CategoriesTable() {
   // Validate form fields
   const validateField = (field, value) => {
     const errors = { ...formErrors };
-    if (!value || value.trim() === "") {
+    
+    // Handle different types of values
+    if (value === null || value === undefined) {
       errors[field] = "Required";
+    } else if (typeof value === 'string') {
+      if (value.trim() === "") {
+        errors[field] = "Required";
+      } else {
+        delete errors[field];
+      }
+    } else if (typeof value === 'number') {
+      if (isNaN(value)) {
+        errors[field] = "Invalid number";
+      } else {
+        delete errors[field];
+      }
+    } else if (typeof value === 'boolean') {
+      delete errors[field];
     } else {
       delete errors[field];
     }
+    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -297,7 +324,6 @@ export function CategoriesTable() {
         ticket_image_2: formData.ticket_image_2 || ""
       };
 
-      console.log("Adding category with payload:", payload);
       await api.post("/categories", payload);
       
       toast.success("Category added successfully!", {
@@ -353,97 +379,69 @@ export function CategoriesTable() {
 
     setIsEditing(true);
     try {
-      console.log('Original category:', selectedCategory);
-      console.log('Form data:', formData);
-
       // Compare with original category to find changed fields
-      const changedFields = {};
-      Object.keys(formData).forEach(key => {
-        const originalValue = selectedCategory[key];
-        const newValue = formData[key];
-        
-        console.log(`Comparing ${key}:`, {
-          original: originalValue,
-          new: newValue,
-          type: typeof newValue,
-          isEqual: originalValue === newValue
-        });
-
-        // Special handling for ticket image fields
-        if (key === 'ticket_image_1' || key === 'ticket_image_2') {
-          // Only update if the value has changed and is a valid URL or empty string
-          if (newValue !== originalValue) {
-            // Validate URL format
-            if (newValue === "" || isValidImageUrl(newValue)) {
-              changedFields[key] = newValue;
-            } else {
-              console.warn(`Invalid image URL for ${key}:`, newValue);
-              // Don't include invalid URLs in the update
-            }
-          }
-        } else if (originalValue !== newValue) {
-          // Format the value based on its type
-          let value = newValue;
+      const updates = Object.entries(formData)
+        .filter(([key, value]) => {
+          const originalValue = selectedCategory[key];
+          
+          // Special handling for boolean fields
           if (typeof value === 'boolean') {
-            value = value ? "TRUE" : "FALSE";
-          } else if (value === null || value === undefined) {
-            value = "";
-          } else {
-            value = value.toString();
+            return value !== originalValue;
           }
-          changedFields[key] = value;
-        }
-      });
+          
+          // Special handling for ticket image fields
+          if (key === 'ticket_image_1' || key === 'ticket_image_2') {
+            if (value !== originalValue) {
+              // Validate URL format
+              if (value === "" || isValidImageUrl(value)) {
+                return true;
+              }
+              return false;
+            }
+            return false;
+          }
+          
+          // Handle null/undefined/empty string cases
+          if (originalValue === null && value === "") return false;
+          if (originalValue === "" && value === null) return false;
+          
+          return originalValue !== value;
+        })
+        .map(([key, value]) => ({
+          column: key,
+          value: value === null ? "" : value.toString()
+        }));
 
-      console.log('Changed fields:', changedFields);
-
-      if (Object.keys(changedFields).length === 0) {
+      if (updates.length === 0) {
         toast.info("No changes were made");
         setShowEditDialog(false);
         return;
       }
 
-      // Update only changed fields
-      for (const [field, value] of Object.entries(changedFields)) {
-        console.log('Sending update request:', {
-          url: `/categories/category_id/${selectedCategory.category_id}`,
-          column: field,
-          value,
-          field
-        });
+      // Optimistically update the local state
+      const updatedCategory = {
+        ...selectedCategory,
+        ...Object.fromEntries(updates.map(({ column, value }) => [column, value]))
+      };
+      setCategories(prev => 
+        prev.map(cat => 
+          cat.category_id === selectedCategory.category_id ? updatedCategory : cat
+        )
+      );
 
-        try {
-          const response = await api.put(`/categories/category_id/${selectedCategory.category_id}`, {
-            column: field,
-            value: value || "" // Ensure we always send a string value
-          });
-          console.log('Update response:', response.data);
-        } catch (error) {
-          console.error(`Failed to update field ${field}:`, error);
-          console.error('Request details:', {
-            url: error.config?.url,
-            method: error.config?.method,
-            data: error.config?.data,
-            response: error.response?.data
-          });
-          throw error;
-        }
-      }
+      // Make bulk update request
+      await api.put(`/categories/category_id/${selectedCategory.category_id}/bulk`, updates);
 
       toast.success("Category updated successfully!", {
         description: `Changes to ${formData.category_name} have been saved`
       });
       setShowEditDialog(false);
       resetFormData();
+      
+      // Refresh categories to ensure consistency
       fetchCategories();
     } catch (error) {
       console.error("Failed to update category:", error);
-      console.error("Request details:", {
-        url: error.config?.url,
-        method: error.config?.method,
-        data: error.config?.data,
-        response: error.response?.data
-      });
       
       let errorMessage = "Failed to update category. Please try again.";
       
@@ -457,6 +455,9 @@ export function CategoriesTable() {
       toast.error(errorMessage, {
         description: "There was an error processing your request"
       });
+      
+      // Revert optimistic update on error
+      fetchCategories();
     } finally {
       setIsEditing(false);
     }
@@ -483,20 +484,17 @@ export function CategoriesTable() {
       
       const isAllowedDomain = allowedDomains.some(domain => urlObj.hostname.toLowerCase().includes(domain));
       if (!isAllowedDomain) {
-        console.warn(`Image URL from unauthorized domain: ${url}`);
         return false;
       }
       
       // Check if URL is a direct image link
       const isImageUrl = /\.(jpg|jpeg|png|gif)(\?.*)?$/i.test(url);
       if (!isImageUrl) {
-        console.warn(`URL is not a direct image link: ${url}`);
         return false;
       }
       
       return true;
     } catch (e) {
-      console.warn(`Invalid URL format: ${url}`);
       return false;
     }
   };
@@ -555,34 +553,110 @@ export function CategoriesTable() {
     }
 
     setIsGeneratingInfo(true);
-    try {
-      const venue = allVenues.find(v => v.venue_id === formData.venue_id);
-      if (!venue) {
-        throw new Error("Venue not found");
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
+
+    const attemptGeneration = async () => {
+      try {
+        const venue = allVenues.find(v => v.venue_id === formData.venue_id);
+        if (!venue) {
+          throw new Error("Venue not found");
+        }
+
+        const categoryInfo = await fetchCategoryInfo(
+          venue.venue_name,
+          formData.category_name,
+          formData.package_type
+        );
+
+        // Only update category_info and ticket images
+        setFormData(prev => ({
+          ...prev,
+          category_info: categoryInfo.category_info,
+          ticket_image_1: categoryInfo.ticket_image_1,
+          ticket_image_2: categoryInfo.ticket_image_2
+        }));
+
+        toast.success("Category information and images generated successfully!");
+        return true;
+      } catch (error) {
+        // Check if it's a service overload error
+        const isOverloadError = error.message?.includes("503") || 
+                              error.message?.includes("overloaded") ||
+                              error.message?.includes("UNAVAILABLE");
+
+        if (isOverloadError && retryCount < maxRetries) {
+          retryCount++;
+          toast.info(`AI service is busy. Retrying in ${retryDelay/1000} seconds... (Attempt ${retryCount}/${maxRetries})`);
+          
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return attemptGeneration();
+        }
+
+        // If we've exhausted retries or it's a different error
+        const errorMessage = isOverloadError 
+          ? "AI service is currently overloaded. Please try again in a few minutes."
+          : "Failed to generate category information. Please try again later.";
+        
+        toast.error(errorMessage, {
+          description: "There was an error processing your request"
+        });
+        return false;
       }
+    };
 
-      const categoryInfo = await fetchCategoryInfo(
-        venue.venue_name,
-        formData.category_name,
-        formData.package_type
-      );
-
-      // Only update category_info and ticket images
-      setFormData(prev => ({
-        ...prev,
-        category_info: categoryInfo.category_info,
-        ticket_image_1: categoryInfo.ticket_image_1,
-        ticket_image_2: categoryInfo.ticket_image_2
-      }));
-
-      toast.success("Category information and images generated successfully!");
-    } catch (error) {
-      console.error("Failed to generate category info:", error);
-      toast.error("Failed to generate category information", {
-        description: error.message
-      });
+    try {
+      await attemptGeneration();
     } finally {
       setIsGeneratingInfo(false);
+    }
+  };
+
+  // Handle bulk selection
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedCategories(currentItems.map(cat => cat.category_id));
+    } else {
+      setSelectedCategories([]);
+    }
+  };
+
+  const handleSelectCategory = (categoryId, checked) => {
+    if (checked) {
+      setSelectedCategories(prev => [...prev, categoryId]);
+    } else {
+      setSelectedCategories(prev => prev.filter(id => id !== categoryId));
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedCategories.length === 0) return;
+
+    setIsBulkDeleting(true);
+    try {
+      // Delete categories concurrently
+      await Promise.all(
+        selectedCategories.map(categoryId =>
+          api.delete(`/categories/category_id/${categoryId}`)
+        )
+      );
+
+      toast.success("Categories deleted successfully!", {
+        description: `${selectedCategories.length} categories have been removed`
+      });
+      
+      setSelectedCategories([]);
+      fetchCategories();
+    } catch (error) {
+      console.error("Failed to delete categories:", error);
+      toast.error("Failed to delete some categories", {
+        description: "There was an error processing your request"
+      });
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -602,7 +676,7 @@ export function CategoriesTable() {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
+      {/* Filters and Actions */}
       <div className="flex items-end gap-2 justify-between">
         <div className="flex gap-4 items-center flex-wrap">
           <Input
@@ -614,10 +688,7 @@ export function CategoriesTable() {
           <Combobox
             options={[
               { value: "all", label: "All Venues" },
-              ...uniqueVenues.map(venue => ({
-                value: venue.venue_id,
-                label: venue.venue_name
-              }))
+              ...venueOptions
             ]}
             value={venueFilter}
             onChange={setVenueFilter}
@@ -638,10 +709,31 @@ export function CategoriesTable() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Category
-        </Button>
+        <div className="flex gap-2">
+          {selectedCategories.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected ({selectedCategories.length})
+                </>
+              )}
+            </Button>
+          )}
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Category
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -705,6 +797,13 @@ export function CategoriesTable() {
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
+              <TableHead className="text-xs py-2 w-[50px]">
+                <Checkbox
+                  checked={selectedCategories.length === currentItems.length}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead className="text-xs py-2">Venue</TableHead>
               <TableHead className="text-xs py-2">Category Name</TableHead>
               <TableHead className="text-xs py-2">Package Type</TableHead>
@@ -718,6 +817,13 @@ export function CategoriesTable() {
               currentItems.map((category) => (
                 <TableRow key={category.category_id} className="hover:bg-muted/50">
                   <TableCell className="text-xs py-1.5">
+                    <Checkbox
+                      checked={selectedCategories.includes(category.category_id)}
+                      onCheckedChange={(checked) => handleSelectCategory(category.category_id, checked)}
+                      aria-label={`Select ${category.category_name}`}
+                    />
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
                     {uniqueVenues.find(v => v.venue_id === category.venue_id)?.venue_name || "Unknown Venue"}
                   </TableCell>
                   <TableCell className="text-xs py-1.5">{category.category_name}</TableCell>
@@ -725,21 +831,44 @@ export function CategoriesTable() {
                   <TableCell className="text-xs py-1.5">{category.ticket_delivery_days} days</TableCell>
                   <TableCell className="text-xs py-1.5">
                     <div className="flex gap-2">
-                      {category.video_wall && (
-                        <Badge variant="outline" className="bg-primary/10 text-primary">
-                          Video Wall
-                        </Badge>
-                      )}
-                      {category.covered_seat && (
-                        <Badge variant="outline" className="bg-primary/10 text-primary">
-                          Covered
-                        </Badge>
-                      )}
-                      {category.numbered_seat && (
-                        <Badge variant="outline" className="bg-primary/10 text-primary">
-                          Numbered
-                        </Badge>
-                      )}
+                      <TooltipProvider>
+                        {category.video_wall && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="p-1 rounded-md bg-primary/10 text-primary">
+                                <Tv className="h-4 w-4" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Video Wall</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {category.covered_seat && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="p-1 rounded-md bg-primary/10 text-primary">
+                                <Umbrella className="h-4 w-4" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Covered Seat</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {category.numbered_seat && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="p-1 rounded-md bg-primary/10 text-primary">
+                                <Hash className="h-4 w-4" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Numbered Seat</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TooltipProvider>
                     </div>
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
@@ -773,7 +902,7 @@ export function CategoriesTable() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="text-center text-muted-foreground text-xs py-1.5"
                 >
                   No categories found.
@@ -880,7 +1009,8 @@ export function CategoriesTable() {
                   <Combobox
                     options={allVenues.map(venue => ({
                       value: venue.venue_id,
-                      label: venue.venue_name
+                      label: `${venue.venue_name} (${venue.city})`,
+                      city: venue.city
                     }))}
                     value={formData.venue_id}
                     onChange={(value) => handleFieldChange("venue_id", value)}

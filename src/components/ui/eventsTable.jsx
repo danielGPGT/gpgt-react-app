@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import api from "@/lib/api";
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
-import { Plus, Trash2, Pencil, Loader2, CheckCircle2, X } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, CheckCircle2, X, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,6 +69,7 @@ import { CalendarIcon } from "lucide-react";
 function EventsTable() {
   const [events, setEvents] = useState([]);
   const [venues, setVenues] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,8 +93,37 @@ function EventsTable() {
   const [selectedEvents, setSelectedEvents] = useState([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-  const [users, setUsers] = useState([]);
   const [showCustomSportInput, setShowCustomSportInput] = useState(false);
+
+  // Helper functions
+  const getVenueName = (venueId) => {
+    const venue = venues.find(v => v.venue_id === venueId);
+    return venue ? venue.venue_name : "Unknown Venue";
+  };
+
+  const getConsultantName = (consultantId) => {
+    const consultant = users.find(u => u.user_id === consultantId);
+    return consultant ? `${consultant.first_name} ${consultant.last_name}` : "Unassigned";
+  };
+
+  // Add loading states for different operations
+  const [isLoading, setIsLoading] = useState({
+    initial: true,
+    refresh: false,
+    add: false,
+    edit: false,
+    delete: false,
+    bulkDelete: false
+  });
+
+  // Add these memoized values after the state declarations
+  const memoizedFilters = useMemo(() => ({
+    sport: sportFilter === "all" ? null : sportFilter.toLowerCase(),
+    consultant: consultantFilter === "all" ? null : consultantFilter,
+    status: statusFilter === "all" ? null : statusFilter,
+    year: yearFilter === "all" ? null : yearFilter,
+    search: searchQuery.toLowerCase()
+  }), [sportFilter, consultantFilter, statusFilter, yearFilter, searchQuery]);
 
   // Sorting options
   const sortColumns = [
@@ -119,26 +149,137 @@ function EventsTable() {
     status: "status"
   };
 
-  useEffect(() => {
-    async function fetchEvents() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [eventsRes, usersRes, venuesRes] = await Promise.all([
-          api.get("/events"),
-          api.get("/users"),
-          api.get("/venues")
-        ]);
-        setEvents(eventsRes.data);
-        setUsers(usersRes.data);
-        setVenues(venuesRes.data);
-      } catch (err) {
-        setError("Failed to fetch events.");
-      } finally {
-        setLoading(false);
-      }
+  // Enhanced filtered and sorted events
+  const filteredEvents = useMemo(() => {
+    let result = events.filter((event) => {
+      const sportMatch = !memoizedFilters.sport || event.sport.toLowerCase() === memoizedFilters.sport;
+      const consultantMatch = !memoizedFilters.consultant || event.consultant_id === memoizedFilters.consultant;
+      const statusMatch = !memoizedFilters.status || event.status === memoizedFilters.status;
+      const yearMatch = !memoizedFilters.year || new Date(event.event_start_date).getFullYear().toString() === memoizedFilters.year;
+      const searchMatch = !memoizedFilters.search || 
+        event.event.toLowerCase().includes(memoizedFilters.search) ||
+        event.sport.toLowerCase().includes(memoizedFilters.search) ||
+        getVenueName(event.venue_id).toLowerCase().includes(memoizedFilters.search) ||
+        getConsultantName(event.consultant_id).toLowerCase().includes(memoizedFilters.search);
+
+      return sportMatch && consultantMatch && statusMatch && yearMatch && searchMatch;
+    });
+
+    // Enhanced sorting with proper date handling
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+
+        // Handle date fields
+        if (sortColumn === 'event_start_date' || sortColumn === 'event_end_date') {
+          aVal = new Date(aVal).getTime();
+          bVal = new Date(bVal).getTime();
+        }
+        // Handle venue and consultant names
+        else if (sortColumn === 'venue') {
+          aVal = getVenueName(a.venue_id).toLowerCase();
+          bVal = getVenueName(b.venue_id).toLowerCase();
+        }
+        else if (sortColumn === 'consultant') {
+          aVal = getConsultantName(a.consultant_id).toLowerCase();
+          bVal = getConsultantName(b.consultant_id).toLowerCase();
+        }
+        // Handle other fields
+        else {
+          aVal = (aVal || "").toString().toLowerCase();
+          bVal = (bVal || "").toString().toLowerCase();
+        }
+
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
     }
-    fetchEvents();
+    return result;
+  }, [events, memoizedFilters, sortColumn, sortDirection]);
+
+  // Memoize pagination calculations
+  const paginationData = useMemo(() => {
+    const totalPages = Math.ceil(filteredEvents.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentItems = filteredEvents.slice(startIndex, endIndex);
+
+    return {
+      totalPages,
+      startIndex,
+      endIndex,
+      currentItems
+    };
+  }, [filteredEvents, currentPage, itemsPerPage]);
+
+  // Memoize unique options for filters
+  const filterOptions = useMemo(() => ({
+    sports: Array.from(new Set(events.map(e => e.sport))).filter(Boolean).sort(),
+    consultants: users.filter(user => user.role === "Internal Sales").sort((a, b) => 
+      `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+    ),
+    years: Array.from(new Set(events.map(e => 
+      new Date(e.event_start_date).getFullYear()
+    ))).filter(Boolean).sort((a, b) => b - a)
+  }), [events, users]);
+
+  // Add error boundary for API calls
+  const handleApiError = (error, operation) => {
+    console.error(`Error during ${operation}:`, error);
+    const errorMessage = error.response?.data?.error || `Failed to ${operation}`;
+    setFormErrors({ api: errorMessage });
+    toast.error(errorMessage);
+  };
+
+  // Enhanced fetch events with error handling and loading states
+  const fetchEvents = async (showLoading = true) => {
+    if (showLoading) setIsLoading(prev => ({ ...prev, refresh: true }));
+    try {
+      const [eventsRes, usersRes, venuesRes] = await Promise.all([
+        api.get("/events"),
+        api.get("/users"),
+        api.get("/venues")
+      ]);
+      setEvents(eventsRes.data);
+      setUsers(usersRes.data);
+      setVenues(venuesRes.data);
+      setError(null);
+    } catch (error) {
+      handleApiError(error, "fetch data");
+      setError("Failed to fetch events.");
+    } finally {
+      setIsLoading(prev => ({ 
+        ...prev, 
+        initial: false,
+        refresh: false 
+      }));
+    }
+  };
+
+  // Update useEffect to use the new fetchEvents function
+  useEffect(() => {
+    fetchEvents(false); // Don't show refresh loading on initial load
+  }, []);
+
+  // Add keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      // Ctrl/Cmd + R to refresh
+      if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+        e.preventDefault();
+        handleRefresh();
+      }
+      // Ctrl/Cmd + N to add new event
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        openAddDialog();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
   // Unique sport, consultant, and year options
@@ -160,31 +301,6 @@ function EventsTable() {
     return unique.filter(Boolean).sort((a, b) => b - a); // Sort years in descending order
   }, [events]);
 
-  // Filtered and sorted events
-  const filteredEvents = useMemo(() => {
-    let result = events.filter((event) => {
-      const sportMatch = sportFilter === "all" || event.sport === sportFilter;
-      const consultantMatch = consultantFilter === "all" || event.consultant_id === consultantFilter;
-      const statusMatch = statusFilter === "all" || event.status === statusFilter;
-      const yearMatch = yearFilter === "all" || new Date(event.event_start_date).getFullYear().toString() === yearFilter;
-      const searchMatch = searchQuery === "" || 
-        event.event.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.sport.toLowerCase().includes(searchQuery.toLowerCase());
-      return sportMatch && consultantMatch && statusMatch && yearMatch && searchMatch;
-    });
-    // Sorting
-    if (sortColumn) {
-      result = [...result].sort((a, b) => {
-        const aVal = (a[sortColumn] || "").toString().toLowerCase();
-        const bVal = (b[sortColumn] || "").toString().toLowerCase();
-        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
-    return result;
-  }, [events, sportFilter, consultantFilter, statusFilter, yearFilter, searchQuery, sortColumn, sortDirection]);
-
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -198,50 +314,21 @@ function EventsTable() {
     event_end_date: null,
     venue_id: "",
     consultant_id: "",
-    status: "sales open"
+    status: ""
   };
   const [formData, setFormData] = useState(initialEventState);
   const [formErrors, setFormErrors] = useState({});
 
-  // Add/Edit handlers
-  const openAddDialog = () => {
-    setFormData(initialEventState);
-    setFormErrors({});
-    setIsAddDialogOpen(true);
-  };
-  const openEditDialog = (event) => {
-    setEditingEvent(event);
-    setFormData({
-      sport: event.sport,
-      event: event.event,
-      event_start_date: parseDateFromDB(event.event_start_date),
-      event_end_date: parseDateFromDB(event.event_end_date),
-      venue_id: event.venue_id,
-      consultant_id: event.consultant_id || "",
-      status: event.status || "sales open"
-    });
-    setFormErrors({});
-    setIsEditDialogOpen(true);
-  };
-  const handleDeleteClick = (event) => {
-    setEventToDelete(event);
-    setShowDeleteDialog(true);
-  };
-
   // Validate form fields
   const validateField = (field, value) => {
     const errors = { ...formErrors };
-    if (!value || value.trim() === "") {
+    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === "")) {
       errors[field] = "Required";
     } else {
       delete errors[field];
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  };
-  const handleFieldChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    validateField(field, value);
   };
 
   // Helper function to parse date from database
@@ -265,6 +352,219 @@ function EventsTable() {
     return format(date, 'dd-MM-yyyy');
   };
 
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleFieldChange = useCallback((field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    validateField(field, value);
+  }, []);
+
+  const handleSelectAll = useCallback((checked) => {
+    if (checked) {
+      setSelectedEvents(paginationData.currentItems.map((event) => event.event_id));
+    } else {
+      setSelectedEvents([]);
+    }
+  }, [paginationData.currentItems]);
+
+  const handleSelectEvent = useCallback((eventId, checked) => {
+    setSelectedEvents((prev) => 
+      checked 
+        ? [...prev, eventId]
+        : prev.filter((id) => id !== eventId)
+    );
+  }, []);
+
+  const handlePageChange = useCallback((page) => {
+    setCurrentPage(page);
+  }, []);
+
+  // Optimize filter handlers
+  const handleFilterChange = useCallback((filterType, value) => {
+    switch (filterType) {
+      case 'sport':
+        setSportFilter(value);
+        break;
+      case 'consultant':
+        setConsultantFilter(value);
+        break;
+      case 'status':
+        setStatusFilter(value);
+        break;
+      case 'year':
+        setYearFilter(value);
+        break;
+      case 'search':
+        setSearchQuery(value);
+        break;
+      default:
+        break;
+    }
+    setCurrentPage(1); // Reset to first page when filters change
+  }, []);
+
+  // Optimize sort handlers
+  const handleSortChange = useCallback((column) => {
+    setSortColumn(column);
+  }, []);
+
+  const handleSortDirectionChange = useCallback((direction) => {
+    setSortDirection(direction);
+  }, []);
+
+  // Memoize dialog handlers
+  const openAddDialog = useCallback(() => {
+    setFormData(initialEventState);
+    setFormErrors({});
+    setIsAddDialogOpen(true);
+  }, []);
+
+  const openEditDialog = useCallback((event) => {
+    setEditingEvent(event);
+    setFormData({
+      sport: event.sport,
+      event: event.event,
+      event_start_date: parseDateFromDB(event.event_start_date),
+      event_end_date: parseDateFromDB(event.event_end_date),
+      venue_id: event.venue_id,
+      consultant_id: event.consultant_id || "",
+      status: event.status || ""
+    });
+    setFormErrors({});
+    setIsEditDialogOpen(true);
+  }, []);
+
+  const handleDeleteClick = useCallback((event) => {
+    setEventToDelete(event);
+    setShowDeleteDialog(true);
+  }, []);
+
+  // Optimize bulk actions
+  const toggleSelectionMode = useCallback(() => {
+    setIsSelectionMode((prev) => !prev);
+    setSelectedEvents([]); // Clear selection when toggling mode
+  }, []);
+
+  // Add refresh button handler
+  const handleRefresh = useCallback(() => {
+    fetchEvents(true);
+  }, []);
+
+  // Memoize the table row component
+  const EventTableRow = useMemo(() => {
+    return ({ event }) => (
+      <TableRow key={event.event_id} className="hover:bg-muted/50">
+        <TableCell className="text-xs py-1.5">
+          <Checkbox
+            checked={selectedEvents.includes(event.event_id)}
+            onCheckedChange={(checked) => handleSelectEvent(event.event_id, checked)}
+            aria-label={`Select ${event.event}`}
+            className="h-4 w-4"
+          />
+        </TableCell>
+        <TableCell className="text-xs py-1.5">{event.sport}</TableCell>
+        <TableCell className="text-xs py-1.5">{event.event}</TableCell>
+        <TableCell className="text-xs py-1.5">{event.event_start_date}</TableCell>
+        <TableCell className="text-xs py-1.5">{event.event_end_date}</TableCell>
+        <TableCell className="text-xs py-1.5">{getVenueName(event.venue_id)}</TableCell>
+        <TableCell className="text-xs py-1.5">{getConsultantName(event.consultant_id)}</TableCell>
+        <TableCell className="text-xs py-1.5">
+          <Badge
+            variant="outline"
+            className={`${
+              event.status === "sales closed"
+                ? "bg-destructive/10 text-destructive"
+                : event.status === "sales open"
+                ? "bg-success/10 text-success"
+                : "bg-warning/10 text-warning"
+            }`}
+          >
+            {event.status === "sales open" ? "Sales Open" : "Sales Closed"}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-xs py-1.5">
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => openEditDialog(event)}
+              className="h-7 w-7"
+              disabled={isLoading.edit}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleDeleteClick(event)}
+              disabled={isLoading.delete}
+              className="h-7 w-7"
+            >
+              {isLoading.delete && eventToDelete?.event_id === event.event_id ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              )}
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }, [isSelectionMode, selectedEvents, isLoading.edit, isLoading.delete, eventToDelete, handleSelectEvent, openEditDialog, handleDeleteClick, venues, users]);
+
+  // Update the table body to use the memoized row component
+  const tableBody = useMemo(() => {
+    if (isLoading.initial) {
+      return (
+        <TableRow>
+          <TableCell
+            colSpan={9}
+            className="text-center text-muted-foreground text-xs py-1.5"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading events...
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    if (paginationData.currentItems.length === 0) {
+      return (
+        <TableRow>
+          <TableCell
+            colSpan={9}
+            className="text-center text-muted-foreground text-xs py-1.5"
+          >
+            No events found.
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return paginationData.currentItems.map((event) => (
+      <EventTableRow key={event.event_id} event={event} />
+    ));
+  }, [isLoading.initial, paginationData.currentItems, EventTableRow]);
+
+  // Add this new function after the validateField function
+  const validateDuplicateEvent = (sport, event, currentEventId = null) => {
+    const isDuplicate = events.some(
+      (e) => 
+        e.event.toLowerCase() === event.toLowerCase() && 
+        e.sport.toLowerCase() === sport.toLowerCase() &&
+        e.event_id !== currentEventId
+    );
+
+    if (isDuplicate) {
+      setFormErrors({
+        api: `An event "${event}" already exists for ${sport}. Please use a different name or sport.`
+      });
+      return true;
+    }
+    return false;
+  };
+
   // Add event
   const handleAddEvent = async () => {
     // Validate required fields
@@ -282,28 +582,21 @@ function EventsTable() {
     }
 
     // Check for duplicate event
-    const isDuplicate = events.some(
-      (e) => e.event === formData.event && e.sport === formData.sport
-    );
-
-    if (isDuplicate) {
-      setFormErrors({
-        api: `An event "${formData.event}" already exists for ${formData.sport}`,
-      });
+    if (validateDuplicateEvent(formData.sport, formData.event)) {
       return;
     }
 
     setIsAdding(true);
     try {
-      const eventData = {
+      // Create eventData without the status field
+      const { status, ...eventData } = {
         event_id: uuidv4(),
         sport: formData.sport,
         event: formData.event,
         event_start_date: formatDateForDisplay(formData.event_start_date),
         event_end_date: formatDateForDisplay(formData.event_end_date),
         venue_id: formData.venue_id,
-        consultant_id: formData.consultant_id,
-        status: "sales open"
+        consultant_id: formData.consultant_id
       };
 
       await api.post("/events", eventData);
@@ -339,53 +632,47 @@ function EventsTable() {
       return;
     }
 
-    // Check for duplicate event (excluding the current event being edited)
-    const isDuplicate = events.some(
-      (e) =>
-        e.event === formData.event &&
-        e.sport === formData.sport &&
-        e.event_id !== editingEvent.event_id
-    );
+    // Check for duplicate event
+    if (validateDuplicateEvent(formData.sport, formData.event, editingEvent.event_id)) {
+      return;
+    }
 
-    if (isDuplicate) {
-      setFormErrors({
-        api: `An event "${formData.event}" already exists for ${formData.sport}`,
-      });
+    // Check if any changes were made
+    const hasChanges = 
+      formData.sport !== editingEvent.sport ||
+      formData.event !== editingEvent.event ||
+      formatDateForDisplay(formData.event_start_date) !== editingEvent.event_start_date ||
+      formatDateForDisplay(formData.event_end_date) !== editingEvent.event_end_date ||
+      formData.venue_id !== editingEvent.venue_id ||
+      formData.consultant_id !== editingEvent.consultant_id;
+
+    if (!hasChanges) {
+      toast.info("No changes were made to the event.");
+      setIsEditDialogOpen(false);
       return;
     }
 
     setIsEditing(true);
     try {
-      // Compare with original event to find changed fields
-      const changedFields = {};
-      Object.keys(formData).forEach((key) => {
-        if (key === 'event_start_date' || key === 'event_end_date') {
-          const newValue = formatDateForDisplay(formData[key]);
-          const oldValue = editingEvent[key];
-          if (newValue !== oldValue) {
-            changedFields[key] = newValue;
+      // Prepare all updates in a single array, excluding status unless it's an empty string
+      const updates = Object.entries(formData)
+        .filter(([key, value]) => key !== 'status' || value === '')
+        .map(([key, value]) => {
+          // Format dates if they exist
+          if (key === 'event_start_date' || key === 'event_end_date') {
+            return {
+              column: key,
+              value: value ? formatDateForDisplay(value) : null
+            };
           }
-        } else if (formData[key] !== editingEvent[key]) {
-          changedFields[key] = formData[key];
-        }
-      });
-
-      // Only update if there are changes
-      if (Object.keys(changedFields).length === 0) {
-        setSuccessMessage("No changes were made");
-        setShowSuccessDialog(true);
-        setIsEditDialogOpen(false);
-        return;
-      }
-
-      // Update only changed fields
-      for (const [column, value] of Object.entries(changedFields)) {
-        const response = await api.put(`/events/event_id/${editingEvent.event_id}`, {
-          column: column,
-          value: value
+          return {
+            column: key,
+            value: value
+          };
         });
-        console.log(`Updated ${column}:`, response.data);
-      }
+
+      // Make a single bulk update request
+      await api.put(`/events/event_id/${editingEvent.event_id}/bulk`, updates);
 
       setSuccessMessage("Event updated successfully!");
       setShowSuccessDialog(true);
@@ -422,29 +709,6 @@ function EventsTable() {
     }
   };
 
-  // Add bulk selection handlers
-  const handleSelectAll = (checked) => {
-    if (checked) {
-      setSelectedEvents(currentItems.map((event) => event.event_id));
-    } else {
-      setSelectedEvents([]);
-    }
-  };
-
-  const handleSelectEvent = (eventId, checked) => {
-    if (checked) {
-      setSelectedEvents((prev) => [...prev, eventId]);
-    } else {
-      setSelectedEvents((prev) => prev.filter((id) => id !== eventId));
-    }
-  };
-
-  // Toggle selection mode
-  const toggleSelectionMode = () => {
-    setIsSelectionMode(!isSelectionMode);
-    setSelectedEvents([]); // Clear selection when toggling mode
-  };
-
   // Add bulk delete handler
   const handleBulkDelete = async () => {
     if (selectedEvents.length === 0) return;
@@ -473,27 +737,26 @@ function EventsTable() {
     }
   };
 
-  // Helper function to get venue name
-  const getVenueName = (venueId) => {
-    const venue = venues.find(v => v.venue_id === venueId);
-    return venue ? venue.venue_name : "Unknown Venue";
-  };
-
-  // Helper function to get consultant name
-  const getConsultantName = (consultantId) => {
-    const consultant = users.find(u => u.user_id === consultantId);
-    return consultant ? `${consultant.first_name} ${consultant.last_name}` : "Unassigned";
-  };
-
-  if (loading) {
+  if (error) {
     return (
-      <div className="text-center text-muted-foreground p-8">
-        Loading events...
+      <div className="p-4 text-destructive flex flex-col items-center gap-4">
+        <p>{error}</p>
+        <Button onClick={() => fetchEvents(true)} variant="outline">
+          Try Again
+        </Button>
       </div>
     );
   }
-  if (error) {
-    return <div className="p-4 text-destructive">{error}</div>;
+
+  if (isLoading.initial) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading events...</p>
+        </div>
+      </div>
+    );
   }
 
   // Pagination logic
@@ -517,7 +780,7 @@ function EventsTable() {
           <Combobox
             options={[
               { value: "all", label: "All Sports" },
-              ...sportOptions.map((sport) => ({ value: sport, label: sport })),
+              ...filterOptions.sports.map((sport) => ({ value: sport, label: sport })),
             ]}
             value={sportFilter}
             onChange={setSportFilter}
@@ -530,13 +793,11 @@ function EventsTable() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Consultants</SelectItem>
-              {users
-                .filter(user => user.role === "Internal Sales")
-                .map((user) => (
-                  <SelectItem key={user.user_id} value={user.user_id}>
-                    {user.first_name} {user.last_name}
-                  </SelectItem>
-                ))}
+              {filterOptions.consultants.map((user) => (
+                <SelectItem key={user.user_id} value={user.user_id}>
+                  {user.first_name} {user.last_name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -556,7 +817,7 @@ function EventsTable() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Years</SelectItem>
-              {yearOptions.map((year) => (
+              {filterOptions.years.map((year) => (
                 <SelectItem key={year} value={year.toString()}>
                   {year}
                 </SelectItem>
@@ -564,33 +825,46 @@ function EventsTable() {
             </SelectContent>
           </Select>
         </div>
-        {isSelectionMode && selectedEvents.length > 0 && (
+        <div className="flex gap-2">
           <Button
-            variant="destructive"
+            variant="outline"
             size="sm"
-            onClick={() => setShowBulkDeleteDialog(true)}
-            disabled={isBulkDeleting}
+            onClick={handleRefresh}
+            disabled={isLoading.refresh}
           >
-            {isBulkDeleting ? (
+            {isLoading.refresh ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                Refreshing...
               </>
             ) : (
               <>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Selected ({selectedEvents.length})
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
               </>
             )}
           </Button>
-        )}
-        <Button
-          variant={isSelectionMode ? "secondary" : "outline"}
-          size="sm"
-          onClick={toggleSelectionMode}
-        >
-          {isSelectionMode ? "Cancel Selection" : "Bulk Actions"}
-        </Button>
+          {selectedEvents.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowBulkDeleteDialog(true)}
+              disabled={isLoading.bulkDelete}
+            >
+              {isLoading.bulkDelete ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected ({selectedEvents.length})
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -650,24 +924,31 @@ function EventsTable() {
               ({sortDirection === "asc" ? "A-Z" : "Z-A"})
             </span>
           </div>
-          <Button onClick={openAddDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Event
+          <Button onClick={openAddDialog} disabled={isLoading.add}>
+            {isLoading.add ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Event
+              </>
+            )}
           </Button>
         </div>
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
-              {isSelectionMode && (
-                <TableHead className="w-[50px] text-xs py-2">
-                  <Checkbox
-                    checked={selectedEvents.length === currentItems.length}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                    className="h-4 w-4"
-                  />
-                </TableHead>
-              )}
+              <TableHead className="w-[50px] text-xs py-2">
+                <Checkbox
+                  checked={selectedEvents.length === paginationData.currentItems.length}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                  className="h-4 w-4"
+                />
+              </TableHead>
               <TableHead className="text-xs py-2">Sport</TableHead>
               <TableHead className="text-xs py-2">Event</TableHead>
               <TableHead className="text-xs py-2">Start Date</TableHead>
@@ -679,79 +960,7 @@ function EventsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentItems.length > 0 ? (
-              currentItems.map((event) => (
-                <TableRow key={event.event_id} className="hover:bg-muted/50">
-                  {isSelectionMode && (
-                    <TableCell className="text-xs py-1.5">
-                      <Checkbox
-                        checked={selectedEvents.includes(event.event_id)}
-                        onCheckedChange={(checked) =>
-                          handleSelectEvent(event.event_id, checked)
-                        }
-                        aria-label={`Select ${event.event}`}
-                        className="h-4 w-4"
-                      />
-                    </TableCell>
-                  )}
-                  <TableCell className="text-xs py-1.5">{event.sport}</TableCell>
-                  <TableCell className="text-xs py-1.5">{event.event}</TableCell>
-                  <TableCell className="text-xs py-1.5">{event.event_start_date}</TableCell>
-                  <TableCell className="text-xs py-1.5">{event.event_end_date}</TableCell>
-                  <TableCell className="text-xs py-1.5">{getVenueName(event.venue_id)}</TableCell>
-                  <TableCell className="text-xs py-1.5">{getConsultantName(event.consultant_id)}</TableCell>
-                  <TableCell className="text-xs py-1.5">
-                    <Badge
-                      variant="outline"
-                      className={`${
-                        event.status === "sales closed"
-                          ? "bg-destructive/10 text-destructive"
-                          : event.status === "sales open"
-                          ? "bg-success/10 text-success"
-                          : "bg-warning/10 text-warning"
-                      }`}
-                    >
-                      {event.status === "sales open" ? "Sales Open" : "Sales Closed"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs py-1.5">
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(event)}
-                        className="h-7 w-7"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClick(event)}
-                        disabled={isDeleting}
-                        className="h-7 w-7"
-                      >
-                        {isDeleting &&
-                        eventToDelete?.event_id === event.event_id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={isSelectionMode ? 9 : 8}
-                  className="text-center text-muted-foreground text-xs py-1.5"
-                >
-                  No events found.
-                </TableCell>
-              </TableRow>
-            )}
+            {tableBody}
           </TableBody>
         </Table>
       </div>
@@ -768,7 +977,7 @@ function EventsTable() {
                 }
               />
             </PaginationItem>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {Array.from({ length: paginationData.totalPages }, (_, i) => i + 1).map((page) => (
               <PaginationItem key={page}>
                 <PaginationLink
                   onClick={() => setCurrentPage(page)}
@@ -781,10 +990,10 @@ function EventsTable() {
             <PaginationItem>
               <PaginationNext
                 onClick={() =>
-                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  setCurrentPage((prev) => Math.min(paginationData.totalPages, prev + 1))
                 }
                 className={
-                  currentPage === totalPages
+                  currentPage === paginationData.totalPages
                     ? "pointer-events-none opacity-50"
                     : ""
                 }
@@ -793,8 +1002,8 @@ function EventsTable() {
           </PaginationContent>
         </Pagination>
         <div className="text-sm text-muted-foreground">
-          Showing {startIndex + 1} to{" "}
-          {Math.min(endIndex, filteredEvents.length)} of{" "}
+          Showing {paginationData.startIndex + 1} to{" "}
+          {Math.min(paginationData.endIndex, filteredEvents.length)} of{" "}
           {filteredEvents.length} events
         </div>
       </div>

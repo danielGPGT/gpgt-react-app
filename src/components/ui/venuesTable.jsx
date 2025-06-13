@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { v4 as uuidv4 } from 'uuid';
 import {
   MapPin,
   Plus,
@@ -9,6 +10,7 @@ import {
   Loader2,
   ChevronDown,
   Sparkles,
+  Map,
 } from "lucide-react";
 import {
   Table,
@@ -68,6 +70,7 @@ import api from "@/lib/api";
 import { Combobox } from "@/components/ui/combobox";
 import { fetchVenueInfo } from "@/lib/api";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import VenuesMap from "./venuesMap";
 
 export function VenuesTable({
   onVenuesLoaded,
@@ -98,6 +101,10 @@ export function VenuesTable({
   const [isAdding, setIsAdding] = useState(false);
   const [isFetchingAI, setIsFetchingAI] = useState(false);
   const [isFetchingEditAI, setIsFetchingEditAI] = useState(false);
+  const [selectedVenues, setSelectedVenues] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   // Sorting options
   const sortColumns = [
@@ -178,7 +185,12 @@ export function VenuesTable({
   const handleAddVenue = async () => {
     try {
       setIsAdding(true);
-      await api.post("/venues", newVenue);
+      // Add venue_id to the new venue data
+      const venueData = {
+        ...newVenue,
+        venue_id: uuidv4()
+      };
+      await api.post("/venues", venueData);
       toast.success("Venue added successfully");
       setIsAddDialogOpen(false);
       setNewVenue(initialVenueState);
@@ -195,31 +207,42 @@ export function VenuesTable({
       setIsEditing(true);
 
       // Compare with original venue to find changed fields
-      const changedFields = {};
-      Object.keys(editingVenue).forEach((key) => {
-        if (
-          editingVenue[key] !==
-          venues.find((v) => v.venue_id === editingVenue.venue_id)?.[key]
-        ) {
-          changedFields[key] = editingVenue[key];
-        }
-      });
+      const originalVenue = venues.find((v) => v.venue_id === editingVenue.venue_id);
+      if (!originalVenue) {
+        toast.error("Original venue not found");
+        return;
+      }
 
-      // Only update if there are changes
-      if (Object.keys(changedFields).length === 0) {
-        toast.info("No changes were made");
+      // Prepare updates array with only changed fields
+      const updates = Object.entries(editingVenue)
+        .filter(([key, value]) => {
+          // Skip venue_id as it's the identifier
+          if (key === 'venue_id') return false;
+          
+          // Compare values, handling null/undefined cases
+          const originalValue = originalVenue[key];
+          const newValue = value;
+          
+          // Handle empty string vs null comparison
+          if (originalValue === null && newValue === "") return false;
+          if (originalValue === "" && newValue === null) return false;
+          
+          return originalValue !== newValue;
+        })
+        .map(([key, value]) => ({
+          column: key,
+          value: value
+        }));
+
+      // Check if there are any changes
+      if (updates.length === 0) {
+        toast.info("No changes were made to the venue");
         setIsEditDialogOpen(false);
         return;
       }
 
-      // Update each changed field
-      for (const [field, value] of Object.entries(changedFields)) {
-        const response = await api.put(`/venues/venue_id/${editingVenue.venue_id}`, {
-          column: field,
-          value: value
-        });
-        console.log(`Updated ${field}:`, response.data);
-      }
+      // Make bulk update request
+      await api.put(`/venues/venue_id/${editingVenue.venue_id}/bulk`, updates);
 
       toast.success("Venue updated successfully");
       setIsEditDialogOpen(false);
@@ -313,6 +336,62 @@ export function VenuesTable({
   const endIndex = startIndex + itemsPerPage;
   const currentItems = filteredAndSortedVenues.slice(startIndex, endIndex);
 
+  // Add bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedVenues.length === 0) {
+      toast.error("No venues selected");
+      return;
+    }
+
+    try {
+      setIsBulkDeleting(true);
+      // Delete venues one by one to handle errors better
+      const results = await Promise.allSettled(
+        selectedVenues.map(venue => 
+          api.delete(`/venues/venue_id/${venue.venue_id}`)
+        )
+      );
+
+      // Count successful and failed deletions
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      if (successful > 0) {
+        toast.success(`${successful} venue${successful > 1 ? 's' : ''} deleted successfully`);
+      }
+      if (failed > 0) {
+        toast.error(`${failed} venue${failed > 1 ? 's' : ''} failed to delete`);
+      }
+
+      setSelectedVenues([]);
+      fetchVenues();
+    } catch (error) {
+      console.error("Failed to delete venues:", error);
+      toast.error("Failed to delete venues");
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkDeleteDialog(false);
+    }
+  };
+
+  // Add select all handler
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedVenues(currentItems);
+    } else {
+      setSelectedVenues([]);
+    }
+  };
+
+  // Add individual venue selection handler
+  const handleSelectVenue = (venue, checked) => {
+    if (checked) {
+      setSelectedVenues(prev => [...prev, venue]);
+    } else {
+      setSelectedVenues(prev => prev.filter(v => v.venue_id !== venue.venue_id));
+    }
+  };
+
   return (
     <div className="w-full space-y-4">
       {/* Header with actions */}
@@ -352,6 +431,15 @@ export function VenuesTable({
           />
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMap(!showMap)}
+            className="flex items-center gap-2"
+          >
+            <Map className="h-4 w-4" />
+            {showMap ? "Hide Map" : "Show Map"}
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -395,6 +483,22 @@ export function VenuesTable({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          {selectedVenues.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowBulkDeleteDialog(true)}
+              disabled={isBulkDeleting}
+              className="flex items-center gap-2"
+            >
+              {isBulkDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Delete Selected ({selectedVenues.length})
+            </Button>
+          )}
           <Button
             onClick={() => setIsAddDialogOpen(true)}
             className="flex items-center gap-2"
@@ -410,6 +514,14 @@ export function VenuesTable({
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
+              <TableHead className="w-[50px]">
+                <input
+                  type="checkbox"
+                  checked={selectedVenues.length === currentItems.length}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+              </TableHead>
               <TableHead className="text-xs py-2">Venue Name</TableHead>
               <TableHead className="text-xs py-2">City</TableHead>
               <TableHead className="text-xs py-2">Country</TableHead>
@@ -421,13 +533,21 @@ export function VenuesTable({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-4">
+                <TableCell colSpan={7} className="text-center py-4">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : currentItems.length > 0 ? (
               currentItems.map((venue) => (
                 <TableRow key={venue.venue_id}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selectedVenues.some(v => v.venue_id === venue.venue_id)}
+                      onChange={(e) => handleSelectVenue(venue, e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                  </TableCell>
                   <TableCell className="text-xs py-1.5">
                     {venue.venue_name}
                   </TableCell>
@@ -481,7 +601,7 @@ export function VenuesTable({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="text-center text-muted-foreground text-xs py-1.5"
                 >
                   No venues found.
@@ -491,6 +611,26 @@ export function VenuesTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Map Section */}
+      {showMap && (
+        <div className="mt-4">
+          <VenuesMap
+            venues={venues}
+            onEditVenue={handleEditClick}
+            onDeleteVenue={handleDeleteClick}
+            onAddVenue={(venueData) => {
+              setNewVenue(venueData);
+              setIsAddDialogOpen(true);
+            }}
+            isDeleting={isDeleting}
+            venueToDelete={venueToDelete}
+            setVenueToDelete={setVenueToDelete}
+            showDeleteDialog={showDeleteDialog}
+            setShowDeleteDialog={setShowDeleteDialog}
+          />
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -964,6 +1104,36 @@ export function VenuesTable({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Venues</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedVenues.length} venue{selectedVenues.length > 1 ? 's' : ''}? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isBulkDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...

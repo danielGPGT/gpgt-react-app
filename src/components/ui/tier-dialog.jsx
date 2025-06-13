@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { v4 as uuidv4 } from 'uuid';
 import {
   Dialog,
   DialogContent,
@@ -62,8 +63,10 @@ export function TierDialog({
           status: tier.status || "sales open",
         });
       } else {
+        // Set default tier type to first option when adding new tier
+        const defaultTierType = selectedPackage?.package_type === "Grandstand" ? "Bronze" : "Platinum";
         setFormData({
-          tier_type: "",
+          tier_type: defaultTierType,
           ticket_id: "",
           hotel_id: "",
           room_id: "",
@@ -75,7 +78,7 @@ export function TierDialog({
       setFormErrors({});
       setCustomTierType("");
     }
-  }, [isOpen, mode, tier]);
+  }, [isOpen, mode, tier, selectedPackage]);
 
   // Fetch related data
   useEffect(() => {
@@ -87,7 +90,7 @@ export function TierDialog({
   const fetchData = async () => {
     try {
       // First get rooms for this package
-      const roomsRes = await api.get("/new rooms", {
+      const roomsRes = await api.get("/rooms", {
         params: { packageId: selectedPackage.package_id }
       });
       
@@ -96,7 +99,7 @@ export function TierDialog({
       
       // Get other data in parallel
       const [hotelsRes, circuitRes, airportRes, ticketsRes] = await Promise.all([
-        api.get("/test hotels", {
+        api.get("/hotels", {
           params: { hotelIds: uniqueHotelIds.join(',') }
         }),
         api.get("/circuit-transfers", {
@@ -105,14 +108,19 @@ export function TierDialog({
         api.get("/airport-transfers", {
           params: { packageId: selectedPackage.package_id }
         }),
-        api.get("/new tickets", {
+        api.get("/tickets", {
           params: { packageId: selectedPackage.package_id }
         })
       ]);
 
-      console.log("Hotels for package:", hotelsRes.data);
+      // Filter rooms to only show those that match this package_id
+      const filteredRooms = roomsRes.data.filter(room => {
+        const packageIds = room.package_id.split(',').map(id => id.trim());
+        return packageIds.includes(selectedPackage.package_id);
+      });
+
       setHotels(hotelsRes.data);
-      setRooms(roomsRes.data);
+      setRooms(filteredRooms);
       setCircuitTransfers(circuitRes.data);
       setAirportTransfers(airportRes.data);
       setTickets(ticketsRes.data);
@@ -142,11 +150,6 @@ export function TierDialog({
   const validateForm = () => {
     const errors = {};
     if (!formData.tier_type) errors.tier_type = "Required";
-    if (!formData.ticket_id) errors.ticket_id = "Required";
-    if (!formData.hotel_id) errors.hotel_id = "Required";
-    if (!formData.room_id) errors.room_id = "Required";
-    if (!formData.airport_transfer_id) errors.airport_transfer_id = "Required";
-    if (!formData.status) errors.status = "Required";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -157,23 +160,25 @@ export function TierDialog({
     setIsSubmitting(true);
     try {
       if (mode === "add") {
-        // Look up ticket_name
-        const ticket = tickets.find((t) => t.ticket_id === formData.ticket_id);
-        if (!ticket) {
-          setFormErrors({ api: "Invalid ticket selection." });
-          return;
+        // Look up ticket_name if ticket_id is provided
+        let ticket_name = "";
+        if (formData.ticket_id) {
+          const ticket = tickets.find((t) => t.ticket_id === formData.ticket_id);
+          if (ticket) {
+            ticket_name = ticket.ticket_name;
+          }
         }
 
         const payload = {
-          package_name: selectedPackage.package_name,
+          tier_id: uuidv4(),
+          package_id: selectedPackage.package_id,
           tier_type: formData.tier_type,
-          ticket_name: ticket.ticket_name,
-          ticket_id: "",
-          hotel_id: formData.hotel_id,
-          room_id: formData.room_id,
-          circuit_transfer_id: formData.circuit_transfer_id,
-          airport_transfer_id: formData.airport_transfer_id,
-          status: formData.status,
+          ticket_name: ticket_name,
+          hotel_id: formData.hotel_id || "",
+          room_id: formData.room_id || "",
+          circuit_transfer_id: formData.circuit_transfer_id || "",
+          airport_transfer_id: formData.airport_transfer_id || "",
+          status: formData.status || "sales open"
         };
 
         await api.post("/package-tiers", payload);
@@ -199,12 +204,11 @@ export function TierDialog({
         if (formData.status !== tier.status) {
           changedFields.status = formData.status;
         }
-
-        // For ticket_name, compare by ticket_id and look up name
         if (formData.ticket_id !== tier.ticket_id) {
           const ticket = tickets.find((t) => t.ticket_id === formData.ticket_id);
-          changedFields.ticket_name = ticket ? ticket.ticket_name : "";
-          changedFields.ticket_id = "";
+          if (ticket) {
+            changedFields.ticket_name = ticket.ticket_name;
+          }
         }
 
         // Only update if there are changes
@@ -253,15 +257,11 @@ export function TierDialog({
           <div className="space-y-2">
             <Label htmlFor="tier_type">Tier Type</Label>
             <Select
-              value={
-                tierTypeOptions.includes(formData.tier_type)
-                  ? formData.tier_type
-                  : "Custom…"
-              }
+              value={formData.tier_type === "Custom…" ? "Custom…" : formData.tier_type}
               onValueChange={(value) => {
                 if (value === "Custom…") {
                   setCustomTierType("");
-                  handleFieldChange("tier_type", "Custom…");
+                  handleFieldChange("tier_type", "");
                 } else {
                   setCustomTierType("");
                   handleFieldChange("tier_type", value);
@@ -280,9 +280,7 @@ export function TierDialog({
                 ))}
               </SelectContent>
             </Select>
-            {(formData.tier_type === "Custom…" ||
-              (!tierTypeOptions.includes(formData.tier_type) &&
-                formData.tier_type !== "")) && (
+            {(!tierTypeOptions.includes(formData.tier_type) || formData.tier_type === "Custom…") && (
               <Input
                 id="custom_tier_type"
                 value={customTierType}

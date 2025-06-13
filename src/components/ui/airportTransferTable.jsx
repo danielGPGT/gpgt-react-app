@@ -18,6 +18,9 @@ import {
   Pencil,
   Loader2,
   ChevronDown,
+  AlertCircle,
+  Clock,
+  CreditCard,
 } from "lucide-react";
 import {
   Pagination,
@@ -69,6 +72,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 function AirportTransferTable() {
   const [transfers, setTransfers] = useState([]);
@@ -78,6 +88,9 @@ function AirportTransferTable() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedTransfers, setSelectedTransfers] = useState([]);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Generate a unique ID for new transfers
   const generateAirportTransferId = () => {
@@ -313,28 +326,28 @@ function AirportTransferTable() {
 
       const transferId = editingTransfer.airport_transfer_id;
 
-      // Get the first (and should be only) changed field
-      const [field, value] = Object.entries(changedFields)[0];
+      // Prepare updates array for bulk update
+      const updates = Object.entries(changedFields).map(([field, value]) => {
+        // Format the value based on field type
+        let processedValue = value;
+        if (field === 'paid_to_supplier' || field === 'outstanding') {
+          processedValue = value ? "TRUE" : "FALSE";
+        } else if (field === 'markup') {
+          processedValue = value.toString();
+        } else if (field === 'max_capacity') {
+          processedValue = parseInt(value) || 0;
+        } else if (field === 'supplier_quote_per_car_local') {
+          processedValue = parseFloat(value) || 0;
+        }
 
-      // Format the value based on field type
-      let processedValue = value;
-      if (field === 'paid_to_supplier' || field === 'outstanding') {
-        processedValue = value ? "TRUE" : "FALSE";
-      } else if (field === 'markup') {
-        processedValue = value.toString();
-      } else if (field === 'max_capacity') {
-        processedValue = parseInt(value) || 0;
-      } else if (field === 'supplier_quote_per_car_local') {
-        processedValue = parseFloat(value) || 0;
-      }
+        return {
+          column: field,
+          value: processedValue
+        };
+      });
 
-      const updateData = {
-        column: field,
-        value: processedValue
-      };
-
-      console.log("Updating single field:", { field, value: processedValue, updateData });
-      await api.put(`/stock-airport-transfers/airport_transfer_id/${transferId}`, updateData);
+      // Send bulk update request
+      await api.put(`/stock-airport-transfers/airport_transfer_id/${transferId}/bulk`, updates);
 
       await fetchInitialData();
       toast.dismiss(loadingToast);
@@ -355,12 +368,11 @@ function AirportTransferTable() {
 
   // When opening edit dialog
   const handleEditClick = (transfer) => {
-    console.log('Opening edit for transfer:', transfer);
     // Format boolean values and markup for the form
     const formattedTransfer = {
       ...transfer,
-      paid_to_supplier: transfer.paid_to_supplier === "true",
-      outstanding: transfer.outstanding === "true",
+      paid_to_supplier: transfer.paid_to_supplier === true || transfer.paid_to_supplier === "TRUE" || transfer.paid_to_supplier === "true",
+      outstanding: transfer.outstanding === true || transfer.outstanding === "TRUE" || transfer.outstanding === "true",
       markup: transfer.markup?.toString().replace('%', '') || '55'
     };
     setEditingTransfer(formattedTransfer);
@@ -504,8 +516,8 @@ function AirportTransferTable() {
       ...data,
       max_capacity: parseInt(data.max_capacity) || 0,
       supplier_quote_per_car_local: parseFloat(data.supplier_quote_per_car_local) || 0,
-      paid_to_supplier: data.paid_to_supplier === "TRUE",
-      outstanding: data.outstanding === "TRUE",
+      paid_to_supplier: data.paid_to_supplier === true || data.paid_to_supplier === "TRUE" || data.paid_to_supplier === "true",
+      outstanding: data.outstanding === true || data.outstanding === "TRUE" || data.outstanding === "true",
       markup: data.markup?.toString().replace('%', '') || '55'
     };
   };
@@ -681,14 +693,40 @@ function AirportTransferTable() {
               ({sortDirection === "asc" ? "A-Z" : "Z-A"})
             </span>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Airport Transfer
-          </Button>
+          <div className="flex items-center gap-2">
+            {selectedTransfers.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+                disabled={isBulkDeleting}
+              >
+                Delete Selected ({selectedTransfers.length})
+              </Button>
+            )}
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Airport Transfer
+            </Button>
+          </div>
         </div>
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
+              <TableHead className="text-xs py-2 w-8">
+                <Checkbox
+                  checked={selectedTransfers.length === currentItems.length && currentItems.length > 0}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedTransfers(currentItems.map((item) => item.airport_transfer_id));
+                    } else {
+                      setSelectedTransfers([]);
+                    }
+                  }}
+                  aria-label="Select all"
+                  className="h-4 w-4"
+                />
+              </TableHead>
               <TableHead className="text-xs py-2">Event</TableHead>
               <TableHead className="text-xs py-2">Package Type</TableHead>
               <TableHead className="text-xs py-2">Hotel</TableHead>
@@ -698,20 +736,34 @@ function AirportTransferTable() {
               <TableHead className="text-xs py-2">Supplier</TableHead>
               <TableHead className="text-xs py-2">Quote Currency</TableHead>
               <TableHead className="text-xs py-2">Local Quote per car</TableHead>
-              <TableHead className="text-xs py-2">Paid</TableHead>
-              <TableHead className="text-xs py-2">Outstanding</TableHead>
-              <TableHead className="text-xs py-2">Markup</TableHead>
+              <TableHead className="text-xs py-2">Status</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.map((item) => {
               const isEditing = editingCell.rowId === item.airport_transfer_id;
+              const isPaid = !!item.paid_to_supplier;
+              const isOutstanding = !!item.outstanding;
               return (
                 <TableRow
                   key={item.airport_transfer_id}
                   className="hover:bg-muted/50"
                 >
+                  <TableCell className="text-xs py-1.5 w-8">
+                    <Checkbox
+                      checked={selectedTransfers.includes(item.airport_transfer_id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedTransfers((prev) => [...prev, item.airport_transfer_id]);
+                        } else {
+                          setSelectedTransfers((prev) => prev.filter((id) => id !== item.airport_transfer_id));
+                        }
+                      }}
+                      aria-label="Select row"
+                      className="h-4 w-4"
+                    />
+                  </TableCell>
                   <TableCell className="text-xs py-1.5 font-medium">
                     {item.event_name}
                   </TableCell>
@@ -829,21 +881,42 @@ function AirportTransferTable() {
                     )}
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
-                    <Checkbox
-                      checked={item.paid_to_supplier === "true"}
-                      disabled
-                      className="h-4 w-4"
-                    />
-                  </TableCell>
-                  <TableCell className="text-xs py-1.5">
-                    <Checkbox
-                      checked={item.outstanding === "true"}
-                      disabled
-                      className="h-4 w-4"
-                    />
-                  </TableCell>
-                  <TableCell className="text-xs py-1.5">
-                    {item.markup}
+                    <div className="flex items-center gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className={isPaid ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}
+                            >
+                              <CreditCard className="h-4 w-4" />
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{isPaid ? "Paid to Supplier" : "Not Paid"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className={isOutstanding ? "bg-warning/10 text-warning" : "bg-muted text-muted-foreground"}
+                            >
+                              {isOutstanding ? (
+                                <AlertCircle className="h-4 w-4" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4" />
+                              )}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{isOutstanding ? "Outstanding" : "All Clear"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
                     <div className="flex gap-1">
@@ -1092,6 +1165,15 @@ function AirportTransferTable() {
                         <SelectItem value="GBP">GBP</SelectItem>
                         <SelectItem value="EUR">EUR</SelectItem>
                         <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="AUD">AUD</SelectItem>
+                        <SelectItem value="CAD">CAD</SelectItem>
+                        <SelectItem value="NZD">NZD</SelectItem>
+                        <SelectItem value="AED">AED</SelectItem>
+                        <SelectItem value="BHD">BHD</SelectItem>
+                        <SelectItem value="SGD">SGD</SelectItem>
+                        <SelectItem value="QAR">QAR</SelectItem>
+                        <SelectItem value="SAR">SAR</SelectItem>
+                        <SelectItem value="MYR">MYR</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1119,16 +1201,16 @@ function AirportTransferTable() {
                     <Label htmlFor="paid_to_supplier">Paid to Supplier</Label>
                     <Switch
                       id="paid_to_supplier"
-                      checked={getFormValue("paid_to_supplier") === "true"}
-                      onCheckedChange={(checked) => handleFormChange("paid_to_supplier", checked === true ? "true" : "false")}
+                      checked={!!getFormValue("paid_to_supplier")}
+                      onCheckedChange={(checked) => handleFormChange("paid_to_supplier", checked)}
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="outstanding">Outstanding</Label>
                     <Switch
                       id="outstanding"
-                      checked={getFormValue("outstanding") === "true"}
-                      onCheckedChange={(checked) => handleFormChange("outstanding", checked === true ? "true" : "false")}
+                      checked={!!getFormValue("outstanding")}
+                      onCheckedChange={(checked) => handleFormChange("outstanding", checked)}
                     />
                   </div>
                 </div>
@@ -1220,7 +1302,7 @@ function AirportTransferTable() {
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-green-600">
+            <AlertDialogTitle className="text-success">
               Success
             </AlertDialogTitle>
             <AlertDialogDescription>{successMessage}</AlertDialogDescription>
@@ -1228,6 +1310,47 @@ function AirportTransferTable() {
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
               Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedTransfers.length} selected transfer{selectedTransfers.length > 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the selected airport transfer{selectedTransfers.length > 1 ? 's' : ''}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={isBulkDeleting}
+              onClick={async () => {
+                setIsBulkDeleting(true);
+                try {
+                  await Promise.all(selectedTransfers.map((id) =>
+                    api.delete(`stock-airport-transfers/airport_transfer_id/${id}`)
+                  ));
+                  setSelectedTransfers([]);
+                  setShowBulkDeleteDialog(false);
+                  await fetchInitialData();
+                  toast.success("Selected transfers deleted successfully!");
+                } catch (error) {
+                  toast.error("Failed to delete selected transfers");
+                } finally {
+                  setIsBulkDeleting(false);
+                }
+              }}
+            >
+              {isBulkDeleting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
+              ) : (
+                `Delete ${selectedTransfers.length}`
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

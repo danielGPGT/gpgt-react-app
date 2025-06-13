@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import api from "@/lib/api";
 import {
   Table,
@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
-import { Plus, Trash2, Pencil, Loader2, CheckCircle2, Eye } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, CheckCircle2, Eye, ChevronDown, Calendar, Globe, Package, Medal, Crown, Star, Trophy, Gem, Award, XCircle, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,13 +58,104 @@ import {
   DropdownMenuSeparator,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format, parse } from "date-fns";
 import { TiersTableView } from "@/components/ui/tiers-table-view";
+import { TierDialog } from "@/components/ui/tier-dialog";
 import { v4 as uuidv4 } from 'uuid';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// Add tier configuration
+const tierConfig = {
+  Bronze: {
+    icon: Medal,
+    color: "text-amber-600",
+    bgColor: "bg-amber-100",
+    borderColor: "border-amber-200"
+  },
+  Silver: {
+    icon: Star,
+    color: "text-gray-400",
+    bgColor: "bg-gray-100",
+    borderColor: "border-gray-200"
+  },
+  Gold: {
+    icon: Trophy,
+    color: "text-yellow-500",
+    bgColor: "bg-yellow-100",
+    borderColor: "border-yellow-200"
+  },
+  Diamond: {
+    icon: Gem,
+    color: "text-blue-400",
+    bgColor: "bg-blue-100",
+    borderColor: "border-blue-200"
+  },
+  Platinum: {
+    icon: Award,
+    color: "text-slate-400",
+    bgColor: "bg-slate-100",
+    borderColor: "border-slate-200"
+  },
+  VIP: {
+    icon: Crown,
+    color: "text-purple-500",
+    bgColor: "bg-purple-100",
+    borderColor: "border-purple-200"
+  }
+};
+
+// Update TierBadge component to use Trash2 icon for delete
+const TierBadge = ({ tier, onEdit, onDelete }) => {
+  const config = tierConfig[tier.tier_type] || {
+    icon: Package,
+    color: "text-gray-500",
+    bgColor: "bg-gray-100",
+    borderColor: "border-gray-200"
+  };
+  const Icon = config.icon;
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="relative group">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`p-2 rounded-full border ${config.bgColor} ${config.borderColor} hover:opacity-80 transition-opacity cursor-pointer`}
+              onClick={() => onEdit(tier)}
+            >
+              <Icon className={`h-4 w-4 ${config.color}`} />
+            </Button>
+            {/* Delete button - top right */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute -top-0.5 -right-0.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity min-w-0 h-4 w-4 flex items-center justify-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(tier);
+              }}
+            >
+              <Trash2 className="h-full w-full p-0.5" />
+            </Button>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tier.tier_type}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 function PackagesTable() {
   const [packages, setPackages] = useState([]);
@@ -87,13 +178,23 @@ function PackagesTable() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [packageToDelete, setPackageToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPackages, setSelectedPackages] = useState([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [isTiersDialogOpen, setIsTiersDialogOpen] = useState(false);
   const [packageTiers, setPackageTiers] = useState([]);
+  const [showBulkActionsMenu, setShowBulkActionsMenu] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [selectedTier, setSelectedTier] = useState(null);
+  const [isTierAddDialogOpen, setIsTierAddDialogOpen] = useState(false);
+  const [isTierEditDialogOpen, setIsTierEditDialogOpen] = useState(false);
+  const [selectedTiers, setSelectedTiers] = useState([]);
+  const [isBulkTierUpdating, setIsBulkTierUpdating] = useState(false);
+  const [showBulkTierActionsMenu, setShowBulkTierActionsMenu] = useState(false);
+  const [tierToDelete, setTierToDelete] = useState(null);
+  const [isDeletingTier, setIsDeletingTier] = useState(false);
+  const [showTierDeleteDialog, setShowTierDeleteDialog] = useState(false);
 
   // Sorting options
   const sortColumns = [
@@ -110,37 +211,46 @@ function PackagesTable() {
   const [paymentDate2, setPaymentDate2] = useState(null);
   const [paymentDate3, setPaymentDate3] = useState(null);
 
-  useEffect(() => {
-    async function fetchPackages() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [packagesRes, tiersRes] = await Promise.all([
-          api.get("/packages"),
-          api.get("/package-tiers")
-        ]);
-        setPackages(packagesRes.data);
-        setPackageTiers(tiersRes.data);
-      } catch (err) {
-        setError("Failed to fetch packages.");
-      } finally {
-        setLoading(false);
-      }
+  // Memoized fetch functions
+  const fetchPackages = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [packagesRes, tiersRes] = await Promise.all([
+        api.get("/packages"),
+        api.get("/package-tiers")
+      ]);
+      setPackages(packagesRes.data);
+      setPackageTiers(tiersRes.data);
+    } catch (err) {
+      console.error("Failed to fetch packages:", err);
+      setError("Failed to fetch packages. Please try again.");
+      toast.error("Failed to load packages", {
+        description: "There was an error loading the packages. Please refresh the page."
+      });
+    } finally {
+      setLoading(false);
     }
-    fetchPackages();
   }, []);
 
-  useEffect(() => {
-    async function fetchEvents() {
-      try {
-        const res = await api.get("/events");
-        setEvents(res.data);
-      } catch (err) {
-        // ignore for now
-      }
+  const fetchEvents = useCallback(async () => {
+    try {
+      const res = await api.get("/events");
+      setEvents(res.data);
+    } catch (err) {
+      console.error("Failed to fetch events:", err);
+      toast.error("Failed to load events", {
+        description: "Some features may be limited until events are loaded."
+      });
     }
-    fetchEvents();
   }, []);
+
+  // Initial data fetch
+  useEffect(() => {
+    Promise.all([fetchPackages(), fetchEvents()]).catch(error => {
+      console.error("Error during initial data fetch:", error);
+    });
+  }, [fetchPackages, fetchEvents]);
 
   // Unique event and type options
   const eventOptions = useMemo(() => {
@@ -183,18 +293,15 @@ function PackagesTable() {
     setCurrentPage(1);
   }, [eventFilter, typeFilter, statusFilter, searchQuery]);
 
-  // Add/Edit form state
+  // Update initialPackageState to only include required fields
   const initialPackageState = {
-    event: "",
     event_id: "",
     package_id: "",
-    package_name: "",
     package_type: "",
     url: "",
     payment_date_1: "",
     payment_date_2: "",
-    payment_date_3: "",
-    status: ""
+    payment_date_3: ""
   };
   const [formData, setFormData] = useState(initialPackageState);
   const [formErrors, setFormErrors] = useState({});
@@ -208,16 +315,13 @@ function PackagesTable() {
   const openEditDialog = (pkg) => {
     setEditingPackage(pkg);
     setFormData({
-      event: pkg.event,
       event_id: pkg.event_id,
       package_id: pkg.package_id,
-      package_name: pkg.package_name,
       package_type: pkg.package_type,
       url: pkg.url || "",
       payment_date_1: parseDateFromAPI(pkg.payment_date_1),
       payment_date_2: parseDateFromAPI(pkg.payment_date_2),
-      payment_date_3: parseDateFromAPI(pkg.payment_date_3),
-      status: pkg.status
+      payment_date_3: parseDateFromAPI(pkg.payment_date_3)
     });
     
     // Parse payment dates
@@ -234,17 +338,33 @@ function PackagesTable() {
   };
 
   // Validate form fields
-  const validateField = (field, value) => {
-    console.log(`Validating ${field}:`, value); // Debug log
+  const validateField = useCallback((field, value) => {
     const errors = { ...formErrors };
-    if (!value || value.trim() === "") {
+    
+    // Handle different types of values
+    if (value === null || value === undefined) {
       errors[field] = "Required";
+    } else if (typeof value === 'string') {
+      if (value.trim() === "") {
+        errors[field] = "Required";
+      } else {
+        delete errors[field];
+      }
+    } else if (typeof value === 'number') {
+      if (isNaN(value)) {
+        errors[field] = "Invalid number";
+      } else {
+        delete errors[field];
+      }
+    } else if (typeof value === 'boolean') {
+      delete errors[field];
     } else {
       delete errors[field];
     }
+    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  };
+  }, [formErrors]);
   const handleFieldChange = (field, value) => {
     console.log(`Field change - ${field}:`, value); // Debug log
     setFormData((prev) => {
@@ -269,51 +389,68 @@ function PackagesTable() {
     return parse(dateStr, "1-MMM-yyyy", new Date());
   };
 
-  // Add package
+  // Update handleAddPackage function
   const handleAddPackage = async () => {
-    console.log("Form data before validation:", formData);
+    // Validate required fields
+    const errors = {};
+    if (!formData.event_id) errors.event_id = "Event is required";
+    if (!formData.package_type) errors.package_type = "Package type is required";
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      toast.error("Please fill in all required fields");
+      return;
+    }
 
     // Check for duplicate package
     const isDuplicate = packages.some(
       (pkg) =>
-        pkg.event === formData.event &&
+        pkg.event_id === formData.event_id &&
         pkg.package_type === formData.package_type
     );
 
     if (isDuplicate) {
-      setFormErrors({
-        api: `A ${formData.package_type} package already exists for ${formData.event}`,
+      const errorMessage = `A ${formData.package_type} package already exists for this event`;
+      setFormErrors({ api: errorMessage });
+      toast.error(errorMessage, {
+        duration: 5000,
+        description: "Please choose a different package type for this event"
       });
       return;
     }
 
-    if (!validateField("event", formData.event)) return;
     setIsAdding(true);
     try {
       const payload = {
         package_id: uuidv4(),
-        event: formData.event,
         event_id: formData.event_id,
-        package_name: `${formData.event} ${formData.package_type} Packages`,
         package_type: formData.package_type,
         url: formData.url || "",
         payment_date_1: formatDateForAPI(paymentDate1),
         payment_date_2: formatDateForAPI(paymentDate2),
-        payment_date_3: formatDateForAPI(paymentDate3),
-        status: "sales open" // Default status for new packages
+        payment_date_3: formatDateForAPI(paymentDate3)
       };
 
-      console.log("Sending payload to API:", payload);
+      // Optimistically update the local state
+      setPackages(prev => [...prev, payload]);
+
       await api.post("/packages", payload);
-      setSuccessMessage("Package added successfully!");
-      setShowSuccessDialog(true);
+      
+      toast.success("Package added successfully!");
       setIsAddDialogOpen(false);
-      // Refresh
-      const res = await api.get("/packages");
-      setPackages(res.data);
+      resetFormData();
+      fetchPackages();
     } catch (error) {
-      console.error("Error adding package:", error);
-      setFormErrors({ api: "Failed to add package" });
+      console.error("Failed to add package:", error);
+      
+      // Revert optimistic update
+      fetchPackages();
+      
+      const errorMessage = error.response?.data?.message || "Failed to add package. Please try again.";
+      setFormErrors({ api: errorMessage });
+      toast.error(errorMessage, {
+        description: "There was an error processing your request"
+      });
     } finally {
       setIsAdding(false);
     }
@@ -325,74 +462,100 @@ function PackagesTable() {
     // Check for duplicate package (excluding the current package being edited)
     const isDuplicate = packages.some(
       (pkg) =>
-        pkg.event === formData.event &&
+        pkg.event_id === formData.event_id &&
         pkg.package_type === formData.package_type &&
         pkg.package_id !== editingPackage.package_id
     );
 
     if (isDuplicate) {
       setFormErrors({
-        api: `A ${formData.package_type} package already exists for ${formData.event}`,
+        api: `A ${formData.package_type} package already exists for this event`,
       });
       return;
     }
 
-    if (!validateField("event", formData.event)) return;
+    if (!validateField("event_id", formData.event_id)) return;
     setIsEditing(true);
     try {
-      const changedFields = {};
+      // Compare with original package to find changed fields
+      const updates = Object.entries(formData)
+        .filter(([key, value]) => {
+          const originalValue = editingPackage[key];
+          
+          // Special handling for payment dates
+          if (key.startsWith('payment_date_')) {
+            const newValue = formatDateForAPI(
+              key === 'payment_date_1' ? paymentDate1 :
+              key === 'payment_date_2' ? paymentDate2 :
+              paymentDate3
+            );
+            return newValue !== originalValue;
+          }
+          
+          // Handle null/undefined/empty string cases
+          if (originalValue === null && value === "") return false;
+          if (originalValue === "" && value === null) return false;
+          
+          return originalValue !== value;
+        })
+        .map(([key, value]) => ({
+          column: key,
+          value: key.startsWith('payment_date_') 
+            ? formatDateForAPI(
+                key === 'payment_date_1' ? paymentDate1 :
+                key === 'payment_date_2' ? paymentDate2 :
+                paymentDate3
+              )
+            : value === null ? "" : value.toString()
+        }));
 
-      // Check for changes in each field
-      if (formData.package_type !== editingPackage.package_type) {
-        changedFields["package_type"] = formData.package_type;
-      }
-      if (formData.url !== editingPackage.url) {
-        changedFields["url"] = formData.url;
-      }
-      if (formData.status !== editingPackage.status) {
-        changedFields["status"] = formData.status;
-      }
-
-      // Add payment date changes
-      const newPaymentDate1 = formatDateForAPI(paymentDate1);
-      const newPaymentDate2 = formatDateForAPI(paymentDate2);
-      const newPaymentDate3 = formatDateForAPI(paymentDate3);
-
-      if (newPaymentDate1 !== editingPackage.payment_date_1) {
-        changedFields["payment_date_1"] = newPaymentDate1;
-      }
-      if (newPaymentDate2 !== editingPackage.payment_date_2) {
-        changedFields["payment_date_2"] = newPaymentDate2;
-      }
-      if (newPaymentDate3 !== editingPackage.payment_date_3) {
-        changedFields["payment_date_3"] = newPaymentDate3;
-      }
-
-      // Only update if there are changes
-      if (Object.keys(changedFields).length === 0) {
-        setSuccessMessage("No changes were made");
-        setShowSuccessDialog(true);
+      if (updates.length === 0) {
+        toast.info("No changes were made");
         setIsEditDialogOpen(false);
         return;
       }
 
-      // Update only changed fields
-      for (const [column, value] of Object.entries(changedFields)) {
-        await api.put(`/packages/package_id/${editingPackage.package_id}`, {
-          column,
-          value,
-        });
-      }
+      // Optimistically update the local state
+      const updatedPackage = {
+        ...editingPackage,
+        ...Object.fromEntries(updates.map(({ column, value }) => [column, value]))
+      };
+      setPackages(prev => 
+        prev.map(pkg => 
+          pkg.package_id === editingPackage.package_id ? updatedPackage : pkg
+        )
+      );
 
-      setSuccessMessage("Package updated successfully!");
-      setShowSuccessDialog(true);
+      // Make bulk update request
+      await api.put(`/packages/package_id/${editingPackage.package_id}/bulk`, updates);
+
+      toast.success("Package updated successfully!", {
+        description: `Changes to this package have been saved`
+      });
       setIsEditDialogOpen(false);
-      // Refresh
+      
+      // Refresh packages to ensure consistency
       const res = await api.get("/packages");
       setPackages(res.data);
     } catch (error) {
       console.error("Failed to update package:", error);
-      setFormErrors({ api: "Failed to update package" });
+      
+      let errorMessage = "Failed to update package. Please try again.";
+      
+      if (error.response?.status === 404) {
+        errorMessage = "Package not found. It may have been deleted.";
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      setFormErrors({ api: errorMessage });
+      toast.error(errorMessage, {
+        description: "There was an error processing your request"
+      });
+      
+      // Revert optimistic update on error
+      const res = await api.get("/packages");
+      setPackages(res.data);
     } finally {
       setIsEditing(false);
     }
@@ -435,35 +598,38 @@ function PackagesTable() {
     }
   };
 
-  // Toggle selection mode
-  const toggleSelectionMode = () => {
-    setIsSelectionMode(!isSelectionMode);
-    setSelectedPackages([]); // Clear selection when toggling mode
-  };
-
   // Add bulk delete handler
   const handleBulkDelete = async () => {
     if (selectedPackages.length === 0) return;
 
     setIsBulkDeleting(true);
     try {
-      // Delete packages one by one
-      for (const packageId of selectedPackages) {
-        await api.delete(`/packages/package_id/${packageId}`);
+      // Delete packages concurrently with a concurrency limit
+      const concurrencyLimit = 3;
+      const chunks = [];
+      for (let i = 0; i < selectedPackages.length; i += concurrencyLimit) {
+        chunks.push(selectedPackages.slice(i, i + concurrencyLimit));
       }
 
-      setSuccessMessage(
-        `${selectedPackages.length} package(s) deleted successfully!`
-      );
-      setShowSuccessDialog(true);
-      setSelectedPackages([]);
+      for (const chunk of chunks) {
+        await Promise.all(
+          chunk.map(packageId =>
+            api.delete(`/packages/package_id/${packageId}`)
+          )
+        );
+      }
 
-      // Refresh the packages list
-      const res = await api.get("/packages");
-      setPackages(res.data);
+      toast.success("Packages deleted successfully!", {
+        description: `${selectedPackages.length} package(s) have been removed`
+      });
+      
+      setSelectedPackages([]);
+      fetchPackages();
     } catch (error) {
       console.error("Failed to delete packages:", error);
-      toast.error("Failed to delete some packages");
+      toast.error("Failed to delete some packages", {
+        description: "There was an error processing your request. Please try again."
+      });
     } finally {
       setIsBulkDeleting(false);
     }
@@ -472,6 +638,163 @@ function PackagesTable() {
   const handleViewTiers = (pkg) => {
     setSelectedPackage(pkg);
     setIsTiersDialogOpen(true);
+  };
+
+  // Reset form data helper
+  const resetFormData = useCallback(() => {
+    setFormData(initialPackageState);
+    setFormErrors({});
+    setPaymentDate1(null);
+    setPaymentDate2(null);
+    setPaymentDate3(null);
+  }, []);
+
+  // Enhanced bulk actions
+  const handleBulkAction = async (action, value) => {
+    if (selectedPackages.length === 0) return;
+
+    setIsBulkUpdating(true);
+    try {
+      const updates = selectedPackages.map(packageId => ({
+        package_id: packageId,
+        updates: [{
+          column: action,
+          value: value
+        }]
+      }));
+
+      // Process updates in chunks to avoid overwhelming the server
+      const concurrencyLimit = 3;
+      const chunks = [];
+      for (let i = 0; i < updates.length; i += concurrencyLimit) {
+        chunks.push(updates.slice(i, i + concurrencyLimit));
+      }
+
+      for (const chunk of chunks) {
+        await Promise.all(
+          chunk.map(update =>
+            api.put(`/packages/package_id/${update.package_id}/bulk`, update.updates)
+          )
+        );
+      }
+
+      toast.success("Bulk update successful!", {
+        description: `Updated ${selectedPackages.length} package(s)`
+      });
+
+      setSelectedPackages([]);
+      fetchPackages();
+    } catch (error) {
+      console.error("Failed to perform bulk action:", error);
+      toast.error("Failed to update packages", {
+        description: "There was an error processing your request"
+      });
+    } finally {
+      setIsBulkUpdating(false);
+      setShowBulkActionsMenu(false);
+    }
+  };
+
+  // Add fetchTiers function
+  const fetchTiers = useCallback(async () => {
+    try {
+      const res = await api.get("/package-tiers");
+      setPackageTiers(res.data);
+    } catch (error) {
+      console.error("Failed to fetch tiers:", error);
+      toast.error("Failed to load tiers");
+    }
+  }, []);
+
+  // Add useEffect to fetch tiers
+  useEffect(() => {
+    fetchTiers();
+  }, [fetchTiers]);
+
+  // Add bulk tier handlers
+  const handleSelectAllTiers = (checked) => {
+    if (checked) {
+      setSelectedTiers(packageTiers
+        .filter(tier => tier.package_id === selectedPackage?.package_id)
+        .map(tier => tier.tier_id));
+    } else {
+      setSelectedTiers([]);
+    }
+  };
+
+  const handleSelectTier = (tierId, checked) => {
+    if (checked) {
+      setSelectedTiers(prev => [...prev, tierId]);
+    } else {
+      setSelectedTiers(prev => prev.filter(id => id !== tierId));
+    }
+  };
+
+  const handleBulkTierAction = async (action, value) => {
+    if (selectedTiers.length === 0) return;
+
+    setIsBulkTierUpdating(true);
+    try {
+      const updates = selectedTiers.map(tierId => ({
+        tier_id: tierId,
+        updates: [{
+          column: action,
+          value: value
+        }]
+      }));
+
+      // Process updates in chunks to avoid overwhelming the server
+      const concurrencyLimit = 3;
+      const chunks = [];
+      for (let i = 0; i < updates.length; i += concurrencyLimit) {
+        chunks.push(updates.slice(i, i + concurrencyLimit));
+      }
+
+      for (const chunk of chunks) {
+        await Promise.all(
+          chunk.map(update =>
+            api.put(`/package-tiers/tier_id/${update.tier_id}/bulk`, update.updates)
+          )
+        );
+      }
+
+      toast.success("Bulk update successful!", {
+        description: `Updated ${selectedTiers.length} tier(s)`
+      });
+
+      setSelectedTiers([]);
+      await fetchTiers();
+    } catch (error) {
+      console.error("Failed to perform bulk action:", error);
+      toast.error("Failed to update tiers", {
+        description: "There was an error processing your request"
+      });
+    } finally {
+      setIsBulkTierUpdating(false);
+      setShowBulkTierActionsMenu(false);
+    }
+  };
+
+  // Add tier delete handler
+  const handleDeleteTier = async () => {
+    if (!tierToDelete) return;
+    setIsDeletingTier(true);
+    try {
+      await api.delete(`/package-tiers/tier_id/${tierToDelete.tier_id}`);
+      toast.success("Tier deleted successfully!");
+      await fetchTiers();
+      const res = await api.get("/packages");
+      setPackages(res.data);
+    } catch (error) {
+      console.error("Failed to delete tier:", error);
+      toast.error("Failed to delete tier", {
+        description: "There was an error processing your request"
+      });
+    } finally {
+      setIsDeletingTier(false);
+      setTierToDelete(null);
+      setShowTierDeleteDialog(false);
+    }
   };
 
   if (loading) {
@@ -538,33 +861,54 @@ function PackagesTable() {
             </SelectContent>
           </Select>
         </div>
-        {isSelectionMode && selectedPackages.length > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setShowBulkDeleteDialog(true)}
-            disabled={isBulkDeleting}
-          >
-            {isBulkDeleting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
-              </>
-            ) : (
-              <>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Selected ({selectedPackages.length})
-              </>
-            )}
-          </Button>
-        )}
-        <Button
-          variant={isSelectionMode ? "secondary" : "outline"}
-          size="sm"
-          onClick={toggleSelectionMode}
-        >
-          {isSelectionMode ? "Cancel Selection" : "Bulk Actions"}
-        </Button>
+        <div className="flex gap-2">
+          {selectedPackages.length > 0 && (
+            <DropdownMenu open={showBulkActionsMenu} onOpenChange={setShowBulkActionsMenu}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled={isBulkUpdating}
+                  className="flex items-center gap-2"
+                >
+                  {isBulkUpdating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Package className="h-4 w-4" />
+                      Bulk Actions ({selectedPackages.length})
+                      <ChevronDown className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuLabel>Bulk Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setShowBulkDeleteDialog(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Update Package Type</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => handleBulkAction('package_type', 'VIP')}>
+                  <Package className="mr-2 h-4 w-4" />
+                  Set as VIP
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleBulkAction('package_type', 'Grandstand')}>
+                  <Package className="mr-2 h-4 w-4" />
+                  Set as Grandstand
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -632,22 +976,21 @@ function PackagesTable() {
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
-              {isSelectionMode && (
-                <TableHead className="w-[50px] text-xs py-2">
-                  <Checkbox
-                    checked={selectedPackages.length === currentItems.length}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                    className="h-4 w-4"
-                  />
-                </TableHead>
-              )}
+              <TableHead className="w-[50px] text-xs py-2">
+                <Checkbox
+                  checked={selectedPackages.length === currentItems.length}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                  className="h-4 w-4"
+                />
+              </TableHead>
               <TableHead className="text-xs py-2">Event</TableHead>
               <TableHead className="text-xs py-2">Package Name</TableHead>
               <TableHead className="text-xs py-2">Type</TableHead>
               <TableHead className="text-xs py-2">Payment Schedule</TableHead>
               <TableHead className="text-xs py-2">Status</TableHead>
               <TableHead className="text-xs py-2">URL</TableHead>
+              <TableHead className="text-xs py-2">Tiers</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -655,18 +998,16 @@ function PackagesTable() {
             {currentItems.length > 0 ? (
               currentItems.map((pkg) => (
                 <TableRow key={pkg.package_id} className="hover:bg-muted/50">
-                  {isSelectionMode && (
-                    <TableCell className="text-xs py-1.5">
-                      <Checkbox
-                        checked={selectedPackages.includes(pkg.package_id)}
-                        onCheckedChange={(checked) =>
-                          handleSelectPackage(pkg.package_id, checked)
-                        }
-                        aria-label={`Select ${pkg.package_name}`}
-                        className="h-4 w-4"
-                      />
-                    </TableCell>
-                  )}
+                  <TableCell className="text-xs py-1.5">
+                    <Checkbox
+                      checked={selectedPackages.includes(pkg.package_id)}
+                      onCheckedChange={(checked) =>
+                        handleSelectPackage(pkg.package_id, checked)
+                      }
+                      aria-label={`Select ${pkg.package_name}`}
+                      className="h-4 w-4"
+                    />
+                  </TableCell>
                   <TableCell className="text-xs py-1.5">{pkg.event}</TableCell>
                   <TableCell className="text-xs py-1.5">{pkg.package_name}</TableCell>
                   <TableCell className="text-xs py-1.5">{pkg.package_type}</TableCell>
@@ -721,14 +1062,50 @@ function PackagesTable() {
                     )}
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
+                    <div className="flex items-center gap-1">
+                      {packageTiers
+                        .filter(tier => tier.package_id === pkg.package_id)
+                        .map(tier => (
+                          <TierBadge 
+                            key={tier.tier_id} 
+                            tier={tier} 
+                            onEdit={(tier) => {
+                              setSelectedPackage(pkg);
+                              setSelectedTier(tier);
+                              setIsTierEditDialogOpen(true);
+                            }}
+                            onDelete={(tier) => {
+                              setTierToDelete(tier);
+                              setShowTierDeleteDialog(true);
+                            }}
+                          />
+                        ))}
+                      {packageTiers.filter(tier => tier.package_id === pkg.package_id).length < 3 && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="p-2 rounded-full border bg-primary/10 hover:bg-primary/20 transition-colors"
+                                onClick={() => {
+                                  setSelectedPackage(pkg);
+                                  setIsTierAddDialogOpen(true);
+                                }}
+                              >
+                                <Plus className="h-4 w-4 text-primary" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Add Tier</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
                     <div className="flex gap-1">
-                      <Button
-                        variant={packageTiers.some(tier => tier.package_id === pkg.package_id) ? "secondary" : "default"}
-                        size="sm"
-                        onClick={() => handleViewTiers(pkg)}
-                      >
-                        {packageTiers.some(tier => tier.package_id === pkg.package_id) ? "View Tiers" : "Add Tiers"}
-                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -744,8 +1121,7 @@ function PackagesTable() {
                         disabled={isDeleting}
                         className="h-7 w-7"
                       >
-                        {isDeleting &&
-                        packageToDelete?.package_id === pkg.package_id ? (
+                        {isDeleting && packageToDelete?.package_id === pkg.package_id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -758,7 +1134,7 @@ function PackagesTable() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={isSelectionMode ? 8 : 7}
+                  colSpan={8}
                   className="text-center text-muted-foreground text-xs py-1.5"
                 >
                   No packages found.
@@ -868,50 +1244,48 @@ function PackagesTable() {
                     options={[
                       { value: "", label: "Select Event" },
                       ...events.map((event) => ({
-                        value: event.event,
+                        value: event.event_id,
                         label: event.event,
                       })),
                     ]}
-                    value={formData.event}
+                    value={formData.event_id}
                     onChange={(value) => {
-                      console.log("Combobox selected value:", value); // Debug log
                       if (value) {
-                        handleFieldChange("event", value);
+                        handleFieldChange("event_id", value);
                       }
                     }}
                     placeholder="Select event"
                     className="w-full"
                   />
-                  {formErrors.event && (
-                    <p className="text-sm text-red-500">{formErrors.event}</p>
+                  {formErrors.event_id && (
+                    <p className="text-sm text-red-500">{formErrors.event_id}</p>
                   )}
                 </div>
               )}
-              {/* Edit Dialog: Event (read-only) */}
+              {/* Edit Dialog: Event and Package Name (read-only) */}
               {isEditDialogOpen && (
-                <div className="space-y-2">
-                  <Label htmlFor="event">Event</Label>
-                  <Input
-                    id="event"
-                    value={formData.event || ""}
-                    disabled
-                    readOnly
-                    className="bg-muted"
-                  />
-                </div>
-              )}
-              {/* Edit Dialog: Package Name (read-only) */}
-              {isEditDialogOpen && (
-                <div className="space-y-2">
-                  <Label htmlFor="package_name">Package Name</Label>
-                  <Input
-                    id="package_name"
-                    value={formData.package_name}
-                    disabled
-                    readOnly
-                    className="bg-muted"
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="event">Event</Label>
+                    <Input
+                      id="event"
+                      value={editingPackage?.event || ""}
+                      disabled
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="package_name">Package Name</Label>
+                    <Input
+                      id="package_name"
+                      value={editingPackage?.package_name || ""}
+                      disabled
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+                </>
               )}
               {/* Type (Select) */}
               <div className="space-y-2">
@@ -1099,7 +1473,6 @@ function PackagesTable() {
               onClick={() => {
                 handleBulkDelete();
                 setShowBulkDeleteDialog(false);
-                setIsSelectionMode(false); // Exit selection mode after deletion
               }}
               disabled={isBulkDeleting}
             >
@@ -1116,19 +1489,62 @@ function PackagesTable() {
         </AlertDialogContent>
       </AlertDialog>
       {selectedPackage && (
-        <TiersTableView
-          isOpen={isTiersDialogOpen}
-          onOpenChange={() => {
-            setIsTiersDialogOpen(false);
-            setSelectedPackage(null);
-          }}
-          selectedPackage={selectedPackage}
-          onSuccess={async () => {
-            const res = await api.get("/packages");
-            setPackages(res.data);
-          }}
-        />
+        <>
+          <TierDialog
+            isOpen={isTierAddDialogOpen}
+            onOpenChange={setIsTierAddDialogOpen}
+            mode="add"
+            package={selectedPackage}
+            onSuccess={async () => {
+              await fetchTiers();
+              const res = await api.get("/packages");
+              setPackages(res.data);
+              setIsTierAddDialogOpen(false);
+            }}
+          />
+          <TierDialog
+            isOpen={isTierEditDialogOpen}
+            onOpenChange={setIsTierEditDialogOpen}
+            mode="edit"
+            tier={selectedTier}
+            package={selectedPackage}
+            onSuccess={async () => {
+              await fetchTiers();
+              const res = await api.get("/packages");
+              setPackages(res.data);
+              setIsTierEditDialogOpen(false);
+            }}
+          />
+        </>
       )}
+      {/* Tier Delete Dialog */}
+      <AlertDialog open={showTierDeleteDialog} onOpenChange={setShowTierDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Tier</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this tier? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingTier}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTier}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeletingTier}
+            >
+              {isDeletingTier ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

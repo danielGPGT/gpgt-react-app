@@ -105,34 +105,6 @@ function TicketTable() {
     },
   });
 
-  // Form state
-  const initialTicketState = {
-    event: "",
-    package_type: "",
-    category_id: "",
-    package_id: "",
-    ticket_id: "",
-    ticket_name: "",
-    supplier: "",
-    ref: "",
-    actual_stock: 0,
-    used: 0,
-    remaining: 0,
-    currency_bought_in: "EUR",
-    unit_cost_local: 0,
-    unit_cost_gbp: 0,
-    total_cost_local: 0,
-    total_cost_gbp: 0,
-    is_provisional: false,
-    ordered: false,
-    paid: false,
-    tickets_received: false,
-    markup: "55%",
-    event_days: "Fri - Sun",
-    ticket_type: "E-ticket"
-  };
-  const [newTicket, setNewTicket] = useState(initialTicketState);
-
   const [editingCell, setEditingCell] = useState({ rowId: null, field: null });
   const [cellValue, setCellValue] = useState("");
 
@@ -154,7 +126,7 @@ function TicketTable() {
     "unit_cost_(gbp)": "Unit Cost (GBP)",
     "total_cost_(local)": "Total Cost (Local)",
     "total_cost_(gbp)": "Total Cost (GBP)",
-    is_provsional: "Is Provsional",
+    is_provisional: "Is Provisional",
     ordered: "Ordered",
     paid: "Paid",
     tickets_received: "Tickets Received",
@@ -385,7 +357,7 @@ function TicketTable() {
         (!filters.status.ordered || item.ordered) &&
         (!filters.status.paid || item.paid) &&
         (!filters.status.received || item.tickets_received) &&
-        (!filters.status.provisional || item.is_provsional);
+        (!filters.status.is_provisional || item.is_provisional);
 
       return (
         searchMatch && eventMatch && sportMatch && supplierMatch && statusMatch
@@ -434,7 +406,7 @@ function TicketTable() {
         supplier: formData.supplier || "",
         ref: formData.ref || "",
         actual_stock: formData.actual_stock ? Number(formData.actual_stock) : 0,
-        currency_bought_in: formData.currency_bought_in || "USD",
+        currency_bought_in: formData.currency_bought_in || "GBP",
         unit_cost_local: formData.unit_cost_local ? Number(formData.unit_cost_local) : 0,
         unit_cost_gbp: formData.unit_cost_gbp ? Number(formData.unit_cost_gbp) : 0,
         is_provisional: formData.is_provisional || false,
@@ -469,7 +441,7 @@ function TicketTable() {
       if (showSuccessDialog) {
         try {
           const [stockRes] = await Promise.all([
-            api.get("Stock%20-%20tickets"),
+            api.get("stock-tickets"),
           ]);
           setStock(stockRes.data);
         } catch (error) {
@@ -678,7 +650,7 @@ function TicketTable() {
         used: "Used",
         currency_bought_in: "Currency (Bought in)",
         total_cost_local: "Total Cost  (Local)",
-        is_provsional: "Is Provsional",
+        is_provisional: "Is Provisional",
         ordered: "Ordered",
         paid: "Paid",
         tickets_received: "Tickets Received",
@@ -706,7 +678,7 @@ function TicketTable() {
       };
 
       // Properly encode the URL
-      const encodedEndpoint = encodeURIComponent("New Stock - tickets");
+      const encodedEndpoint = encodeURIComponent("stock-tickets");
       console.log("Making API PUT request for single cell update...");
       console.log("Endpoint:", `/${encodedEndpoint}/ticket_id/${ticketId}`);
       console.log("Request body:", updateData);
@@ -795,6 +767,7 @@ function TicketTable() {
     handleSubmit,
     onCancel,
     isLoading = false,
+    formErrors = {},
   }) => {
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -839,7 +812,7 @@ function TicketTable() {
 
           console.log("Making API call to fetch categories for venue_id:", event.venue_id);
           // Fetch categories using the venue_id
-          const response = await api.get(`n-categories?venue_id=${event.venue_id}`);
+          const response = await api.get(`categories?venue_id=${event.venue_id}`);
           console.log("API Response:", response);
           
           // Filter categories by venue_id
@@ -914,7 +887,7 @@ function TicketTable() {
 
       switch (field) {
         case "actual_stock":
-          if (!formData.is_provsional) {
+          if (!formData.is_provisional) {
             const num = parseInt(value);
             if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
               newErrors[field] = "Stock must be a positive integer";
@@ -970,10 +943,10 @@ function TicketTable() {
     };
 
     // Check if stock should be disabled (for provisional tickets)
-    const isStockDisabled = formData.is_provsional;
+    const isStockDisabled = formData.is_provisional;
 
     return (
-      <div className="grid gap-8 py-4">
+      <form onSubmit={handleFormSubmit} className="space-y-4">
         <div className="space-y-6">
           {/* Event and Category Selection */}
           <div className="space-y-2">
@@ -1172,16 +1145,16 @@ function TicketTable() {
                     required
                   />
                   <Select
-                    value={formData.currency_bought_in || "USD"}
+                    value={formData.currency_bought_in || "GBP"}
                     onValueChange={(value) => handleFieldChange("currency_bought_in", value)}
                   >
                     <SelectTrigger className="w-[100px]">
                       <SelectValue placeholder="Currency" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="USD">USD</SelectItem>
-                      <SelectItem value="EUR">EUR</SelectItem>
                       <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
                       <SelectItem value="AUD">AUD</SelectItem>
                       <SelectItem value="CAD">CAD</SelectItem>
                       <SelectItem value="NZD">NZD</SelectItem>
@@ -1194,7 +1167,7 @@ function TicketTable() {
                     </SelectContent>
                   </Select>
                 </div>
-                {formData.is_provsional && (
+                {formData.is_provisional && (
                   <p className="text-sm text-muted-foreground">
                     Price entered is based upon the price of 1 ticket
                   </p>
@@ -1293,9 +1266,9 @@ function TicketTable() {
               <div className="flex items-center space-x-2">
                 <Switch
                   id="provisional"
-                  checked={formData?.is_provsional || false}
+                  checked={formData?.is_provisional || false}
                   onCheckedChange={(checked) => {
-                    handleFieldChange("is_provsional", checked);
+                    handleFieldChange("is_provisional", checked);
                     // Reset stock to 0 when making provisional
                     if (checked) {
                       handleFieldChange("actual_stock", 0);
@@ -1308,32 +1281,16 @@ function TicketTable() {
             </div>
           </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-end gap-4 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              disabled={isSubmitting || isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleFormSubmit}
-              disabled={isSubmitting || isLoading}
-              className="min-w-[100px]"
-            >
-              {isSubmitting || isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Ticket"
-              )}
-            </Button>
-          </div>
+          
         </div>
-      </div>
+        
+        {/* Remove duplicate buttons */}
+        {formErrors.api && (
+          <div className="text-sm text-destructive text-center">
+            {formErrors.api}
+          </div>
+        )}
+      </form>
     );
   };
 
@@ -1346,6 +1303,7 @@ function TicketTable() {
     handleSubmit,
     onCancel,
     isLoading = false,
+    formErrors = {},
   }) => {
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1353,7 +1311,7 @@ function TicketTable() {
     const [categories, setCategories] = useState([]);
 
     // Check if stock should be disabled (for provisional tickets)
-    const isStockDisabled = formData.is_provsional;
+    const isStockDisabled = formData.is_provisional;
 
     // Event options for the Combobox
     const eventOptions = useMemo(() => {
@@ -1394,7 +1352,7 @@ function TicketTable() {
 
           console.log("Making API call to fetch categories for venue_id:", event.venue_id);
           // Fetch categories using the venue_id
-          const response = await api.get(`n-categories?venue_id=${event.venue_id}`);
+          const response = await api.get(`categories?venue_id=${event.venue_id}`);
           console.log("API Response:", response);
           
           if (response.data && Array.isArray(response.data)) {
@@ -1469,12 +1427,12 @@ function TicketTable() {
           actual_stock: Number(formData.actual_stock) || 0,
           used: 0,
           remaining: Number(formData.actual_stock) || 0,
-          currency_bought_in: formData.currency_bought_in || "USD",
+          currency_bought_in: formData.currency_bought_in || "GBP",
           unit_cost_local: Number(formData.unit_cost_local) || 0,
           unit_cost_gbp: Number(formData.unit_cost_gbp) || 0,
           total_cost_local: Number(formData.unit_cost_local) * Number(formData.actual_stock) || 0,
           total_cost_gbp: Number(formData.unit_cost_gbp) * Number(formData.actual_stock) || 0,
-          is_provisional: formData.is_provsional || false,
+          is_provisional: formData.is_provisional || false,
           ordered: formData.ordered || false,
           paid: formData.paid || false,
           tickets_received: formData.tickets_received || false,
@@ -1512,7 +1470,7 @@ function TicketTable() {
 
       switch (field) {
         case "actual_stock":
-          if (!formData.is_provsional) {
+          if (!formData.is_provisional) {
             const num = parseInt(value);
             if (value === "" || isNaN(num) || num < 0 || !Number.isInteger(num)) {
               newErrors[field] = "Stock must be a positive integer";
@@ -1554,7 +1512,7 @@ function TicketTable() {
     };
 
     return (
-      <div className="grid gap-8 py-4">
+      <form onSubmit={handleFormSubmit} className="space-y-4">
         <div className="space-y-6">
           {/* Event and Category Selection */}
           <div className="space-y-2">
@@ -1746,16 +1704,16 @@ function TicketTable() {
                     required
                   />
                   <Select
-                    value={formData.currency_bought_in || "USD"}
+                    value={formData.currency_bought_in || "GBP"}
                     onValueChange={(value) => handleFieldChange("currency_bought_in", value)}
                   >
                     <SelectTrigger className="w-[100px]">
                       <SelectValue placeholder="Currency" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="USD">USD</SelectItem>
-                      <SelectItem value="EUR">EUR</SelectItem>
                       <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
                       <SelectItem value="AUD">AUD</SelectItem>
                       <SelectItem value="CAD">CAD</SelectItem>
                       <SelectItem value="NZD">NZD</SelectItem>
@@ -1768,7 +1726,7 @@ function TicketTable() {
                     </SelectContent>
                   </Select>
                 </div>
-                {formData.is_provsional && (
+                {formData.is_provisional && (
                   <p className="text-sm text-muted-foreground">
                     Price entered is based upon the price of 1 ticket
                   </p>
@@ -1867,9 +1825,9 @@ function TicketTable() {
               <div className="flex items-center space-x-2">
                 <Switch
                   id="provisional"
-                  checked={formData?.is_provsional || false}
+                  checked={formData?.is_provisional || false}
                   onCheckedChange={(checked) => {
-                    handleFieldChange("is_provsional", checked);
+                    handleFieldChange("is_provisional", checked);
                     // Reset stock to 0 when making provisional
                     if (checked) {
                       handleFieldChange("actual_stock", 0);
@@ -1882,32 +1840,16 @@ function TicketTable() {
             </div>
           </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-end gap-4 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              disabled={isSubmitting || isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleFormSubmit}
-              disabled={isSubmitting || isLoading}
-              className="min-w-[100px]"
-            >
-              {isSubmitting || isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Ticket"
-              )}
-            </Button>
-          </div>
+
         </div>
-      </div>
+        
+        {/* Remove duplicate buttons */}
+        {formErrors.api && (
+          <div className="text-sm text-destructive text-center">
+            {formErrors.api}
+          </div>
+        )}
+      </form>
     );
   };
 
@@ -1927,78 +1869,165 @@ function TicketTable() {
 
     // Initialize form data with the current ticket data
     const [formData, setFormData] = useState(() => {
-      return isEdit ? { ...editingTicket } : { ...initialTicketState };
+      return isEdit && ticket ? { ...ticket } : {
+        event_id: "",
+        package_id: "",
+        ticket_name: "",
+        ticket_category: "",
+        ticket_type: "",
+        ticket_quantity: "",
+        ticket_price: "",
+        ticket_currency: "GBP",
+        ticket_status: "available",
+        ticket_supplier: "",
+        ticket_supplier_reference: "",
+        ticket_notes: "",
+        markup: "60%",
+      };
     });
+    const [formErrors, setFormErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [events, setEvents] = useState([]);
+    const [packages, setPackages] = useState([]);
+    const [filteredPackages, setFilteredPackages] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [isLoadingData, setIsLoadingData] = useState(true);
 
-    // Update form data when editingTicket changes
+    // Update form data when ticket changes
     useEffect(() => {
-      if (isEdit && editingTicket) {
-        setFormData({ ...editingTicket });
+      if (isEdit && ticket) {
+        setFormData({ ...ticket });
       }
-    }, [isEdit, editingTicket]);
+    }, [isEdit, ticket]);
 
-    // Safe package filtering based on selected event
-    const filteredPackages = packages
-      .filter((pkg) => !formData?.event || pkg?.event === formData.event)
-      .reduce((unique, pkg) => {
-        // Check if we already have this package type
-        const exists = unique.find(item => item.package_type === pkg.package_type);
-        if (!exists) {
-          unique.push(pkg);
+    // Reset form when dialog opens/closes
+    useEffect(() => {
+      if (isOpen) {
+        setFormErrors({});
+        fetchInitialData();
+      }
+    }, [isOpen]);
+
+    const fetchInitialData = async () => {
+      setIsLoadingData(true);
+      try {
+        const [eventsRes, packagesRes] = await Promise.all([
+          api.get("/events"),
+          api.get("/packages")
+        ]);
+        setEvents(eventsRes.data);
+        setPackages(packagesRes.data);
+        
+        if (isEdit && ticket) {
+          const filtered = packagesRes.data.filter(pkg => pkg.event_id === ticket.event_id);
+          setFilteredPackages(filtered);
         }
-        return unique;
-      }, []);
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+        toast.error("Failed to load form data");
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
 
-    const handleFormSubmit = async (formData) => {
-      if (isEdit) {
+    const handleFormSubmit = async (e) => {
+      e?.preventDefault();
+      setIsSubmitting(true);
+      try {
         await onSubmit(formData);
-      } else {
-        await handleAddTicket(formData);
+        onOpenChange(false);
+      } catch (error) {
+        console.error("Failed to submit form:", error);
+        setFormErrors({
+          api: error.response?.data?.error || "Failed to save ticket",
+        });
+      } finally {
+        setIsSubmitting(false);
       }
     };
 
     return (
-      <Dialog
-        open={isOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            if (!isEdit) {
-              setFormData({ ...initialTicketState });
-            }
-            setEditingTicket(null);
-          }
-          onOpenChange(open);
-        }}
-      >
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
-          {isEdit ? (
-            <TicketForm
-              formData={formData}
-              setFormData={setFormData}
-              events={events}
-              packages={packages}
-              filteredPackages={filteredPackages}
-              handleSubmit={handleFormSubmit}
-              onCancel={() => onOpenChange(false)}
-              isLoading={isLoading}
-              onSubmit={onSubmit}
-            />
-          ) : (
-            <AddTicketForm
-              formData={formData}
-              setFormData={setFormData}
-              events={events}
-              packages={packages}
-              filteredPackages={filteredPackages}
-              handleSubmit={handleFormSubmit}
-              onCancel={() => onOpenChange(false)}
-              isLoading={isAdding}
-            />
-          )}
+          <div className="grid gap-6 py-4 relative max-h-[calc(90vh-200px)] overflow-y-auto">
+            {/* Loading Overlay */}
+            {(isLoadingData || isSubmitting) && (
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full border-4 border-primary/20"></div>
+                    <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
+                  </div>
+                  <p className="text-lg font-medium text-primary">
+                    {isLoadingData 
+                      ? "Loading Form Data..." 
+                      : isSubmitting 
+                        ? (isEdit ? "Updating Ticket..." : "Adding Ticket...")
+                        : "Processing..."}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Please wait while we process your request
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className={isLoadingData || isSubmitting ? "opacity-50 pointer-events-none" : "space-y-4"}>
+              {isEdit ? (
+                <TicketForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  events={events}
+                  packages={packages}
+                  filteredPackages={filteredPackages}
+                  handleSubmit={handleFormSubmit}
+                  onCancel={() => onOpenChange(false)}
+                  isLoading={isSubmitting}
+                  formErrors={formErrors}
+                />
+              ) : (
+                <AddTicketForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  events={events}
+                  packages={packages}
+                  filteredPackages={filteredPackages}
+                  handleSubmit={handleFormSubmit}
+                  onCancel={() => onOpenChange(false)}
+                  isLoading={isSubmitting}
+                  formErrors={formErrors}
+                />
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting || isLoadingData}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleFormSubmit}
+              disabled={isSubmitting || isLoadingData}
+              className="min-w-[100px]"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isEdit ? "Updating..." : "Adding..."}
+                </>
+              ) : isEdit ? (
+                "Update Ticket"
+              ) : (
+                "Add Ticket"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     );
@@ -2036,14 +2065,14 @@ function TicketTable() {
       toast.loading(`Deleting ${selectedTickets.length} tickets...`);
 
       for (const ticketId of selectedTickets) {
-        await api.delete(`New%20Stock%20-%20tickets/ticket_id/${ticketId}`);
+        await api.delete(`stock-tickets/ticket_id/${ticketId}`);
       }
 
       toast.dismiss();
       toast.success(`${selectedTickets.length} ticket(s) deleted successfully!`);
       setSelectedTickets([]);
 
-      const res = await api.get("New%20Stock%20-%20tickets");
+      const res = await api.get("stock-tickets");
       setStock(res.data);
     } catch (error) {
       console.error("Failed to delete tickets:", error);
@@ -2210,33 +2239,47 @@ function TicketTable() {
             <span className="text-sm text-muted-foreground">Sorted by <span className="font-medium">{sortColumns.find(c => c.value === sortColumn)?.label}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})</span>
           </div>
           <div className="flex gap-4 items-center">
-            {isSelectionMode && selectedTickets.length > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowBulkDeleteDialog(true)}
-                disabled={isBulkDeleting}
-              >
-                {isBulkDeleting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Selected ({selectedTickets.length})
-                  </>
-                )}
-              </Button>
+            {/* Bulk Actions */}
+            {selectedTickets.length > 0 && (
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8">
+                      Bulk Actions ({selectedTickets.length})
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setShowBulkDeleteDialog(true);
+                      }}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Selected
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedTickets([])}
+                  className="h-8"
+                >
+                  Clear Selection
+                </Button>
+              </div>
             )}
-            <Button
-              variant={isSelectionMode ? "secondary" : "outline"}
+            {/* Remove the old bulk actions button */}
+            {/* <Button
+              variant="outline"
               size="sm"
               onClick={toggleSelectionMode}
+              className="h-8"
             >
-              {isSelectionMode ? "Cancel Selection" : "Bulk Actions"}
-            </Button>
+              {isSelectionMode ? "Cancel" : "Bulk Actions"}
+            </Button> */}
             <Button onClick={() => setIsAddDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Add Ticket
@@ -2246,49 +2289,45 @@ function TicketTable() {
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
-              {isSelectionMode && (
-                <TableHead className="w-[50px] text-xs py-2">
-                  <Checkbox
-                    checked={selectedTickets.length === currentItems.length}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                    className="h-4 w-4"
-                  />
-                </TableHead>
-              )}
-              <TableHead className="text-xs py-2">Event</TableHead>
-              <TableHead className="text-xs py-2">Package Type</TableHead>
-              <TableHead className="text-xs py-2">Ticket Name</TableHead>
-              <TableHead className="text-xs py-2">Supplier</TableHead>
-              <TableHead className="text-xs py-2">Reference</TableHead>
-              <TableHead className="text-xs py-2">Stock</TableHead>
-              <TableHead className="text-xs py-2">Used</TableHead>
-              <TableHead className="text-xs py-2">Remaining</TableHead>
-              <TableHead className="text-xs py-2">Currency</TableHead>
-              <TableHead className="text-xs py-2">Unit Cost (Local)</TableHead>
-              <TableHead className="text-xs py-2">Unit Cost (GBP)</TableHead>
-              <TableHead className="text-xs py-2">Total Cost (Local)</TableHead>
-              <TableHead className="text-xs py-2">Total Cost (GBP)</TableHead>
-              <TableHead className="text-xs py-2">Status</TableHead>
-              <TableHead className="text-xs py-2">Actions</TableHead>
+              <TableCell className="text-xs py-1.5">
+                <Checkbox
+                  checked={selectedTickets.length === currentItems.length && currentItems.length > 0}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                  className="h-4 w-4"
+                />
+              </TableCell>
+              <TableCell className="text-xs py-1.5">Event</TableCell>
+              <TableCell className="text-xs py-1.5">Package</TableCell>
+              <TableCell className="text-xs py-1.5">Ticket</TableCell>
+              <TableCell className="text-xs py-1.5">Supplier</TableCell>
+              <TableCell className="text-xs py-1.5">Ref</TableCell>
+              <TableCell className="text-xs py-1.5">Stock</TableCell>
+              <TableCell className="text-xs py-1.5">Used</TableCell>
+              <TableCell className="text-xs py-1.5">Remaining</TableCell>
+              <TableCell className="text-xs py-1.5">Currency</TableCell>
+              <TableCell className="text-xs py-1.5">Unit Cost (Local)</TableCell>
+              <TableCell className="text-xs py-1.5">Unit Cost (GBP)</TableCell>
+              <TableCell className="text-xs py-1.5">Total Cost (Local)</TableCell>
+              <TableCell className="text-xs py-1.5">Total Cost (GBP)</TableCell>
+              <TableCell className="text-xs py-1.5">Status</TableCell>
+              <TableCell className="text-xs py-1.5">Actions</TableCell>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentItems.length > 0 ? (
               currentItems.map((ticket) => (
                 <TableRow key={ticket.ticket_id} className="hover:bg-muted/50">
-                {isSelectionMode && (
                   <TableCell className="text-xs py-1.5">
                     <Checkbox
-                        checked={selectedTickets.includes(ticket.ticket_id)}
+                      checked={selectedTickets.includes(ticket.ticket_id)}
                       onCheckedChange={(checked) =>
-                          handleSelectTicket(ticket.ticket_id, checked)
+                        handleSelectTicket(ticket.ticket_id, checked)
                       }
-                        aria-label={`Select ${ticket.ticket_name}`}
+                      aria-label={`Select ${ticket.ticket_name}`}
                       className="h-4 w-4"
                     />
                   </TableCell>
-                )}
                   <TableCell className="text-xs py-1.5">{ticket.event}</TableCell>
                   <TableCell className="text-xs py-1.5">{ticket.package_type}</TableCell>
                   <TableCell className="text-xs py-1.5">{ticket.ticket_name}</TableCell>
@@ -2296,7 +2335,7 @@ function TicketTable() {
                   <TableCell className="text-xs py-1.5">{ticket.ref || "-"}</TableCell>
                   <TableCell className="text-xs py-1.5">{ticket.actual_stock}</TableCell>
                   <TableCell className="text-xs py-1.5">{ticket.used}</TableCell>
-                <TableCell className="text-xs py-1.5">
+                  <TableCell className="text-xs py-1.5">
                     {ticket.remaining === "purchased_to_order" ? (
                       <TooltipProvider>
                         <Tooltip>
@@ -2311,22 +2350,22 @@ function TicketTable() {
                         </Tooltip>
                       </TooltipProvider>
                     ) : (
-                  <Badge
-                    variant="outline"
+                      <Badge
+                        variant="outline"
                         className={`${
                           Number(ticket.remaining) < 5
                             ? "bg-destructive/10 text-destructive"
                             : Number(ticket.remaining) < 10
                             ? "bg-warning/10 text-warning"
                             : "bg-success/10 text-success"
-                    }`}
-                  >
+                        }`}
+                      >
                         {ticket.remaining}
-                  </Badge>
+                      </Badge>
                     )}
-                </TableCell>
+                  </TableCell>
                   <TableCell className="text-xs py-1.5">{ticket.currency_bought_in}</TableCell>
-                <TableCell className="text-xs py-1.5">
+                  <TableCell className="text-xs py-1.5">
                     {ticket.currency_bought_in === "USD" ? "$" : 
                      ticket.currency_bought_in === "EUR" ? "€" : 
                      ticket.currency_bought_in === "GBP" ? "£" : ""}
@@ -2334,14 +2373,14 @@ function TicketTable() {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2
                     })}
-                </TableCell>
-                <TableCell className="text-xs py-1.5">
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
                     £{ticket.unit_cost_gbp.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2
                     })}
-                </TableCell>
-                <TableCell className="text-xs py-1.5">
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
                     {ticket.currency_bought_in === "USD" ? "$" : 
                      ticket.currency_bought_in === "EUR" ? "€" : 
                      ticket.currency_bought_in === "GBP" ? "£" : ""}
@@ -2372,9 +2411,9 @@ function TicketTable() {
                               {ticket.is_provisional ? (
                                 <Clock className="h-3 w-3" />
                               ) : (
-                        <CheckCircle2 className="h-3 w-3" />
-                    )}
-                      </Badge>
+                                <CheckCircle2 className="h-3 w-3" />
+                              )}
+                            </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="text-xs">{ticket.is_provisional ? "Provisional" : "Confirmed"}</p>
@@ -2398,7 +2437,7 @@ function TicketTable() {
                               ) : (
                                 <ShoppingCart className="h-3 w-3" />
                               )}
-                      </Badge>
+                            </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="text-xs">{ticket.ordered ? "Ordered" : "Not Ordered"}</p>
@@ -2422,7 +2461,7 @@ function TicketTable() {
                               ) : (
                                 <CreditCard className="h-3 w-3" />
                               )}
-                      </Badge>
+                            </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="text-xs">{ticket.paid ? "Paid" : "Unpaid"}</p>
@@ -2453,39 +2492,39 @@ function TicketTable() {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs py-1.5">
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => openEditDialog(ticket)}
-                      className="h-7 w-7"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                        className="h-7 w-7"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleDeleteClick(ticket.ticket_id)}
                         disabled={loading}
-                      className="h-7 w-7"
-                    >
+                        className="h-7 w-7"
+                      >
                         {loading ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         )}
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
               ))
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={isSelectionMode ? 15 : 14}
+                  colSpan={15}
                   className="text-center text-muted-foreground text-xs py-1.5"
                 >
                   No tickets found.
@@ -2549,6 +2588,7 @@ function TicketTable() {
         onOpenChange={setIsAddDialogOpen}
         mode="add"
         isLoading={isAdding}
+        onSubmit={handleAddTicket}
       />
 
       {/* Edit Dialog */}
@@ -2598,7 +2638,7 @@ function TicketTable() {
             // When dialog closes, fetch the latest tickets
             try {
               const [stockRes] = await Promise.all([
-                api.get("Stock%20-%20tickets"),
+                api.get("stock-tickets"),
               ]);
               setStock(stockRes.data);
             } catch (error) {

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { GoogleGenAI } from "@google/genai";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://gpgt-api.onrender.com/api/v1/' || 'http://localhost:3000/api/v1/',
+  baseURL: import.meta.env.VITE_API_URL || 'https://api.grandprixgrandtours.com/api/v1/' || 'http://localhost:3000/api/v1/',
   withCredentials: true // allow cookies (useful later if you want secure auth)
 });
 

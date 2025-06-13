@@ -105,7 +105,7 @@ function LoungePassTable() {
     variant: "",
     used: "",
     cost: "",
-    margin: "55%"
+    margin: "60%"
   };
   const [newPass, setNewPass] = useState(initialPassState);
 
@@ -258,7 +258,7 @@ function LoungePassTable() {
       "event_id": data.event_id || "",
       "variant": data.variant || "",
       "cost": parseFloat(data.cost) || 0,
-      "margin": data.margin?.toString().replace('%', '') + '%' || "55%"
+      "margin": data.margin?.toString().replace('%', '') + '%' || "60%"
     };
   };
 
@@ -268,9 +268,18 @@ function LoungePassTable() {
       ...data,
       used: parseInt(data.used) || 0,
       cost: parseFloat(data.cost) || 0,
-      margin: data.margin?.toString().replace('%', '') || '55'
+      margin: data.margin?.toString().replace('%', '') || '60'
     };
   };
+
+  // UUID generator
+  function generateLoungePassId() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
 
   // Add pass
   const handleAddPass = async (formData) => {
@@ -297,11 +306,15 @@ function LoungePassTable() {
         return;
       }
 
-      // Create the pass data with the correct field mappings
-      const passData = transformDataForAPI({
-        ...formData,
-        event_id: selectedEvent.event_id,
-      });
+      // Create the pass data with the correct field mappings and a UUID, excluding 'used' and 'event'
+      const { used, event, ...rest } = formData;
+      const passData = {
+        lounge_pass_id: generateLoungePassId(),
+        ...transformDataForAPI({
+          ...rest,
+          event_id: selectedEvent.event_id,
+        })
+      };
 
       console.log("Adding lounge pass with data:", passData);
 
@@ -376,21 +389,32 @@ function LoungePassTable() {
       const passId = editingPass.lounge_pass_id;
       const encodedSheetName = encodeURIComponent("stock-lounge-passes");
 
-      // Process all changed fields at once
-      const processedData = {};
-      for (const [field, value] of Object.entries(changedFields)) {
-        if (field !== 'lounge_pass_id' && field !== 'event' && field !== 'used') {
-          const processedValue = field === 'cost' ? parseFloat(value) || 0 :
-                               field === 'margin' ? value.toString().replace('%', '') + '%' :
-                               value;
-          
-          // Make individual API calls for each field as required by the API
-          await api.put(`${encodedSheetName}/lounge_pass_id/${passId}`, {
+      // Prepare updates array for bulk update, filtering out 'used' and 'event'
+      const updates = Object.entries(changedFields)
+        .filter(([field]) => field !== 'used' && field !== 'event')
+        .map(([field, value]) => {
+          let processedValue = value;
+          if (field === 'cost') {
+            processedValue = parseFloat(value) || 0;
+          } else if (field === 'margin') {
+            processedValue = value.toString().replace('%', '') + '%';
+          }
+          return {
             column: field,
             value: processedValue
-          });
-        }
+          };
+        });
+
+      if (updates.length === 0) {
+        toast.dismiss(loadingToast);
+        toast.info("No valid changes to update");
+        setIsEditDialogOpen(false);
+        setEditingPass(null);
+        return;
       }
+
+      // Send bulk update request
+      await api.put(`${encodedSheetName}/lounge_pass_id/${passId}/bulk`, updates);
 
       toast.dismiss(loadingToast);
       setSuccessMessage("Lounge pass updated successfully!");
@@ -596,14 +620,40 @@ function LoungePassTable() {
               Sorted by <span className="font-medium">{sortColumns.find(c => c.value === sortColumn)?.label}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})
             </span>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Lounge Pass
-          </Button>
+          <div className="flex items-center gap-2">
+            {selectedPasses.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+                disabled={isBulkDeleting}
+              >
+                Delete Selected ({selectedPasses.length})
+              </Button>
+            )}
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Lounge Pass
+            </Button>
+          </div>
         </div>
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
+              <TableHead className="text-xs py-2 w-8">
+                <Checkbox
+                  checked={selectedPasses.length === currentItems.length && currentItems.length > 0}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedPasses(currentItems.map((item) => item.lounge_pass_id));
+                    } else {
+                      setSelectedPasses([]);
+                    }
+                  }}
+                  aria-label="Select all"
+                  className="h-4 w-4"
+                />
+              </TableHead>
               <TableHead className="text-xs py-2">Event</TableHead>
               <TableHead className="text-xs py-2">Variant</TableHead>
               <TableHead className="text-xs py-2">Used</TableHead>
@@ -617,6 +667,20 @@ function LoungePassTable() {
               const isEditing = editingCell.rowId === item.lounge_pass_id;
               return (
                 <TableRow key={item.lounge_pass_id} className="hover:bg-muted/50">
+                  <TableCell className="text-xs py-1.5 w-8">
+                    <Checkbox
+                      checked={selectedPasses.includes(item.lounge_pass_id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedPasses((prev) => [...prev, item.lounge_pass_id]);
+                        } else {
+                          setSelectedPasses((prev) => prev.filter((id) => id !== item.lounge_pass_id));
+                        }
+                      }}
+                      aria-label="Select row"
+                      className="h-4 w-4"
+                    />
+                  </TableCell>
                   <TableCell className="text-xs py-1.5 font-medium">{item.event}</TableCell>
                   <TableCell className="text-xs py-1.5">
                     {isEditing && editingCell.field === "variant" ? (
@@ -980,7 +1044,7 @@ function LoungePassTable() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-green-600">
+            <AlertDialogTitle className="text-success">
               Success
             </AlertDialogTitle>
             <AlertDialogDescription>{successMessage}</AlertDialogDescription>
@@ -988,6 +1052,51 @@ function LoungePassTable() {
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
               Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Dialog */}
+      <AlertDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+      >
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedPasses.length} selected lounge pass{selectedPasses.length > 1 ? 'es' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the selected lounge pass{selectedPasses.length > 1 ? 'es' : ''}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={isBulkDeleting}
+              onClick={async () => {
+                setIsBulkDeleting(true);
+                try {
+                  const encodedSheetName = encodeURIComponent("stock-lounge-passes");
+                  await Promise.all(selectedPasses.map((id) =>
+                    api.delete(`${encodedSheetName}/lounge_pass_id/${id}`)
+                  ));
+                  setSelectedPasses([]);
+                  setShowBulkDeleteDialog(false);
+                  await fetchInitialData();
+                  toast.success("Selected lounge passes deleted successfully!");
+                } catch (error) {
+                  toast.error("Failed to delete selected lounge passes");
+                } finally {
+                  setIsBulkDeleting(false);
+                }
+              }}
+            >
+              {isBulkDeleting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
+              ) : (
+                `Delete ${selectedPasses.length}`
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

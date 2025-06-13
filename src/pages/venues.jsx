@@ -5,7 +5,6 @@ import { jwtDecode } from "jwt-decode";
 import { MapPin } from "lucide-react";
 import { AppHeader } from "@/components/ui/app-header";
 import { VenuesTable } from "@/components/ui/venuesTable";
-import VenuesMap from "@/components/ui/venuesMap";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -49,7 +48,6 @@ function VenuesPage() {
   }, []);
 
   const openEditDialog = (venue) => {
-    console.log('Opening edit dialog for venue:', venue);
     setEditingVenue({ ...venue });
     setIsEditDialogOpen(true);
   };
@@ -59,31 +57,55 @@ function VenuesPage() {
       setIsEditing(true);
 
       // Compare with original venue to find changed fields
-      const changedFields = {};
-      Object.keys(venue).forEach((key) => {
-        if (venue[key] !== venues.find((v) => v.venue_id === venue.venue_id)?.[key]) {
-          changedFields[key] = venue[key];
-        }
-      });
+      const originalVenue = venues.find((v) => v.venue_id === venue.venue_id);
+      if (!originalVenue) {
+        toast.error("Original venue not found");
+        return;
+      }
 
-      // Only update if there are changes
-      if (Object.keys(changedFields).length === 0) {
-        toast.info("No changes were made");
+      // Prepare updates array with only changed fields
+      const updates = Object.entries(venue)
+        .filter(([key, value]) => {
+          // Skip venue_id as it's the identifier
+          if (key === 'venue_id') return false;
+          
+          // Compare values, handling null/undefined cases
+          const originalValue = originalVenue[key];
+          const newValue = value;
+          
+          // Handle empty string vs null comparison
+          if (originalValue === null && newValue === "") return false;
+          if (originalValue === "" && newValue === null) return false;
+          
+          return originalValue !== newValue;
+        })
+        .map(([key, value]) => ({
+          column: key,
+          value: value
+        }));
+
+      // Check if there are any changes
+      if (updates.length === 0) {
+        toast.info("No changes were made to the venue");
         setIsEditDialogOpen(false);
         return;
       }
 
-      // Update each changed field
-      for (const [field, value] of Object.entries(changedFields)) {
-        await api.put(`/venues/venue_id/${venue.venue_id}`, {
-          column: field,
-          value: value
-        });
-      }
+      // Make bulk update request
+      await api.put(`/venues/venue_id/${venue.venue_id}/bulk`, updates);
+
+      // Update local state immediately
+      setVenues(prevVenues => 
+        prevVenues.map(v => 
+          v.venue_id === venue.venue_id ? { ...v, ...venue } : v
+        )
+      );
 
       toast.success("Venue updated successfully");
       setIsEditDialogOpen(false);
       setEditingVenue(null);
+      
+      // Fetch fresh data in the background
       fetchVenues();
     } catch (error) {
       console.error("Failed to update venue:", error);
@@ -128,21 +150,6 @@ function VenuesPage() {
                 GPGT's Venues
               </h2>
             </div>
-          </div>
-
-          {/* Map Section */}
-          <div className="bg-background mb-6">
-            <VenuesMap 
-              venues={venues} 
-              onEditVenue={openEditDialog}
-              onDeleteVenue={handleDeleteVenue}
-              onAddVenue={handleAddVenue}
-              isDeleting={isDeleting}
-              venueToDelete={venueToDelete}
-              setVenueToDelete={setVenueToDelete}
-              showDeleteDialog={showDeleteDialog}
-              setShowDeleteDialog={setShowDeleteDialog}
-            />
           </div>
 
           <div className="flex w-full justify-between mt-6 gap-6">

@@ -91,7 +91,6 @@ function CircuitTransferTable() {
   const [selectedTransfer, setSelectedTransfer] = useState(null);
   const [editingCell, setEditingCell] = useState(null);
   const [selectedTransfers, setSelectedTransfers] = useState([]);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -138,7 +137,7 @@ function CircuitTransferTable() {
     guide_cost_local: "",
     guide_cost_gbp: "",
     provider_guides: "TBC",
-    utilisation_percent: "70%",
+    utilisation_percent: "60%",
     markup: "60%"
   };
 
@@ -153,7 +152,6 @@ function CircuitTransferTable() {
 
       // Fetch events
       const { data: eventsData } = await api.get('/events');
-      console.log('Fetched events:', eventsData);
       setEvents(eventsData);
 
       // Fetch packages
@@ -162,7 +160,6 @@ function CircuitTransferTable() {
 
       // Fetch hotels
       const { data: hotelsData } = await api.get('/hotels');
-      console.log('Fetched hotels:', hotelsData);
       setHotels(hotelsData);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -179,8 +176,6 @@ function CircuitTransferTable() {
 
   // Filter hotels when event changes
   useEffect(() => {
-    console.log('Event changed:', formData.event_name);
-    console.log('Available hotels:', hotels);
     if (formData.event_name) {
       // Get all hotels since they're not event-specific anymore
       setFilteredHotels(hotels);
@@ -196,9 +191,6 @@ function CircuitTransferTable() {
   const handleAddTransfer = async (data) => {
     try {
       setIsAdding(true);
-      console.log('Adding transfer with data:', data);
-
-      // The data is already formatted correctly in the form submission
       await api.post('/stock-circuit-transfers', data);
       await fetchInitialData();
       toast.success("Circuit transfer added successfully");
@@ -214,11 +206,9 @@ function CircuitTransferTable() {
   const handleEditTransfer = async (transferId, updatedData) => {
     try {
       setIsEditing(true);
-      console.log('handleEditTransfer called with:', { transferId, updatedData });
       
       // Get the circuit_transfer_id from the form data
       const id = typeof transferId === 'object' ? transferId.circuit_transfer_id : transferId;
-      console.log('Extracted ID:', id);
       
       if (!id) {
         throw new Error("No transfer ID provided");
@@ -226,7 +216,6 @@ function CircuitTransferTable() {
 
       // If updatedData is the transferId (object), use it as the data
       const dataToUpdate = typeof transferId === 'object' ? transferId : updatedData;
-      console.log('Data to update:', dataToUpdate);
 
       if (!dataToUpdate || typeof dataToUpdate !== 'object') {
         throw new Error("No update data provided");
@@ -249,7 +238,7 @@ function CircuitTransferTable() {
       ];
 
       // Compare and only keep changed fields that are in the allowed list
-      const changedFields = Object.entries(dataToUpdate)
+      const updates = Object.entries(dataToUpdate)
         .filter(([key, value]) => {
           // Skip fields not in the allowed list
           if (!allowedFields.includes(key)) return false;
@@ -259,10 +248,17 @@ function CircuitTransferTable() {
 
           // Get the original value
           const originalValue = originalTransfer[key];
+
+          // Special handling for guide_included_in_coach_cost
+          if (key === 'guide_included_in_coach_cost') {
+            const normalizedNewValue = String(value).toLowerCase();
+            const normalizedOriginalValue = String(originalValue).toLowerCase();
+            return normalizedNewValue !== normalizedOriginalValue;
+          }
           
           // For currency, do direct string comparison
           if (key === 'currency') {
-            return value !== originalValue;
+            return String(value) !== String(originalValue);
           }
 
           // Handle numeric values
@@ -284,47 +280,25 @@ function CircuitTransferTable() {
             }
             
             // Otherwise compare as strings
-            return value !== originalValue;
+            return String(value) !== String(originalValue);
           }
 
           // For other types, do direct comparison
           return value !== originalValue;
         })
-        .reduce((acc, [key, value]) => {
-          acc[key] = value;
-          return acc;
-        }, {});
+        .map(([key, value]) => ({
+          column: key,
+          value: value
+        }));
 
-      console.log('Changed fields:', changedFields);
-      console.log('Original data:', originalTransfer);
-      console.log('Updated data:', dataToUpdate);
-
-      if (Object.keys(changedFields).length === 0) {
+      if (updates.length === 0) {
         toast.info("No changes detected");
         setIsDialogOpen(false);
         return;
       }
 
-      // Get the first (and should be only) changed field
-      const [field, value] = Object.entries(changedFields)[0];
-
-      // Format the value based on field type
-      let processedValue = value;
-      if (typeof value === 'number') {
-        processedValue = value.toString();
-      } else if (value === '') {
-        processedValue = null;
-      } else if (typeof value === 'boolean') {
-        processedValue = value.toString().toUpperCase();
-      }
-
-      const requestBody = {
-        column: field,
-        value: processedValue
-      };
-      console.log('Request body:', requestBody);
-
-      await api.put(`/stock-circuit-transfers/circuit_transfer_id/${id}`, requestBody);
+      // Send bulk update request
+      await api.put(`/stock-circuit-transfers/circuit_transfer_id/${id}/bulk`, updates);
 
       await fetchInitialData();
       toast.success("Circuit transfer updated successfully");
@@ -363,7 +337,7 @@ function CircuitTransferTable() {
       await handleEditTransfer(transferId, updatedData);
       setEditingCell(null);
     } catch (error) {
-      console.error(error);
+      console.error('Error saving cell:', error);
     }
   };
 
@@ -420,6 +394,9 @@ function CircuitTransferTable() {
       };
     });
 
+    const [isCustomTransport, setIsCustomTransport] = useState(false);
+    const [customTransportValue, setCustomTransportValue] = useState("");
+
     // Update local state when initial data changes
     useEffect(() => {
       if (isEdit && editingTransfer) {
@@ -457,6 +434,12 @@ function CircuitTransferTable() {
 
         if (hasChanges) {
           setFormState(updatedState);
+          // Check if the transport type is custom
+          const isCustom = !["Shared Coach (Sat & Sun)", "Shared Coach (Fri, Sat & Sun)", "Shared MPV (Fri, Sat & Sun)"].includes(updatedState.transport_type);
+          setIsCustomTransport(isCustom);
+          if (isCustom) {
+            setCustomTransportValue(updatedState.transport_type);
+          }
         }
       }
     }, [isEdit, editingTransfer?.circuit_transfer_id]); // Only depend on the ID
@@ -477,8 +460,6 @@ function CircuitTransferTable() {
     const handleFormSubmit = async (e) => {
       e?.preventDefault();
       try {
-        console.log('Form state before submit:', formState);
-        
         // Find the event ID from the event name
         const selectedEvent = events.find(e => e.event === formState.event_name);
         if (!selectedEvent) {
@@ -491,7 +472,7 @@ function CircuitTransferTable() {
           package_type: formState.package_type,
           hotel_id: formState.hotel_id,
           circuit_transfer_id: formState.circuit_transfer_id || crypto.randomUUID(),
-          transport_type: formState.transport_type,
+          transport_type: isCustomTransport ? customTransportValue : formState.transport_type,
           coach_capacity: parseInt(formState.coach_capacity) || 0,
           days: parseInt(formState.days) || 1,
           quote_hours: parseInt(formState.quote_hours) || 8,
@@ -509,7 +490,6 @@ function CircuitTransferTable() {
           markup: formState.markup || "60%"
         };
 
-        console.log('Submitting data:', submitData);
         await handleSubmit(submitData);
         onCancel();
       } catch (error) {
@@ -631,11 +611,13 @@ function CircuitTransferTable() {
             <div>
               <label className="text-xs font-medium">Transport Type</label>
               <Select
-                value={formState.transport_type === "custom" ? "custom" : formState.transport_type}
+                value={isCustomTransport ? "custom" : formState.transport_type}
                 onValueChange={(value) => {
                   if (value === "custom") {
-                    handleFieldChange('transport_type', '');
+                    setIsCustomTransport(true);
+                    setCustomTransportValue("");
                   } else {
+                    setIsCustomTransport(false);
                     handleFieldChange('transport_type', value);
                   }
                 }}
@@ -650,11 +632,11 @@ function CircuitTransferTable() {
                   <SelectItem value="custom">Custom...</SelectItem>
                 </SelectContent>
               </Select>
-              {(!formState.transport_type || formState.transport_type === "custom") && (
+              {isCustomTransport && (
                 <Input
                   type="text"
-                  value={formState.transport_type === "custom" ? "" : formState.transport_type}
-                  onChange={(e) => handleFieldChange('transport_type', e.target.value)}
+                  value={customTransportValue}
+                  onChange={(e) => setCustomTransportValue(e.target.value)}
                   placeholder="Enter custom transport type"
                   className="h-8 mt-1"
                 />
@@ -955,20 +937,21 @@ function CircuitTransferTable() {
       setSelectedTransfers((prev) => prev.filter((id) => id !== transferId));
     }
   };
-  const toggleSelectionMode = () => {
-    setIsSelectionMode(!isSelectionMode);
-    setSelectedTransfers([]);
-  };
+
   const handleBulkDelete = async () => {
     if (selectedTransfers.length === 0) return;
     setIsBulkDeleting(true);
     try {
       for (const transferId of selectedTransfers) {
-        await handleDeleteTransfer(transferId);
+        await api.delete(`/stock-circuit-transfers/circuit_transfer_id/${transferId}`);
       }
+      await fetchInitialData();
+      toast.success(`Successfully deleted ${selectedTransfers.length} circuit transfer(s)`);
       setSelectedTransfers([]);
+      setShowBulkDeleteDialog(false);
     } catch (error) {
-      // error already handled in handleDeleteTransfer
+      console.error('Error in bulk delete:', error);
+      toast.error(error.message || "Failed to delete circuit transfers");
     } finally {
       setIsBulkDeleting(false);
     }
@@ -1142,7 +1125,7 @@ function CircuitTransferTable() {
             })()}</span> ({sortDirection === "asc" ? "A-Z" : "Z-A"})</span>
           </div>
           <div className="flex gap-4 items-center">
-            {isSelectionMode && selectedTransfers.length > 0 && (
+            {selectedTransfers.length > 0 && (
               <Button
                 variant="default"
                 size="sm"
@@ -1162,13 +1145,6 @@ function CircuitTransferTable() {
                 )}
               </Button>
             )}
-            <Button
-              variant={isSelectionMode ? "secondary" : "outline"}
-              size="sm"
-              onClick={toggleSelectionMode}
-            >
-              {isSelectionMode ? "Cancel Selection" : "Bulk Actions"}
-            </Button>
             <Button
               variant="default"
               size="sm"
@@ -1190,22 +1166,22 @@ function CircuitTransferTable() {
         <Table>
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
-              {isSelectionMode && (
-                <TableHead className="w-[50px] text-xs py-2">
-                  <Checkbox
-                    checked={selectedTransfers.length === currentItems.length}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                    className="h-4 w-4"
-                  />
-                </TableHead>
-              )}
+              <TableHead className="w-[50px] text-xs py-2">
+                <Checkbox
+                  checked={selectedTransfers.length === currentItems.length}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                  className="h-4 w-4"
+                />
+              </TableHead>
               <TableHead className="text-xs py-2">Event</TableHead>
               <TableHead className="text-xs py-2">Package</TableHead>
               <TableHead className="text-xs py-2">Hotel</TableHead>
               <TableHead className="text-xs py-2">Transport Type</TableHead>
               <TableHead className="text-xs py-2">Coach Capacity</TableHead>
               <TableHead className="text-xs py-2">Utilisation %</TableHead>
+              <TableHead className="text-xs py-2">Cost per Seat (Local)</TableHead>
+              <TableHead className="text-xs py-2">Cost per Seat (GBP)</TableHead>
               <TableHead className="text-xs py-2">Total Cost (Local)</TableHead>
               <TableHead className="text-xs py-2">Total Cost (GBP)</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
@@ -1214,22 +1190,34 @@ function CircuitTransferTable() {
           <TableBody>
             {currentItems.map((transfer) => (
               <TableRow key={transfer.circuit_transfer_id} className="hover:bg-muted/50">
-                {isSelectionMode && (
-                  <TableCell className="text-xs py-1.5">
-                    <Checkbox
-                      checked={selectedTransfers.includes(transfer.circuit_transfer_id)}
-                      onCheckedChange={(checked) => handleSelectTransfer(transfer.circuit_transfer_id, checked)}
-                      aria-label={`Select ${transfer.event_name}`}
-                      className="h-4 w-4"
-                    />
-                  </TableCell>
-                )}
+                <TableCell className="text-xs py-1.5">
+                  <Checkbox
+                    checked={selectedTransfers.includes(transfer.circuit_transfer_id)}
+                    onCheckedChange={(checked) => handleSelectTransfer(transfer.circuit_transfer_id, checked)}
+                    aria-label={`Select ${transfer.event_name}`}
+                    className="h-4 w-4"
+                  />
+                </TableCell>
                 <TableCell className="text-xs py-1.5 font-medium">{transfer.event_name}</TableCell>
                 <TableCell className="text-xs py-1.5">{transfer.package_type}</TableCell>
                 <TableCell className="text-xs py-1.5">{transfer.hotel_name}</TableCell>
                 <TableCell className="text-xs py-1.5">{transfer.transport_type}</TableCell>
                 <TableCell className="text-xs py-1.5">{transfer.coach_capacity}</TableCell>
                 <TableCell className="text-xs py-1.5">{transfer.utilisation_percent || transfer['utilisation_%'] || ''}</TableCell>
+                <TableCell className="text-xs py-1.5">{(() => {
+                  const cost = parseFloat(transfer["utilisation_cost_per_seat_local"]?.toString().replace(/,/g, '')) || 0;
+                  const currency = (transfer.currency || '').toUpperCase();
+                  let symbol = '';
+                  if (currency === 'USD') symbol = '$';
+                  else if (currency === 'EUR') symbol = '€';
+                  else if (currency === 'GBP') symbol = '£';
+                  else symbol = currency;
+                  return cost ? `${symbol}${cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
+                })()}</TableCell>
+                <TableCell className="text-xs py-1.5">{(() => {
+                  const cost = parseFloat(transfer["utilisation_cost_per_seat_gbp"]?.toString().replace(/,/g, '')) || 0;
+                  return cost ? `£${cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
+                })()}</TableCell>
                 <TableCell className="text-xs py-1.5">{(() => {
                   const coachLocal = parseFloat(transfer["coach_cost_local"]?.toString().replace(/,/g, '')) || 0;
                   const guideLocal = parseFloat(transfer["guide_cost_local"]?.toString().replace(/,/g, '')) || 0;
@@ -1365,11 +1353,11 @@ function CircuitTransferTable() {
 
       {/* Bulk Delete Confirmation Dialog */}
       <Dialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Are you sure?</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. This will permanently delete {selectedTransfers.length} selected circuit transfer(s).
+              This action cannot be undone. This will permanently delete {selectedTransfers.length} selected circuit transfer{selectedTransfers.length === 1 ? '' : 's'}.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-4 mt-4">
@@ -1382,11 +1370,7 @@ function CircuitTransferTable() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
-                handleBulkDelete();
-                setShowBulkDeleteDialog(false);
-                setIsSelectionMode(false);
-              }}
+              onClick={handleBulkDelete}
               disabled={isBulkDeleting}
             >
               {isBulkDeleting ? (

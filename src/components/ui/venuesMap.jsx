@@ -154,13 +154,11 @@ const VenuesMap = ({
   };
 
   const handleDeleteVenue = (venue) => {
-    console.log('handleDeleteVenue called with venue:', venue);
     setVenueToDelete(venue);
     setShowDeleteDialog(true);
   };
 
   const addMarkers = () => {
-    console.log('addMarkers called with venues:', venues);
     // Clear existing markers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
@@ -172,7 +170,6 @@ const VenuesMap = ({
 
     // Add markers for each venue
     venues.forEach(venue => {
-      console.log('Creating marker for venue:', venue);
       // Create a marker with custom element
       const marker = new mapboxgl.Marker({
         element: createCustomMarker(venue),
@@ -209,7 +206,6 @@ const VenuesMap = ({
 
       // Add drag handlers
       marker.on('dragstart', () => {
-        console.log('Marker dragstart:', venue);
         setDraggedMarker(marker);
         originalPositionRef.current = { lng: venue.longitude, lat: venue.latitude };
         setShowTrashBin(true);
@@ -228,20 +224,14 @@ const VenuesMap = ({
             markerRect.bottom < trashBinRect.top ||
             markerRect.top > trashBinRect.bottom
           );
-          if (isOver !== isOverTrashBin) {
-            console.log('Marker isOverTrashBin changed:', isOver);
-          }
           setIsOverTrashBin(isOver);
         }
       });
 
       marker.on('dragend', () => {
-        console.log('Marker dragend:', { venue, isOverTrashBin });
         if (isOverTrashBin) {
-          console.log('Triggering delete for venue:', venue);
           handleDeleteVenue(venue);
         } else {
-          console.log('Snapping marker back to original position:', originalPositionRef.current);
           marker.setLngLat(originalPositionRef.current);
         }
         setDraggedMarker(null);
@@ -441,12 +431,10 @@ const VenuesMap = ({
       // Fetch location details using reverse geocoding
       const fetchLocationDetails = async (lng, lat) => {
         try {
-          console.log('Fetching location details for:', { lng, lat });
           const response = await fetch(
             `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}&types=place,locality,country`
           );
           const data = await response.json();
-          console.log('Geocoding response:', data);
           
           if (data.features && data.features.length > 0) {
             let city = '';
@@ -454,17 +442,13 @@ const VenuesMap = ({
             
             // Find city and country from the features
             data.features.forEach(feature => {
-              console.log('Processing feature:', feature);
               if (feature.place_type.includes('place') || feature.place_type.includes('locality')) {
                 city = feature.text;
-                console.log('Found city:', city);
               } else if (feature.place_type.includes('country')) {
                 country = feature.text;
-                console.log('Found country:', country);
               }
             });
 
-            console.log('Final location details:', { city, country });
             return { city, country };
           }
         } catch (error) {
@@ -504,9 +488,7 @@ const VenuesMap = ({
         }
 
         const newPos = marker.getLngLat();
-        console.log('Marker dragged to position:', newPos);
         const { city, country } = await fetchLocationDetails(newPos.lng, newPos.lat);
-        console.log('Location details for new position:', { city, country });
         
         const venueData = {
           latitude: newPos.lat,
@@ -516,7 +498,6 @@ const VenuesMap = ({
           country: country,
           venue_info: ''
         };
-        console.log('Calling onAddVenue with data:', venueData);
         onAddVenue(venueData);
         stopAddingVenue();
       });
@@ -526,9 +507,7 @@ const VenuesMap = ({
       // Add click handler to confirm location
       marker.getElement().addEventListener('click', async () => {
         const pos = marker.getLngLat();
-        console.log('Marker clicked at position:', pos);
         const { city, country } = await fetchLocationDetails(pos.lng, pos.lat);
-        console.log('Location details for clicked position:', { city, country });
         
         const venueData = {
           latitude: pos.lat,
@@ -538,7 +517,6 @@ const VenuesMap = ({
           country: country,
           venue_info: ''
         };
-        console.log('Calling onAddVenue with data:', venueData);
         onAddVenue(venueData);
         stopAddingVenue();
       });
@@ -565,14 +543,6 @@ const VenuesMap = ({
             className="bg-background"
           >
             <Maximize2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={isAddingVenue ? "default" : "outline"}
-            size="icon"
-            onClick={isAddingVenue ? stopAddingVenue : startAddingVenue}
-            className="bg-background"
-          >
-            <Plus className="h-4 w-4" />
           </Button>
         </div>
         
@@ -698,7 +668,6 @@ const VenuesMap = ({
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
-        console.log('AlertDialog onOpenChange:', { open, venueToDelete });
         setShowDeleteDialog(open);
       }}>
         <AlertDialogContent>
@@ -712,7 +681,6 @@ const VenuesMap = ({
           <AlertDialogFooter>
             <AlertDialogCancel 
               onClick={() => {
-                console.log('Delete cancelled');
                 setVenueToDelete(null);
                 setShowDeleteDialog(false);
               }}
@@ -722,14 +690,10 @@ const VenuesMap = ({
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                console.log('Delete confirmed for venue:', venueToDelete);
                 if (venueToDelete) {
-                  console.log('Calling onDeleteVenue with:', venueToDelete);
                   onDeleteVenue(venueToDelete);
                   setVenueToDelete(null);
                   setShowDeleteDialog(false);
-                } else {
-                  console.warn('No venue to delete!');
                 }
               }}
               disabled={isDeleting}
@@ -749,7 +713,7 @@ const VenuesMap = ({
       </AlertDialog>
 
       {/* Add custom styles for marker tooltip and custom marker */}
-      <style jsx>{`
+      <style>{`
         .marker-tooltip-container {
           position: absolute;
           top: 0;

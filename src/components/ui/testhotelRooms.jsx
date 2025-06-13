@@ -125,7 +125,7 @@ const hotelFieldMappings = {
 };
 
 // Add ViewRoomsDialog component before the TestHotelRooms component
-const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, onEditRoom, onDeleteRoom }) => {
+const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, onEditRoom, onDeleteRoom, fetchData, fetchHotelRooms }) => {
   const [isDeletingRoom, setIsDeletingRoom] = useState(false);
   const [deletingRoomId, setDeletingRoomId] = useState(null);
   const [showDeleteRoomDialog, setShowDeleteRoomDialog] = useState(false);
@@ -510,6 +510,8 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
           selectedHotel={hotel}
           handleAddRoom={onAddRoom}
           handleEditRoom={onEditRoom}
+          fetchData={fetchData}
+          fetchHotelRooms={fetchHotelRooms}
         />
 
         {/* Edit Room Dialog */}
@@ -521,6 +523,8 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
           selectedHotel={hotel}
           handleAddRoom={onAddRoom}
           handleEditRoom={onEditRoom}
+          fetchData={fetchData}
+          fetchHotelRooms={fetchHotelRooms}
         />
 
         {/* Delete Room Confirmation Dialog */}
@@ -574,28 +578,23 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
 
 function TestHotelRooms() {
   const [hotels, setHotels] = useState([]);
-  const [rooms, setRooms] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [hotelRooms, setHotelRooms] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddingHotel, setIsAddingHotel] = useState(false);
+  const [isEditingHotel, setIsEditingHotel] = useState(false);
+  const [isDeletingHotel, setIsDeletingHotel] = useState(false);
+  const [deletingHotelId, setDeletingHotelId] = useState(null);
+  const [isViewRoomsDialogOpen, setIsViewRoomsDialogOpen] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState(null);
-  const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingRoom, setEditingRoom] = useState(null);
-  const [isAddingRoom, setIsAddingRoom] = useState(false);
-  const [isEditingRoom, setIsEditingRoom] = useState(false);
   const [isAddHotelDialogOpen, setIsAddHotelDialogOpen] = useState(false);
   const [isEditHotelDialogOpen, setIsEditHotelDialogOpen] = useState(false);
   const [editingHotel, setEditingHotel] = useState(null);
-  const [isDeletingHotel, setIsDeletingHotel] = useState(false);
-  const [isDeletingRoom, setIsDeletingRoom] = useState(false);
-  const [deletingRoomId, setDeletingRoomId] = useState(null);
-  const [deletingHotelId, setDeletingHotelId] = useState(null);
   const [showDeleteHotelDialog, setShowDeleteHotelDialog] = useState(false);
   const [hotelToDelete, setHotelToDelete] = useState(null);
-  const [images, setImages] = useState([]);
-  const [uploadingImages, setUploadingImages] = useState(false);
-  const [isAddingHotel, setIsAddingHotel] = useState(false);
-  const [isEditingHotel, setIsEditingHotel] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState("all");
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedHotels, setSelectedHotels] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
     event: "all",
@@ -606,88 +605,102 @@ function TestHotelRooms() {
   const [sortDirection, setSortDirection] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
-  const [selectedHotels, setSelectedHotels] = useState([]);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-  const [isViewRoomsDialogOpen, setIsViewRoomsDialogOpen] = useState(false);
 
-  // Fetch data
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [hotelsResponse, roomsResponse] = await Promise.all([
+        api.get("hotels"),
+        api.get("stock-rooms")
+      ]);
+      setHotels(hotelsResponse.data);
+      setHotelRooms(roomsResponse.data);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+      toast.error("Failed to load data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchHotelRooms = async () => {
+    try {
+      const response = await api.get("stock-rooms");
+      setHotelRooms(response.data);
+    } catch (error) {
+      console.error("Failed to fetch hotel rooms:", error);
+      toast.error("Failed to load hotel rooms");
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [hotelsRes, roomsRes] = await Promise.all([
-        api.get("hotels"),
-        api.get("stock-rooms"),
-      ]);
-      
-      // Ensure we have valid data
-      const hotelsData = Array.isArray(hotelsRes.data) ? hotelsRes.data : [];
-      const roomsData = Array.isArray(roomsRes.data) ? roomsRes.data.map(room => ({
-        ...room,
-        booked: parseInt(room.booked) || 0,
-        used: parseInt(room.used) || 0,
-        remaining: parseInt(room.remaining) || 0,
-        max_guests: parseInt(room.max_guests) || 0,
-        nights: parseInt(room.nights) || 0,
-        breakfast_cost_pp: parseFloat(room.breakfast_cost_pp) || 0,
-        core_per_night_price_local: parseFloat(room.core_per_night_price_local) || 0,
-        final_per_night_price_local: parseFloat(room.final_per_night_price_local) || "",
-        extra_night_price_gbp: parseFloat(room.extra_night_price_gbp) || 0,
-        total_room_cost_gbp: parseFloat(room.total_room_cost_gbp) || 0,
-        breakfast_included: room.breakfast_included === true || room.breakfast_included === "true"
-      })) : [];
-      
-      // Map rooms data to add event information to hotels
-      const hotelsWithEvents = hotelsData.map(hotel => {
-        // Find all rooms for this hotel
-        const hotelRooms = roomsData.filter(room => room.hotel_id === hotel.hotel_id);
-        
-        // Get all unique events for this hotel
-        const uniqueEvents = [...new Set(hotelRooms.map(room => room.event_name).filter(Boolean))];
-        
-        return {
-          ...hotel,
-          events: uniqueEvents,
-          rooms: hotelRooms
-        };
-      });
-
-      setHotels(hotelsWithEvents);
-      setRooms(roomsData);
-
-      // If we have a selected hotel, update its data
-      if (selectedHotel) {
-        const updatedHotel = hotelsWithEvents.find(h => h.hotel_id === selectedHotel.hotel_id);
-        if (updatedHotel) {
-          setSelectedHotel(updatedHotel);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-      toast.error("Failed to load data");
-      setHotels([]);
-      setRooms([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Get unique events for filter
   const uniqueEvents = useMemo(() => {
-    const events = new Set(rooms.map(room => room.event_name).filter(Boolean));
+    const events = new Set(hotelRooms.map(room => room.event_name).filter(Boolean));
     return Array.from(events);
-  }, [rooms]);
+  }, [hotelRooms]);
+
+  // Get unique cities for filter
+  const uniqueCities = useMemo(() => {
+    const cities = new Set(hotels.map(hotel => hotel.city).filter(Boolean));
+    return Array.from(cities);
+  }, [hotels]);
 
   // Get rooms for selected hotel
-  const hotelRooms = useMemo(() => {
+  const selectedHotelRooms = useMemo(() => {
     if (!selectedHotel) return [];
-    return selectedHotel.rooms || [];
-  }, [selectedHotel]);
+    return hotelRooms.filter(room => room.hotel_id === selectedHotel.hotel_id);
+  }, [selectedHotel, hotelRooms]);
+
+  // Filter and sort hotels
+  const filteredHotels = useMemo(() => {
+    return hotels.filter(hotel => {
+      const matchesSearch = filters.search === "" || 
+        hotel.hotel_name.toLowerCase().includes(filters.search.toLowerCase());
+      const matchesEvent = filters.event === "all" || 
+        hotel.events?.includes(filters.event);
+      const matchesPackageType = filters.packageType === "all" || 
+        hotel.package_type === filters.packageType;
+      const matchesCity = filters.city === "all" || 
+        hotel.city === filters.city;
+      
+      return matchesSearch && matchesEvent && matchesPackageType && matchesCity;
+    }).sort((a, b) => {
+      const aValue = a[sortColumn];
+      const bValue = b[sortColumn];
+      
+      if (sortDirection === "asc") {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  }, [hotels, filters, sortColumn, sortDirection]);
+
+  // Paginate hotels
+  const paginatedHotels = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredHotels.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredHotels, currentPage]);
+
+  // Handle filter changes
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  // Handle sort changes
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
 
   // Currency helper functions
   const getCurrencySymbol = (currency) => {
@@ -710,55 +723,10 @@ function TestHotelRooms() {
     return hotel?.currency || 'USD'; // Default to USD if no currency found
   };
 
-  // Filtering logic
-  const filterHotels = (items) => {
-    return items.filter((item) => {
-      // Search filter
-      const searchMatch =
-        filters.search === "" ||
-        Object.values(item).some((val) =>
-          String(val).toLowerCase().includes(filters.search.toLowerCase())
-        );
-      // Event filter
-      const eventMatch =
-        filters.event === "all" || item.events.includes(filters.event);
-      return searchMatch && eventMatch;
-    });
-  };
-
-  // Sorting logic
-  const filteredHotels = useMemo(() => {
-    let result = filterHotels(hotels);
-    if (sortColumn) {
-      result = [...result].sort((a, b) => {
-        let aVal = a[sortColumn];
-        let bVal = b[sortColumn];
-        if (["stars"].includes(sortColumn)) {
-          aVal = Number(aVal) || 0;
-          bVal = Number(bVal) || 0;
-        } else {
-          aVal = (aVal || "").toString().toLowerCase();
-          bVal = (bVal || "").toString().toLowerCase();
-          if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-          if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-          return 0;
-        }
-        return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
-      });
-    }
-    return result;
-  }, [hotels, filters, sortColumn, sortDirection]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredHotels.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredHotels.slice(startIndex, endIndex);
-
   // Bulk selection handlers
   const handleSelectAll = (checked) => {
     if (checked) {
-      setSelectedHotels(currentItems.map((hotel) => hotel.hotel_id));
+      setSelectedHotels(paginatedHotels.map((hotel) => hotel.hotel_id));
     } else {
       setSelectedHotels([]);
     }
@@ -779,12 +747,17 @@ function TestHotelRooms() {
 
   const handleBulkDelete = async () => {
     if (selectedHotels.length === 0) return;
+    setShowBulkDeleteDialog(true);
+  };
+
+  const confirmBulkDelete = async () => {
     setIsBulkDeleting(true);
     try {
       for (const hotelId of selectedHotels) {
         await handleDeleteHotel(hotelId);
       }
       setSelectedHotels([]);
+      setShowBulkDeleteDialog(false);
     } catch (error) {
       // error already handled in handleDeleteHotel
     } finally {
@@ -860,21 +833,22 @@ function TestHotelRooms() {
         return;
       }
 
-      // Process updates sequentially to avoid race conditions
-      for (const [field, value] of Object.entries(changedFields)) {
+      // Prepare bulk updates
+      const updates = Object.entries(changedFields).map(([field, value]) => {
         let formattedValue = value;
         if (field === 'stars') {
           formattedValue = parseInt(value);
         } else if (['city_tax_amount', 'vat_amount', 'commission', 'resort_fee_per_night'].includes(field)) {
           formattedValue = parseFloat(value);
         }
-
-        console.log(`Updating ${field} to ${formattedValue}`);
-        await api.put(`hotels/hotel_id/${editingHotel.hotel_id}`, {
+        return {
           column: field,
           value: formattedValue
-        });
-      }
+        };
+      });
+
+      // Use bulk update endpoint
+      await api.put(`hotels/hotel_id/${editingHotel.hotel_id}/bulk`, updates);
 
       console.log("Hotel updated successfully");
       toast.success("Hotel updated successfully");
@@ -932,16 +906,23 @@ function TestHotelRooms() {
       }
       // Convert boolean values to uppercase strings
       const formattedValue = typeof value === 'boolean' ? value.toString().toUpperCase() : value;
-      await api.put(`stock-rooms/room_id/${room_id}`, { column: field, value: formattedValue });
+      await api.put(`stock-rooms/room_id/${room_id}/bulk`, [{
+        column: field,
+        value: formattedValue
+      }]);
       toast.success("Room updated successfully");
-      await fetchData();
+      // Refresh both rooms and hotels data
+      await Promise.all([
+        fetchData(),
+        fetchHotelRooms()
+      ]);
     } catch (error) {
       console.error("Failed to update room:", error);
       toast.error(error.response?.data?.error || "Failed to update room");
     }
   };
 
-  // Update handleAddRoom function
+  // Update handleAddRoom to also refresh data
   const handleAddRoom = async (roomData) => {
     try {
       const newRoom = {
@@ -966,30 +947,31 @@ function TestHotelRooms() {
       };
       await api.post("stock-rooms", newRoom);
       toast.success("Room added successfully");
-      await fetchData();
+      // Refresh both rooms and hotels data
+      await Promise.all([
+        fetchData(),
+        fetchHotelRooms()
+      ]);
     } catch (error) {
       console.error("Failed to add room:", error);
       toast.error(error.response?.data?.error || "Failed to add room");
     }
   };
 
-  // Update handleDeleteRoom function
+  // Update handleDeleteRoom to also refresh data
   const handleDeleteRoom = async (roomId) => {
     try {
-      setIsDeletingRoom(true);
-      setDeletingRoomId(roomId);
-      
       await api.delete(`stock-rooms/room_id/${roomId}`);
       toast.success("Room deleted successfully");
       
-      // Fetch fresh data
-      await fetchData();
+      // Refresh both rooms and hotels data
+      await Promise.all([
+        fetchData(),
+        fetchHotelRooms()
+      ]);
     } catch (error) {
       console.error("Failed to delete room:", error);
       toast.error(error.response?.data?.error || "Failed to delete room");
-    } finally {
-      setIsDeletingRoom(false);
-      setDeletingRoomId(null);
     }
   };
 
@@ -1006,7 +988,7 @@ function TestHotelRooms() {
     return `Event ${eventId.substring(0, 8)}...`;
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1142,7 +1124,7 @@ function TestHotelRooms() {
               {isSelectionMode && (
                 <TableHead className="w-[50px] text-xs py-2">
                   <Checkbox
-                    checked={selectedHotels.length === currentItems.length}
+                    checked={selectedHotels.length === paginatedHotels.length}
                     onCheckedChange={handleSelectAll}
                     aria-label="Select all"
                     className="h-4 w-4"
@@ -1158,7 +1140,7 @@ function TestHotelRooms() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentItems.map((hotel) => (
+            {paginatedHotels.map((hotel) => (
               <TableRow key={hotel.hotel_id} className="hover:bg-muted/50">
                 {isSelectionMode && (
                   <TableCell className="text-xs py-1.5">
@@ -1307,7 +1289,7 @@ function TestHotelRooms() {
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {startIndex + 1} to {Math.min(endIndex, filteredHotels.length)} of {filteredHotels.length} hotels
+          Showing {currentPage * itemsPerPage - itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredHotels.length)} of {filteredHotels.length} hotels
         </div>
         <div className="flex gap-2">
           <Button
@@ -1318,12 +1300,12 @@ function TestHotelRooms() {
           >
             Previous
           </Button>
-          <span className="text-sm">Page {currentPage} of {totalPages}</span>
+          <span className="text-sm">Page {currentPage} of {Math.ceil(filteredHotels.length / itemsPerPage)}</span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((prev) => Math.min(Math.ceil(filteredHotels.length / itemsPerPage), prev + 1))}
+            disabled={currentPage === Math.ceil(filteredHotels.length / itemsPerPage)}
           >
             Next
           </Button>
@@ -1358,10 +1340,12 @@ function TestHotelRooms() {
         isOpen={isViewRoomsDialogOpen}
         onOpenChange={setIsViewRoomsDialogOpen}
         hotel={selectedHotel}
-        rooms={hotelRooms}
+        rooms={selectedHotelRooms}
         onAddRoom={handleAddRoom}
         onEditRoom={handleEditRoom}
         onDeleteRoom={handleDeleteRoom}
+        fetchData={fetchData}
+        fetchHotelRooms={fetchHotelRooms}
       />
 
       {/* Bulk Delete Confirmation Dialog */}
@@ -1370,7 +1354,7 @@ function TestHotelRooms() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete {selectedHotels.length} selected hotel(s).
+              This action cannot be undone. This will permanently delete {selectedHotels.length} selected hotel{selectedHotels.length > 1 ? 's' : ''}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1383,11 +1367,7 @@ function TestHotelRooms() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
-                handleBulkDelete();
-                setShowBulkDeleteDialog(false);
-                setIsSelectionMode(false);
-              }}
+              onClick={confirmBulkDelete}
               disabled={isBulkDeleting}
             >
               {isBulkDeleting ? (
@@ -1867,7 +1847,9 @@ const RoomDialog = memo(({
   room = null, 
   selectedHotel,
   handleAddRoom,
-  handleEditRoom 
+  handleEditRoom,
+  fetchData,
+  fetchHotelRooms
 }) => {
   const [formData, setFormData] = useState(() => {
     if (mode === "edit" && room) {
@@ -1876,7 +1858,7 @@ const RoomDialog = memo(({
         check_in_date: room.check_in_date || "",
         check_out_date: room.check_out_date || "",
         hotel_id: selectedHotel?.hotel_id || room.hotel_id,
-        breakfast_included: room.breakfast_included ? "true" : "false",
+        breakfast_included: room.breakfast_included === true || room.breakfast_included === "true" ? "true" : "false",
         room_flexibility: room.room_flexibility || "non_flex",
         package_type: room.package_type || "Both",
         attrition_group: room.attrition_group || ""
@@ -1901,7 +1883,7 @@ const RoomDialog = memo(({
       check_out_date: "",
       nights: 0,
       currency_local: "GBP",
-      breakfast_included: false,
+      breakfast_included: "false",
       breakfast_cost_pp: 0,
       core_per_night_price_local: 0,
       final_per_night_price_local: 0,
@@ -1952,8 +1934,8 @@ const RoomDialog = memo(({
           check_out_date: room.check_out_date || "",
           hotel_id: selectedHotel?.hotel_id || room.hotel_id,
           hotel_name: selectedHotel?.hotel_name || room.hotel_name,
-          breakfast_included: room.breakfast_included === true || room.breakfast_included === "true",
-          room_flexibility: room.room_flexibility || "Flex",
+          breakfast_included: room.breakfast_included === true || room.breakfast_included === "true" ? "true" : "false",
+          room_flexibility: room.room_flexibility || "non_flex",
           package_type: room.package_type || "Both",
           package_id: room.package_id || "",
           used: parseInt(room.used) || 0,
@@ -1988,7 +1970,7 @@ const RoomDialog = memo(({
           check_out_date: "",
           nights: 0,
           currency_local: "GBP",
-          breakfast_included: false,
+          breakfast_included: "false",
           breakfast_cost_pp: 0,
           core_per_night_price_local: 0,
           final_per_night_price_local: 0,
@@ -2012,25 +1994,47 @@ const RoomDialog = memo(({
     try {
       setIsSubmitting(true);
       if (mode === "edit") {
-        // For each field that has changed, make an update
+        // Prepare bulk updates for all changed fields
         const updates = Object.entries(formData)
-          .filter(([field, value]) => value !== room[field])
-          .map(([field, value]) => handleEditRoom({
-            room_id: room.room_id,
-            field,
-            value
+          .filter(([field, value]) => {
+            if (field === 'breakfast_included') {
+              const originalValue = room.breakfast_included === true || room.breakfast_included === "true" ? "true" : "false";
+              return value !== originalValue;
+            }
+            return value !== room[field];
+          })
+          .map(([field, value]) => ({
+            column: field,
+            value: field === 'breakfast_included' ? value : value
           }));
-        await Promise.all(updates);
+
+        if (updates.length > 0) {
+          await api.put(`stock-rooms/room_id/${room.room_id}/bulk`, updates);
+          toast.success("Room updated successfully");
+          // Refresh both rooms and hotels data
+          await Promise.all([
+            fetchData(),
+            fetchHotelRooms()
+          ]);
+        } else {
+          toast.info("No changes were made");
+        }
       } else {
-        await handleAddRoom(formData);
+        // For new rooms, ensure breakfast_included is properly formatted
+        const newRoomData = {
+          ...formData,
+          breakfast_included: formData.breakfast_included
+        };
+        await handleAddRoom(newRoomData);
       }
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to submit room:", error);
+      toast.error(error.response?.data?.error || "Failed to update room");
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, mode, room, handleEditRoom, handleAddRoom, onOpenChange]);
+  }, [formData, mode, room, handleAddRoom, onOpenChange, fetchData, fetchHotelRooms]);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
