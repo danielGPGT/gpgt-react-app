@@ -126,9 +126,9 @@ const FxTable = () => {
         } else if (!mid && mid !== 0) {
           newRow[cur] = '';
         } else if (tab === 'bid') {
-          newRow[cur] = (mid - spreadNum).toFixed(3);
+          newRow[cur] = (mid * (1 - spreadNum)).toFixed(3);
         } else if (tab === 'ask') {
-          newRow[cur] = (mid + spreadNum).toFixed(3);
+          newRow[cur] = (mid * (1 + spreadNum)).toFixed(3);
         }
       });
       return newRow;

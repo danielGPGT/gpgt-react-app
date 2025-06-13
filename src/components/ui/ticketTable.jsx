@@ -85,6 +85,8 @@ function TicketTable() {
   const [packages, setPackages] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fxRates, setFxRates] = useState({});
+  const [spread, setSpread] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -165,19 +167,18 @@ function TicketTable() {
   const [sortColumn, setSortColumn] = useState("event");
   const [sortDirection, setSortDirection] = useState("asc");
 
-  const [fxRates, setFxRates] = useState({});
-
   useEffect(() => {
     fetchInitialData();
   }, []);
 
   const fetchInitialData = async () => {
     try {
-      const [stockRes, eventsRes, packagesRes, fxRes] = await Promise.all([
+      const [stockRes, eventsRes, packagesRes, fxRes, spreadRes] = await Promise.all([
         api.get("/stock-tickets"),
         api.get("/events"),
         api.get("/packages"),
-        api.get("/new-fx")
+        api.get("/new-fx"),
+        api.get("/fx-spread")
       ]);
 
       // Ensure we have valid arrays with required properties
@@ -194,6 +195,11 @@ function TicketTable() {
           }
           processedFxRates[rate.from][rate.to] = rate.rate;
         });
+      }
+
+      // Set spread from response
+      if (Array.isArray(spreadRes.data) && spreadRes.data.length > 0) {
+        setSpread(spreadRes.data[0].spread);
       }
 
       setStock(validStock);
@@ -221,8 +227,9 @@ function TicketTable() {
       return amount;
     }
 
-    // Direct conversion without spread
-    return Number((amount * rate).toFixed(2));
+    // Apply spread to the rate (multiply by 1 + spread)
+    const adjustedRate = rate * (1 + spread);
+    return Number((amount * adjustedRate).toFixed(2));
   };
 
   // Add function to fetch categories for an event
