@@ -204,55 +204,25 @@ export function VenuesTable({
 
   const handleEditVenue = async () => {
     try {
-      setIsEditing(true);
-
-      // Compare with original venue to find changed fields
-      const originalVenue = venues.find((v) => v.venue_id === editingVenue.venue_id);
-      if (!originalVenue) {
-        toast.error("Original venue not found");
-        return;
-      }
-
-      // Prepare updates array with only changed fields
-      const updates = Object.entries(editingVenue)
-        .filter(([key, value]) => {
-          // Skip venue_id as it's the identifier
-          if (key === 'venue_id') return false;
-          
-          // Compare values, handling null/undefined cases
-          const originalValue = originalVenue[key];
-          const newValue = value;
-          
-          // Handle empty string vs null comparison
-          if (originalValue === null && newValue === "") return false;
-          if (originalValue === "" && newValue === null) return false;
-          
-          return originalValue !== newValue;
-        })
-        .map(([key, value]) => ({
-          column: key,
-          value: value
-        }));
-
-      // Check if there are any changes
-      if (updates.length === 0) {
-        toast.info("No changes were made to the venue");
-        setIsEditDialogOpen(false);
-        return;
-      }
-
-      // Make bulk update request
-      await api.put(`/venues/venue_id/${editingVenue.venue_id}/bulk`, updates);
-
-      toast.success("Venue updated successfully");
+      // Use the onEditVenue prop to handle the edit
+      await onEditVenue(editingVenue);
+      
+      // Close the dialog and clear the editing venue
       setIsEditDialogOpen(false);
       setEditingVenue(null);
-      fetchVenues();
+      
+      // Refresh the venues list
+      await fetchVenues();
+      
+      // If map is shown, refresh it too
+      if (showMap) {
+        // Force a re-render of the map by toggling it off and on
+        setShowMap(false);
+        setTimeout(() => setShowMap(true), 100);
+      }
     } catch (error) {
       console.error("Failed to update venue:", error);
       toast.error("Failed to update venue");
-    } finally {
-      setIsEditing(false);
     }
   };
 
@@ -1070,7 +1040,24 @@ export function VenuesTable({
               Cancel
             </Button>
             <Button
-              onClick={() => onEditVenue(editingVenue)}
+              onClick={async () => {
+                try {
+                  await onEditVenue(editingVenue);
+                  // Close the dialog and clear the editing venue
+                  setIsEditDialogOpen(false);
+                  setEditingVenue(null);
+                  // Refresh the venues list
+                  await fetchVenues();
+                  // If map is shown, refresh it too
+                  if (showMap) {
+                    setShowMap(false);
+                    setTimeout(() => setShowMap(true), 100);
+                  }
+                } catch (error) {
+                  console.error("Failed to update venue:", error);
+                  toast.error("Failed to update venue");
+                }
+              }}
               disabled={isEditing}
             >
               {isEditing ? (

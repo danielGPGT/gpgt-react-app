@@ -23,6 +23,7 @@ import { Inventory } from "@/components/ui/inventory";
 import { useTheme } from "@/components/theme-provider";
 import { BookingsChart } from "@/components/ui/bookingsChart";
 import FxTable from "./fxTable";
+import { ApiKeysTable } from "./apiKeysTable";
 
 function AdminDashboard() {
   const { theme } = useTheme();
@@ -50,6 +51,7 @@ function AdminDashboard() {
           <TabsTrigger value="sales">Sales</TabsTrigger>
           <TabsTrigger value="operations">Operations</TabsTrigger>
           <TabsTrigger value="fx">FX Rates</TabsTrigger>
+          <TabsTrigger value="api-keys">API Keys</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-2">
@@ -113,6 +115,22 @@ function AdminDashboard() {
             <CardContent>
               <div className="space-y-6">
                 <FxTable />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="api-keys" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-foreground">API Keys Management</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Create and manage API keys for external applications
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <ApiKeysTable />
               </div>
             </CardContent>
           </Card>

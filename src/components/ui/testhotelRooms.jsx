@@ -613,8 +613,25 @@ function TestHotelRooms() {
         api.get("hotels"),
         api.get("stock-rooms")
       ]);
-      setHotels(hotelsResponse.data);
-      setHotelRooms(roomsResponse.data);
+      
+      // Get all hotels
+      const hotelsData = hotelsResponse.data;
+      
+      // Get all rooms
+      const roomsData = roomsResponse.data;
+      
+      // Associate events with hotels based on their rooms
+      const hotelsWithEvents = hotelsData.map(hotel => {
+        const hotelRooms = roomsData.filter(room => room.hotel_id === hotel.hotel_id);
+        const uniqueEvents = [...new Set(hotelRooms.map(room => room.event_name).filter(Boolean))];
+        return {
+          ...hotel,
+          events: uniqueEvents
+        };
+      });
+      
+      setHotels(hotelsWithEvents);
+      setHotelRooms(roomsData);
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast.error("Failed to load data");

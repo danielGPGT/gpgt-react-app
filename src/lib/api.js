@@ -1,14 +1,24 @@
 import axios from 'axios';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// Log the API key configuration
+console.log('API Key from env:', import.meta.env.VITE_API_KEY);
+console.log('API URL from env:', import.meta.env.VITE_API_URL);
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://api.grandprixgrandtours.com/api/v1/' || 'http://localhost:3000/api/v1/',
-  withCredentials: true // allow cookies (useful later if you want secure auth)
+  withCredentials: true, // allow cookies (useful later if you want secure auth)
+  headers: {
+    'x-api-key': import.meta.env.VITE_API_KEY // Set API key in default headers
+  }
 });
 
 // Add a request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Log the headers being sent
+    console.log('Request headers:', config.headers);
+    
     // Get the token from localStorage
     const token = localStorage.getItem('token');
     
@@ -28,13 +38,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Only remove token if it's an authentication error
-      if (error.response.data?.requiresReauth) {
-        localStorage.removeItem('token');
-        // Redirect to login page
-        window.location.href = '/';
-      }
+    // Log the error response
+    console.error('API Error:', error.response?.data);
+    
+    // Only remove token if it's an authentication error
+    if (error.response?.data?.requiresReauth) {
+      localStorage.removeItem('token');
+      // Redirect to login page
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }
@@ -43,8 +54,64 @@ api.interceptors.response.use(
 // Add Gemini API configuration
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-// Initialize the Google AI client
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+// Debug logging for API key
+console.log('Environment variables:', {
+  hasGeminiKey: !!import.meta.env.VITE_GEMINI_API_KEY,
+  keyLength: import.meta.env.VITE_GEMINI_API_KEY?.length,
+  keyPrefix: import.meta.env.VITE_GEMINI_API_KEY?.substring(0, 4),
+  envKeys: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
+});
+
+// Initialize the Google AI client only if the API key exists
+let genAI = null;
+
+const initializeGenAI = () => {
+  try {
+    if (!GEMINI_API_KEY) {
+      console.warn('Gemini API key not found in environment variables. AI features will be disabled.');
+      console.warn('Please ensure VITE_GEMINI_API_KEY is set in your .env file');
+      return null;
+    }
+
+    if (typeof GEMINI_API_KEY !== 'string' || GEMINI_API_KEY.trim() === '') {
+      throw new Error('Invalid API key format. The API key must be a non-empty string.');
+    }
+
+    // Ensure we're in a browser environment
+    if (typeof window === 'undefined') {
+      throw new Error('Google AI client must be initialized in a browser environment');
+    }
+
+    console.log('Initializing Google AI client...');
+    const client = new GoogleGenerativeAI(GEMINI_API_KEY);
+    console.log('Google AI client created:', !!client);
+    return client;
+  } catch (error) {
+    console.error('Failed to initialize Google AI client:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      keyStatus: {
+        exists: !!GEMINI_API_KEY,
+        type: typeof GEMINI_API_KEY,
+        length: GEMINI_API_KEY?.length
+      }
+    });
+    return null;
+  }
+};
+
+// Initialize on module load
+genAI = initializeGenAI();
+
+// Function to get or reinitialize the client
+const getGenAIClient = () => {
+  if (!genAI) {
+    console.log('Attempting to reinitialize Google AI client...');
+    genAI = initializeGenAI();
+  }
+  return genAI;
+};
 
 // Function to update an existing itinerary
 export const updateItinerary = async (bookingId, content) => {
@@ -129,7 +196,7 @@ Transfers:
   Circuit: ${bookingData.circuit_transfer_type}
 Number of Travelers: ${bookingData.adults}`;
 
-    const response = await ai.models.generateContent({
+    const response = await genAI.models.generateContent({
       model: "gemini-2.0-flash",
       contents: prompt,
     });
@@ -203,8 +270,9 @@ export const storeItinerary = async (bookingId, itinerary) => {
 // Function to fetch hotel information using Gemini
 export const fetchHotelInfo = async (hotelName) => {
   try {
-    if (!GEMINI_API_KEY) {
-      throw new Error('Gemini API key is not configured');
+    const client = getGenAIClient();
+    if (!client) {
+      throw new Error('Google AI client is not properly initialized. Please check your Gemini API key configuration.');
     }
 
     const prompt = `
@@ -235,19 +303,28 @@ Important:
 
 Only include the JSON object in your response, nothing else. If you cannot find accurate information for any field, return null for that field. For numeric values, return them as numbers, not strings.`;
 
-    const response = await ai.models.generateContent({
+    console.log('Sending request to Gemini API for hotel info...');
+    const model = client.getGenerativeModel({ 
       model: "gemini-2.0-flash",
-      contents: prompt,
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      }
     });
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
 
-    if (!response.text) {
+    if (!response) {
       throw new Error('No response generated from Gemini API');
     }
 
     let cleanedResponse;
     try {
       // Clean up the response text by removing markdown code block formatting
-      cleanedResponse = response.text
+      cleanedResponse = response.text()
         .replace(/```json\s*/g, '') // Remove ```json prefix
         .replace(/```\s*$/g, '')    // Remove ``` suffix
         .trim();                    // Remove any extra whitespace
@@ -281,7 +358,7 @@ Only include the JSON object in your response, nothing else. If you cannot find 
       };
     } catch (parseError) {
       console.error('Error parsing hotel info:', parseError);
-      console.error('Raw response:', response.text);
+      console.error('Raw response:', response.text());
       console.error('Cleaned response:', cleanedResponse);
       throw new Error('Failed to parse hotel information');
     }
@@ -294,8 +371,9 @@ Only include the JSON object in your response, nothing else. If you cannot find 
 // Function to fetch venue information using Gemini
 export const fetchVenueInfo = async (venueName) => {
   try {
-    if (!GEMINI_API_KEY) {
-      throw new Error('Gemini API key is not configured');
+    const client = getGenAIClient();
+    if (!client) {
+      throw new Error('Google AI client is not properly initialized. Please check your Gemini API key configuration.');
     }
 
     const prompt = `
@@ -361,17 +439,26 @@ VENUE INFORMATION GUIDELINES:
 
 Only include the JSON object in your response, nothing else.`;
 
-    const response = await ai.models.generateContent({
+    console.log('Sending request to Gemini API for venue info...');
+    const model = client.getGenerativeModel({ 
       model: "gemini-2.0-flash",
-      contents: prompt,
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      }
     });
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
 
-    if (!response.text) {
+    if (!response) {
       throw new Error('No response generated from Gemini API');
     }
 
     // Clean up the response text by removing markdown code block formatting
-    let cleanedResponse = response.text
+    let cleanedResponse = response.text()
       .replace(/```json\s*/g, '') // Remove ```json prefix
       .replace(/```\s*$/g, '')    // Remove ``` suffix
       .trim();                    // Remove any extra whitespace
@@ -420,7 +507,7 @@ Only include the JSON object in your response, nothing else.`;
       };
     } catch (parseError) {
       console.error('Error parsing venue info:', parseError);
-      console.error('Raw response:', response.text);
+      console.error('Raw response:', response.text());
       console.error('Cleaned response:', cleanedResponse);
       throw new Error('Failed to parse venue information');
     }
@@ -433,8 +520,9 @@ Only include the JSON object in your response, nothing else.`;
 // Function to fetch category information using Gemini
 export const fetchCategoryInfo = async (venueName, categoryName, packageType) => {
   try {
-    if (!GEMINI_API_KEY) {
-      throw new Error('Gemini API key is not configured');
+    const client = getGenAIClient();
+    if (!client) {
+      throw new Error('Google AI client is not properly initialized. Please check your Gemini API key configuration.');
     }
 
     const prompt = `
@@ -484,17 +572,26 @@ IMPORTANT GUIDELINES:
 
 Only include the JSON object in your response, nothing else. If you cannot find accurate information for any field, return null for that field.`;
 
-    const response = await ai.models.generateContent({
+    console.log('Sending request to Gemini API...');
+    const model = client.getGenerativeModel({ 
       model: "gemini-2.0-flash",
-      contents: prompt,
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      }
     });
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
 
-    if (!response.text) {
+    if (!response) {
       throw new Error('No response generated from Gemini API');
     }
 
     // Clean up the response text by removing markdown code block formatting
-    let cleanedResponse = response.text
+    let cleanedResponse = response.text()
       .replace(/```json\s*/g, '') // Remove ```json prefix
       .replace(/```\s*$/g, '')    // Remove ``` suffix
       .trim();                    // Remove any extra whitespace
@@ -515,7 +612,7 @@ Only include the JSON object in your response, nothing else. If you cannot find 
       };
     } catch (parseError) {
       console.error('Error parsing category info:', parseError);
-      console.error('Raw response:', response.text);
+      console.error('Raw response:', response.text());
       console.error('Cleaned response:', cleanedResponse);
       throw new Error('Failed to parse category information');
     }
@@ -525,4 +622,5 @@ Only include the JSON object in your response, nothing else. If you cannot find 
   }
 };
 
+export { genAI };
 export default api;
