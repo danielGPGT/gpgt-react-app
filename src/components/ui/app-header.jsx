@@ -52,77 +52,61 @@ export function AppHeader({ className }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [currentTheme, setCurrentTheme] = useState("default");
   const [bookings, setBookings] = useState([]);
-  const [seenBookingIds, setSeenBookingIds] = useState(() => {
-    // Initialize from localStorage if available
-    const saved = localStorage.getItem("seenBookingIds");
-    return saved ? new Set(JSON.parse(saved)) : new Set();
-  });
+  const [newBookings, setNewBookings] = useState([]);
   const navigate = useNavigate();
 
-  // Save seenBookingIds to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem("seenBookingIds", JSON.stringify([...seenBookingIds]));
-  }, [seenBookingIds]);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem('token');
     if (token) {
       try {
         const decoded = jwtDecode(token);
         setUser(decoded);
       } catch (error) {
-        console.error("Failed to decode token:", error);
-        localStorage.removeItem("token");
-        window.location.href = "/login";
+        localStorage.removeItem('token');
+        navigate('/');
       }
     }
-  }, []);
+  }, [navigate]);
 
-  // Fetch bookings and check for new ones
   useEffect(() => {
-    // Only fetch bookings if user is admin
-    if (!user?.role || user.role !== 'Admin') return;
+    if (user?.role === 'Admin') {
+      const fetchBookings = async () => {
+        try {
+          const response = await api.get('/bookingfile');
+          const bookingsData = Array.isArray(response.data) ? response.data : [response.data];
+          setBookings(bookingsData);
 
-    const fetchBookings = async () => {
-      try {
-        const response = await api.get("bookingFile");
-        if (response.data) {
-          // If data is a single booking, convert to array
-          const bookingsArray = Array.isArray(response.data)
-            ? response.data
-            : [response.data];
-          setBookings(bookingsArray);
+          // Check for new bookings
+          const seenResponse = await api.get('/notifications/seen');
+          const seenIds = new Set(seenResponse.data);
+          const newBookings = bookingsData.filter(booking => !seenIds.has(booking.booking_id));
+          setNewBookings(newBookings);
+        } catch (error) {
+          console.error('Error fetching bookings:', error);
         }
+      };
+
+      fetchBookings();
+      const interval = setInterval(fetchBookings, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const handleNotificationClick = async () => {
+    if (newBookings.length > 0) {
+      try {
+        const bookingIds = bookings.map(booking => booking.booking_id);
+        await api.post('/notifications/seen', { bookingIds });
+        setNewBookings([]);
+        navigate('/bookings');
       } catch (error) {
-        console.error("Failed to fetch bookings:", error);
+        console.error('Error marking notifications as seen:', error);
       }
-    };
-
-    fetchBookings();
-    // Check for new bookings every minute
-    const interval = setInterval(fetchBookings, 10000);
-    return () => clearInterval(interval);
-  }, [user?.role]);
-
-  // Get new bookings by comparing with seen booking IDs
-  const getNewBookings = () => {
-    return bookings.filter(
-      (booking) => !seenBookingIds.has(booking.booking_id)
-    );
+    } else {
+      navigate('/bookings');
+    }
   };
 
-  const handleNotificationClick = () => {
-    // Add all current booking IDs to seen set to clear notifications
-    const newSeenIds = new Set([
-      ...seenBookingIds,
-      ...bookings.map((b) => b.booking_id),
-    ]);
-    setSeenBookingIds(newSeenIds);
-    // Navigate to bookings page
-    navigate("/bookings");
-  };
-
-  const newBookings = getNewBookings();
   const unreadCount = newBookings.length;
   const isAdmin = user?.role === 'Admin';
 
@@ -246,31 +230,33 @@ export function AppHeader({ className }) {
               <DropdownMenuLabel>New Bookings</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {newBookings.length > 0 ? (
-                newBookings.map((booking) => (
-                  <DropdownMenuItem
-                    key={booking.booking_id}
-                    className="flex flex-col items-start gap-1 p-3 cursor-pointer hover:bg-muted/50"
-                    onClick={handleNotificationClick}
-                  >
-                    <div className="flex items-center gap-2 w-full">
-                      <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">New Booking</span>
-                      <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {booking.booking_ref} - {booking.event_name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {booking.lead_traveller_name} • {booking.booking_date}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                        {booking.status}
-                      </span>
-                      <span>£{booking.total_sold_gbp}</span>
-                    </div>
-                  </DropdownMenuItem>
-                ))
+                // Use a Set to ensure unique bookings in the display
+                Array.from(new Map(newBookings.map(booking => [booking.booking_id, booking])).values())
+                  .map((booking) => (
+                    <DropdownMenuItem
+                      key={booking.booking_id}
+                      className="flex flex-col items-start gap-1 p-3 cursor-pointer hover:bg-muted/50"
+                      onClick={handleNotificationClick}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">New Booking</span>
+                        <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {booking.booking_ref} - {booking.event_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {booking.lead_traveller_name} • {booking.booking_date}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                          {booking.status}
+                        </span>
+                        <span>£{booking.total_sold_gbp}</span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))
               ) : (
                 <div className="p-4 text-sm text-muted-foreground text-center">
                   No new bookings

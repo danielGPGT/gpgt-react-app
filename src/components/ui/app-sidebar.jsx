@@ -932,32 +932,6 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                tooltip="Settings"
-                className={cn(
-                  "flex items-center gap-2",
-                  location.pathname === "/settings"
-                    ? "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
-                    : "text-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Link to="/settings" className="flex items-center gap-2">
-                  <Settings
-                    className={cn(
-                      "!w-4 !h-4",
-                      location.pathname === "/settings"
-                        ? "text-primary-foreground"
-                        : "text-primary"
-                    )}
-                  />
-                  <span className="group-data-[collapsible=icon]:hidden">
-                    Settings
-                  </span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
                 tooltip="Documentation"
                 className={cn(
                   "flex items-center gap-2",
