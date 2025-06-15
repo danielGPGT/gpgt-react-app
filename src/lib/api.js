@@ -38,9 +38,7 @@ const isCacheValid = (timestamp) => {
 
 // Helper function to log cache status
 const logCacheStatus = (cacheKey, hit) => {
-  const status = hit ? 'HIT' : 'MISS';
-  const timestamp = new Date().toLocaleTimeString();
-  console.log(`[${timestamp}] Cache ${status} for: ${cacheKey}`);
+  // Cache logging removed for security
 };
 
 // Helper function to clear related caches
@@ -56,7 +54,6 @@ const clearRelatedCaches = (url) => {
     if (key.includes(sheetName)) {
       delete cache[key];
       cleared = true;
-      console.log(`[${new Date().toLocaleTimeString()}] Cleared cache for: ${key}`);
     }
   });
   
