@@ -3,26 +3,18 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const CACHE_KEY = 'api_cache';
 
-// Helper function to get cache from localStorage
+// Global cache using Map
+const globalCache = new Map();
+
+// Helper function to get cache
 const getCache = () => {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    return cached ? JSON.parse(cached) : {};
-  } catch (error) {
-    console.error('Error reading cache from localStorage:', error);
-    return {};
-  }
+  return globalCache;
 };
 
-// Helper function to save cache to localStorage
+// Helper function to save cache
 const saveCache = (cache) => {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-  } catch (error) {
-    console.error('Error saving cache to localStorage:', error);
-  }
+  // No need to save since we're using a Map
 };
 
 // Helper function to generate cache key
@@ -43,23 +35,8 @@ const logCacheStatus = (cacheKey, hit) => {
 
 // Helper function to clear related caches
 const clearRelatedCaches = (url) => {
-  const urlParts = url.split('/');
-  const sheetName = urlParts[1]; // Get the sheet name from the URL
-  
-  const cache = getCache();
-  let cleared = false;
-  
-  // Clear all caches related to this sheet
-  Object.keys(cache).forEach(key => {
-    if (key.includes(sheetName)) {
-      delete cache[key];
-      cleared = true;
-    }
-  });
-  
-  if (cleared) {
-    saveCache(cache);
-  }
+  // Clear the entire cache for write operations
+  globalCache.clear();
 };
 
 const api = axios.create({
@@ -100,8 +77,7 @@ api.interceptors.response.use(
 const apiWithCache = {
   get: async (url, config = {}) => {
     const cacheKey = generateCacheKey('get', url, config.params);
-    const cache = getCache();
-    const cachedData = cache[cacheKey];
+    const cachedData = globalCache.get(cacheKey);
 
     if (cachedData && isCacheValid(cachedData.timestamp)) {
       logCacheStatus(cacheKey, true);
@@ -112,11 +88,10 @@ const apiWithCache = {
     const response = await api.get(url, config);
     
     // Update cache
-    cache[cacheKey] = {
+    globalCache.set(cacheKey, {
       data: response.data,
       timestamp: Date.now()
-    };
-    saveCache(cache);
+    });
     
     return response;
   },
