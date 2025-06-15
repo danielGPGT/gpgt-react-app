@@ -5,11 +5,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bell, Mail, Shield, User, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/ui/app-sidebar";
-import { AppHeader } from "@/components/ui/app-header";
 
 function SettingsPage() {
   const [user, setUser] = useState(null);
@@ -57,11 +54,7 @@ function SettingsPage() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
       <main className="w-full">
-        <div className="p-8">
-          <AppHeader className="mb-6" />
 
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-8">
@@ -220,9 +213,7 @@ function SettingsPage() {
               </TabsContent>
             </Tabs>
           </div>
-        </div>
       </main>
-    </SidebarProvider>
   );
 }
 

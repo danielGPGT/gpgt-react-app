@@ -29,7 +29,7 @@ import {
   Map,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
 import {
@@ -111,27 +111,32 @@ const menuItems = [
     subItems: [
       {
         title: "Tickets",
-        url: "/inventory?tab=tickets",
+        url: "/inventory",
+        query: "tab=tickets",
         icon: Ticket,
       },
       {
         title: "Hotels & Rooms",
-        url: "/inventory?tab=hotels",
+        url: "/inventory",
+        query: "tab=hotels",
         icon: Hotel,
       },
       {
         title: "Circuit Transfers",
-        url: "/inventory?tab=circuits",
+        url: "/inventory",
+        query: "tab=circuits",
         icon: Bus,
       },
       {
         title: "Airport Transfers",
-        url: "/inventory?tab=airport",
+        url: "/inventory",
+        query: "tab=airport",
         icon: Bus,
       },
       {
         title: "Lounge Passes",
-        url: "/inventory?tab=lounge",
+        url: "/inventory",
+        query: "tab=lounge",
         icon: Coffee,
       },
     ],
@@ -189,6 +194,7 @@ const menuItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, mode } = useTheme();
   const [user, setUser] = useState({
     first_name: "",
@@ -248,6 +254,11 @@ export function AppSidebar() {
     item.allowedRoles.includes(user.role)
   );
 
+  // Add this function to handle sub-item navigation
+  const handleSubItemClick = (url, query) => {
+    navigate(`${url}?${query}`);
+  };
+
   return (
     <Sidebar collapsible="icon" className="bg-sidebar">
       <SidebarHeader className="flex flex-row items-center gap-3 pb-2 pt-4">
@@ -298,8 +309,8 @@ export function AppSidebar() {
                                 "text-foreground hover:bg-muted hover:text-foreground"
                             )}
                           >
-                            <a
-                              href={item.url}
+                            <Link
+                              to={item.url}
                               className="flex items-center gap-2 flex-1"
                             >
                               <item.icon
@@ -313,7 +324,7 @@ export function AppSidebar() {
                               <span className="group-data-[collapsible=icon]:hidden">
                                 {item.title}
                               </span>
-                            </a>
+                            </Link>
                           </SidebarMenuButton>
                           <Button
                             variant="ghost"
@@ -341,8 +352,8 @@ export function AppSidebar() {
                                   tooltip={subItem.title}
                                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                                 >
-                                  <a
-                                    href={subItem.url}
+                                  <Link
+                                    to={subItem.url}
                                     className="flex items-center gap-2"
                                   >
                                     <subItem.icon
@@ -354,7 +365,7 @@ export function AppSidebar() {
                                       )}
                                     />
                                     <span>{subItem.title}</span>
-                                  </a>
+                                  </Link>
                                 </SidebarMenuButton>
                               ))}
                             </div>
@@ -377,7 +388,7 @@ export function AppSidebar() {
                           "text-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      <a href={item.url} className="flex items-center gap-2">
+                      <Link to={item.url} className="flex items-center gap-2">
                         <item.icon
                           className={cn(
                             "!w-4 !h-4",
@@ -389,7 +400,7 @@ export function AppSidebar() {
                         <span className="group-data-[collapsible=icon]:hidden">
                           {item.title}
                         </span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -427,8 +438,8 @@ export function AppSidebar() {
                                 "text-foreground hover:bg-muted hover:text-foreground"
                             )}
                           >
-                            <a
-                              href={item.url}
+                            <Link
+                              to={item.url}
                               className="flex items-center gap-2 flex-1"
                             >
                               <item.icon
@@ -442,7 +453,7 @@ export function AppSidebar() {
                               <span className="group-data-[collapsible=icon]:hidden">
                                 {item.title}
                               </span>
-                            </a>
+                            </Link>
                           </SidebarMenuButton>
                           <Button
                             variant="ghost"
@@ -470,8 +481,8 @@ export function AppSidebar() {
                                   tooltip={subItem.title}
                                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                                 >
-                                  <a
-                                    href={subItem.url}
+                                  <Link
+                                    to={subItem.url}
                                     className="flex items-center gap-2"
                                   >
                                     <subItem.icon
@@ -483,7 +494,7 @@ export function AppSidebar() {
                                       )}
                                     />
                                     <span>{subItem.title}</span>
-                                  </a>
+                                  </Link>
                                 </SidebarMenuButton>
                               ))}
                             </div>
@@ -506,7 +517,7 @@ export function AppSidebar() {
                           "text-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      <a href={item.url} className="flex items-center gap-2">
+                      <Link to={item.url} className="flex items-center gap-2">
                         <item.icon
                           className={cn(
                             "!w-4 !h-4",
@@ -518,7 +529,7 @@ export function AppSidebar() {
                         <span className="group-data-[collapsible=icon]:hidden">
                           {item.title}
                         </span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -556,8 +567,8 @@ export function AppSidebar() {
                                 "text-foreground hover:bg-muted hover:text-foreground"
                             )}
                           >
-                            <a
-                              href={item.url}
+                            <Link
+                              to={item.url}
                               className="flex items-center gap-2 flex-1"
                             >
                               <item.icon
@@ -571,7 +582,7 @@ export function AppSidebar() {
                               <span className="group-data-[collapsible=icon]:hidden">
                                 {item.title}
                               </span>
-                            </a>
+                            </Link>
                           </SidebarMenuButton>
                           <Button
                             variant="ghost"
@@ -599,20 +610,20 @@ export function AppSidebar() {
                                   tooltip={subItem.title}
                                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                                 >
-                                  <a
-                                    href={subItem.url}
-                                    className="flex items-center gap-2"
+                                  <button
+                                    onClick={() => handleSubItemClick(subItem.url, subItem.query)}
+                                    className="flex items-center gap-2 w-full text-left"
                                   >
                                     <subItem.icon
                                       className={cn(
                                         "!w-4 !h-4",
-                                        location.pathname === subItem.url
+                                        location.pathname === subItem.url && location.search === `?${subItem.query}`
                                           ? "text-primary-foreground"
                                           : "text-primary"
                                       )}
                                     />
                                     <span>{subItem.title}</span>
-                                  </a>
+                                  </button>
                                 </SidebarMenuButton>
                               ))}
                             </div>
@@ -635,7 +646,7 @@ export function AppSidebar() {
                           "text-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      <a href={item.url} className="flex items-center gap-2">
+                      <Link to={item.url} className="flex items-center gap-2">
                         <item.icon
                           className={cn(
                             "!w-4 !h-4",
@@ -647,7 +658,7 @@ export function AppSidebar() {
                         <span className="group-data-[collapsible=icon]:hidden">
                           {item.title}
                         </span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -685,8 +696,8 @@ export function AppSidebar() {
                                 "text-foreground hover:bg-muted hover:text-foreground"
                             )}
                           >
-                            <a
-                              href={item.url}
+                            <Link
+                              to={item.url}
                               className="flex items-center gap-2 flex-1"
                             >
                               <item.icon
@@ -700,7 +711,7 @@ export function AppSidebar() {
                               <span className="group-data-[collapsible=icon]:hidden">
                                 {item.title}
                               </span>
-                            </a>
+                            </Link>
                           </SidebarMenuButton>
                           <Button
                             variant="ghost"
@@ -728,8 +739,8 @@ export function AppSidebar() {
                                   tooltip={subItem.title}
                                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                                 >
-                                  <a
-                                    href={subItem.url}
+                                  <Link
+                                    to={subItem.url}
                                     className="flex items-center gap-2"
                                   >
                                     <subItem.icon
@@ -741,7 +752,7 @@ export function AppSidebar() {
                                       )}
                                     />
                                     <span>{subItem.title}</span>
-                                  </a>
+                                  </Link>
                                 </SidebarMenuButton>
                               ))}
                             </div>
@@ -764,7 +775,7 @@ export function AppSidebar() {
                           "text-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      <a href={item.url} className="flex items-center gap-2">
+                      <Link to={item.url} className="flex items-center gap-2">
                         <item.icon
                           className={cn(
                             "!w-4 !h-4",
@@ -776,7 +787,7 @@ export function AppSidebar() {
                         <span className="group-data-[collapsible=icon]:hidden">
                           {item.title}
                         </span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -814,8 +825,8 @@ export function AppSidebar() {
                                 "text-foreground hover:bg-muted hover:text-foreground"
                             )}
                           >
-                            <a
-                              href={item.url}
+                            <Link
+                              to={item.url}
                               className="flex items-center gap-2 flex-1"
                             >
                               <item.icon
@@ -829,7 +840,7 @@ export function AppSidebar() {
                               <span className="group-data-[collapsible=icon]:hidden">
                                 {item.title}
                               </span>
-                            </a>
+                            </Link>
                           </SidebarMenuButton>
                           <Button
                             variant="ghost"
@@ -857,8 +868,8 @@ export function AppSidebar() {
                                   tooltip={subItem.title}
                                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                                 >
-                                  <a
-                                    href={subItem.url}
+                                  <Link
+                                    to={subItem.url}
                                     className="flex items-center gap-2"
                                   >
                                     <subItem.icon
@@ -870,7 +881,7 @@ export function AppSidebar() {
                                       )}
                                     />
                                     <span>{subItem.title}</span>
-                                  </a>
+                                  </Link>
                                 </SidebarMenuButton>
                               ))}
                             </div>
@@ -893,7 +904,7 @@ export function AppSidebar() {
                           "text-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      <a href={item.url} className="flex items-center gap-2">
+                      <Link to={item.url} className="flex items-center gap-2">
                         <item.icon
                           className={cn(
                             "!w-4 !h-4",
@@ -905,7 +916,7 @@ export function AppSidebar() {
                         <span className="group-data-[collapsible=icon]:hidden">
                           {item.title}
                         </span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -929,7 +940,7 @@ export function AppSidebar() {
                     : "text-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <a href="/settings" className="flex items-center gap-2">
+                <Link to="/settings" className="flex items-center gap-2">
                   <Settings
                     className={cn(
                       "!w-4 !h-4",
@@ -941,7 +952,7 @@ export function AppSidebar() {
                   <span className="group-data-[collapsible=icon]:hidden">
                     Settings
                   </span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -955,7 +966,7 @@ export function AppSidebar() {
                     : "text-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <a href="/documentation" className="flex items-center gap-2">
+                <Link to="/documentation" className="flex items-center gap-2">
                   <BookOpen
                     className={cn(
                       "!w-4 !h-4",
@@ -967,7 +978,7 @@ export function AppSidebar() {
                   <span className="group-data-[collapsible=icon]:hidden">
                     Documentation
                   </span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -981,7 +992,7 @@ export function AppSidebar() {
                     : "text-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <a href="/instructions" className="flex items-center gap-2">
+                <Link to="/instructions" className="flex items-center gap-2">
                   <HelpCircle
                     className={cn(
                       "!w-4 !h-4",
@@ -993,7 +1004,7 @@ export function AppSidebar() {
                   <span className="group-data-[collapsible=icon]:hidden">
                     Instructions
                   </span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -1048,7 +1059,7 @@ export function AppSidebar() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
-                <a href="/dashboard" className="flex items-center">
+                <Link to="/dashboard" className="flex items-center">
                   <Gauge
                     className={cn(
                       "w-4 h-4 mr-2",
@@ -1058,10 +1069,10 @@ export function AppSidebar() {
                     )}
                   />{" "}
                   My Dashboard
-                </a>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href="/my-account" className="flex items-center">
+                <Link to="/my-account" className="flex items-center">
                   <User
                     className={cn(
                       "w-4 h-4 mr-0",
@@ -1071,7 +1082,7 @@ export function AppSidebar() {
                     )}
                   />{" "}
                   My Account
-                </a>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>

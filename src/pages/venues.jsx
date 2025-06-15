@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/ui/app-sidebar";
 import { jwtDecode } from "jwt-decode";
 import { MapPin } from "lucide-react";
-import { AppHeader } from "@/components/ui/app-header";
 import { VenuesTable } from "@/components/ui/venuesTable";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -137,11 +134,7 @@ function VenuesPage() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
       <main className="w-full">
-        <div className="p-8">
-          <AppHeader className="mb-6" />
 
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-8">
@@ -174,9 +167,7 @@ function VenuesPage() {
               setNewVenue={setNewVenue}
             />
           </div>
-        </div>
       </main>
-    </SidebarProvider>
   );
 }
 

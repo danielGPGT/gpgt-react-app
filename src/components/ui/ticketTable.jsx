@@ -664,13 +664,6 @@ function TicketTable() {
         markup: "Markup",
         event_days: "Event Days",
         ticket_type: "Ticket Type",
-        video_wall: "Video Wall",
-        covered_seat: "Covered Seat",
-        numbered_seat: "Numbered Seat",
-        delivery_days: "Delivery days",
-        ticket_description: "Ticket Description",
-        ticket_image_1: "Ticket image 1",
-        ticket_image_2: "Ticket Image 2",
       };
 
       const columnName = columnMappings[field];
@@ -884,8 +877,6 @@ function TicketTable() {
         ...prev,
         category_id: category.category_id,
         package_type: category.package_type,
-        ticket_image_1: category.ticket_image_1,
-        ticket_image_2: category.ticket_image_2,
       }));
     };
 
@@ -1467,8 +1458,6 @@ function TicketTable() {
         category_id: category.category_id,
         package_type: category.package_type,
         ticket_name: category.category_name,
-        ticket_image_1: category.ticket_image_1,
-        ticket_image_2: category.ticket_image_2,
       }));
     };
 

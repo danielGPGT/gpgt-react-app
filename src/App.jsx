@@ -17,6 +17,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
 import { Toaster } from "sonner";
 import Pricing from "@/pages/Pricing";
+import { AppLayout } from "@/components/layout/app-layout";
 
 function App() {
   return (
@@ -28,7 +29,9 @@ function App() {
           path="/dashboard"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
-              <Dashboard />
+              <AppLayout>
+                <Dashboard />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
@@ -36,7 +39,9 @@ function App() {
           path="/pricing"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "External B2B"]}>
-              <Pricing />
+              <AppLayout>
+                <Pricing />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
@@ -44,7 +49,9 @@ function App() {
           path="/inventory"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Operations", "Internal Sales"]}>
-              <InventoryPage />
+              <AppLayout>
+                <InventoryPage />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
@@ -52,7 +59,9 @@ function App() {
           path="/bookings"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations"]}>
-              <BookingsPage />
+              <AppLayout>
+                <BookingsPage />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
@@ -60,23 +69,29 @@ function App() {
           path="/flights"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Operations", "Internal Sales"]}>
-              <FlightsPage />
+              <AppLayout>
+                <FlightsPage />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
-          <Route
-            path="/packages"
-            element={
-              <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations"]}>
+        <Route
+          path="/packages"
+          element={
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations"]}>
+              <AppLayout>
                 <PackagesPage />
-              </RoleBasedRoute>
-            }
-          />
+              </AppLayout>
+            </RoleBasedRoute>
+          }
+        />
         <Route
           path="/categories"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations"]}>
-              <CategoriesPage />
+              <AppLayout>
+                <CategoriesPage />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
@@ -84,7 +99,9 @@ function App() {
           path="/venues"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Operations", "Internal Sales"]}>
-              <VenuesPage />
+              <AppLayout>
+                <VenuesPage />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
@@ -92,7 +109,9 @@ function App() {
           path="/events"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Operations", "Internal Sales"]}>
-              <EventsPage />
+              <AppLayout>
+                <EventsPage />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
@@ -100,7 +119,9 @@ function App() {
           path="/settings"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
-              <SettingsPage />
+              <AppLayout>
+                <SettingsPage />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
@@ -108,7 +129,9 @@ function App() {
           path="/documentation"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
-              <Documentation />
+              <AppLayout>
+                <Documentation />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
@@ -116,13 +139,22 @@ function App() {
           path="/instructions"
           element={
             <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
-              <Instructions />
+              <AppLayout>
+                <Instructions />
+              </AppLayout>
             </RoleBasedRoute>
           }
         />
-        <Route path="/my-account" element={<RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
-        <MyAccount />
-        </RoleBasedRoute>} />
+        <Route
+          path="/my-account"
+          element={
+            <RoleBasedRoute allowedRoles={["Admin", "Internal Sales", "Operations", "External B2B"]}>
+              <AppLayout>
+                <MyAccount />
+              </AppLayout>
+            </RoleBasedRoute>
+          }
+        />
       </Routes>
     </ThemeProvider>
   );

@@ -1,7 +1,4 @@
 "use client";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/ui/app-sidebar";
-import { AppHeader } from "@/components/ui/app-header";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from 'jwt-decode';
@@ -378,7 +375,6 @@ function MyAccount() {
 
       try {
         const response = await api.post('/change-password', requestData);
-        console.log('API Response received:', response);
 
         if (response.data.token) {
           // Update the token in localStorage
@@ -492,11 +488,8 @@ function MyAccount() {
   }
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full">
-        <AppSidebar />
-        <main className="flex-1 overflow-y-auto p-8 w-full">
-          <AppHeader className="mb-6" />
+      <div className="flex h-screen w-full mt-6">
+        <main className="flex-1 overflow-y-auto w-full">
           
 
           <div className="w-full max-w-3xl mx-auto">
@@ -838,7 +831,6 @@ function MyAccount() {
           </div>
         </main>
       </div>
-    </SidebarProvider>
   );
 }
 

@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/ui/app-sidebar";
 import { jwtDecode } from "jwt-decode";
 import { FlightsTable } from "@/components/ui/flightsTable";
 import { Plane } from "lucide-react";
-import { AppHeader } from "@/components/ui/app-header";
 
 function FlightsPage() {
   const [user, setUser] = useState(null);
@@ -26,11 +23,7 @@ function FlightsPage() {
   }, []);
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
       <main className="w-full">
-        <div className="p-8">
-          <AppHeader className="mb-6" />
 
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-8">
@@ -44,9 +37,7 @@ function FlightsPage() {
           <div className="flex w-full justify-between mt-6 gap-6">
             <FlightsTable />
           </div>
-        </div>
       </main>
-    </SidebarProvider>
   );
 }
 

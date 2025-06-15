@@ -334,31 +334,24 @@ function ExternalPricing({
     updateExchangeRate();
   }, [selectedCurrency, spread]);
 
-  useEffect(() => {
-    async function fetchUser() {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      try {
-        const decoded = jwtDecode(token);
+  const fetchUser = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const decoded = jwtDecode(token);
 
-        if (decoded && decoded.b2b_commission !== undefined) {
-          // Now handling b2b_commission as an integer
-          const commission = Number(decoded.b2b_commission) / 100;
-          setB2bCommission(commission);
-        } else {
-          console.log("No b2b_commission found in token");
-        }
-      } catch (error) {
-        console.error("Failed to decode user token:", error);
+      if (decoded && decoded.b2b_commission !== undefined) {
+        const commission = Number(decoded.b2b_commission) / 100;
+        setB2bCommission(commission);
       }
+    } catch (error) {
+      console.error("Failed to decode user token");
     }
+  };
+
+  useEffect(() => {
     fetchUser();
   }, []);
-
-  // Add a useEffect to monitor b2bCommission changes
-  useEffect(() => {
-    console.log("b2bCommission state changed:", b2bCommission);
-  }, [b2bCommission]);
 
   const handleDateChange = (range) => {
     setDateRange(range);
@@ -399,7 +392,6 @@ function ExternalPricing({
 
   useEffect(() => {
     if (salesTeams.length > 0) {
-      console.log("Sales teams updated:", salesTeams);
       setSalesTeam(salesTeams);
     }
   }, [salesTeams, setSalesTeam]);
@@ -517,7 +509,6 @@ function ExternalPricing({
       const roomsRes = await api.get("/rooms", {
         params: { packageId },
       });
-      console.log('Rooms API Response:', roomsRes.data);
 
       // Extract unique hotel IDs from rooms
       const uniqueHotelIds = [...new Set(roomsRes.data.map(room => room.hotel_id))];
@@ -526,7 +517,6 @@ function ExternalPricing({
       const hotelsRes = await api.get("/hotels", {
         params: { hotelIds: uniqueHotelIds.join(',') },
       });
-      console.log('Hotels API Response:', hotelsRes.data);
 
       // Get other data in parallel
       const [ticketsRes, flightsRes, loungePassesRes, circuitTransfersRes, airportTransfersRes, tiersRes] = await Promise.all([
@@ -537,13 +527,6 @@ function ExternalPricing({
         api.get("/airport-transfers", { params: { packageId } }),
         api.get("/package-tiers", { params: { packageId } })
       ]);
-
-      console.log('Tickets API Response:', ticketsRes.data);
-      console.log('Flights API Response:', flightsRes.data);
-      console.log('Lounge Passes API Response:', loungePassesRes.data);
-      console.log('Circuit Transfers API Response:', circuitTransfersRes.data);
-      console.log('Airport Transfers API Response:', airportTransfersRes.data);
-      console.log('Package Tiers API Response:', tiersRes.data);
 
       setRooms(roomsRes.data);
       setHotels(hotelsRes.data);
@@ -557,7 +540,7 @@ function ExternalPricing({
       const foundPackage = packages.find((p) => p.package_id === packageId);
       setSelectedPackage(foundPackage);
     } catch (error) {
-      console.error("Failed to fetch package data:", error);
+      console.error("Failed to fetch package data");
       toast.error("Failed to load package data. Please try again.");
     } finally {
       setLoadingHotels(false);
@@ -828,7 +811,6 @@ function ExternalPricing({
             packageId: selectedPackage?.package_id 
           },
         });
-        console.log('Hotel Rooms API Response:', roomsRes.data);
 
         // Get transfers
         const [circuitRes, airportRes] = await Promise.all([
@@ -839,8 +821,6 @@ function ExternalPricing({
             params: { hotelId: hotel.hotel_id },
           }),
         ]);
-        console.log('Hotel Circuit Transfers API Response:', circuitRes.data);
-        console.log('Hotel Airport Transfers API Response:', airportRes.data);
 
         setRooms(roomsRes.data);
         setCircuitTransfers(circuitRes.data);
@@ -867,7 +847,6 @@ function ExternalPricing({
     try {
       setLoadingRooms(true);
       const room = rooms.find((r) => r.room_id === roomId);
-      console.log('Selected Room Full Data:', JSON.stringify(room, null, 2));
       if (room) {
         setSelectedRoom(room);
         // Set date range from room's check-in and check-out dates
@@ -895,7 +874,6 @@ function ExternalPricing({
     }
 
     const foundTicket = tickets.find((ticket) => ticket.ticket_id === ticketId);
-    console.log('Selected Ticket Data:', foundTicket);
     if (foundTicket) {
       try {
         // Fetch category using category_id
@@ -904,7 +882,6 @@ function ExternalPricing({
             categoryId: foundTicket.category_id
           }
         });
-        console.log('Ticket Category API Response:', categoryRes.data);
         
         if (categoryRes.data && categoryRes.data.length > 0) {
           const matchedCategory = categoryRes.data.find(cat => cat.category_id === foundTicket.category_id);
@@ -923,7 +900,6 @@ function ExternalPricing({
                 ticket_image_2: matchedCategory.ticket_image_2 || ''
               }
             };
-            console.log('Ticket with Category:', ticketWithCategory);
             setSelectedTicket(ticketWithCategory);
             setTicketQuantity(numberOfAdults);
             if (selectedCircuitTransfer) {
@@ -966,7 +942,6 @@ function ExternalPricing({
     const foundTransfer = circuitTransfers.find(
       (transfer) => transfer.circuit_transfer_id === transferId
     );
-    console.log('Selected Circuit Transfer Full Data:', JSON.stringify(foundTransfer, null, 2));
     setSelectedCircuitTransfer(foundTransfer);
     setCircuitTransferQuantity(effectiveTicketQuantity);
   };
@@ -981,7 +956,6 @@ function ExternalPricing({
     const foundTransfer = airportTransfers.find(
       (transfer) => transfer.airport_transfer_id === transferId
     );
-    console.log('Selected Airport Transfer Full Data:', JSON.stringify(foundTransfer, null, 2));
     setSelectedAirportTransfer(foundTransfer);
     const needed = Math.ceil(
       numberOfAdults / (foundTransfer.max_capacity || 1)

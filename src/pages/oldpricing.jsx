@@ -1,16 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/ui/app-header";
 import { InternalPricing } from "@/components/ui/internalPricing";
 import { ExternalPricing } from "@/components/ui/externalPricing";
 import { BookingForm } from "@/components/ui/bookingForm";
 import { RequestBooking } from "@/components/ui/requestBooking";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/ui/app-sidebar";
-import { jwtDecode } from "jwt-decode"; // Import this
-import api from "@/lib/api"; // Import your api
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { jwtDecode } from "jwt-decode";
+import api from "@/lib/api";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format, differenceInCalendarDays } from "date-fns";
 import { BadgePoundSterling, Package } from "lucide-react";
@@ -351,11 +348,8 @@ function PricingSheet() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
       <main className="w-full">
         <div className="p-8">
-          <AppHeader className="mb-6" />
 
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-8">
@@ -1136,7 +1130,6 @@ function PricingSheet() {
           </div>
         </div>
       </main>
-    </SidebarProvider>
   );
 }
 

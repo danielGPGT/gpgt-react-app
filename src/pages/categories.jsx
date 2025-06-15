@@ -34,11 +34,8 @@ function CategoriesPage() {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full">
-        <AppSidebar />
-        <main className="flex-1 overflow-y-auto p-8 w-full">
-          <AppHeader className="mb-6" />
+      <div className="flex h-screen w-full mt-6">
+        <main className="flex-1 overflow-y-auto w-full">
           <div className="flex items-center gap-2 mb-6">
             <Ticket className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold">Ticket Categories</h1>
@@ -46,7 +43,6 @@ function CategoriesPage() {
           <CategoriesTable />
         </main>
       </div>
-    </SidebarProvider>
   );
 }
 

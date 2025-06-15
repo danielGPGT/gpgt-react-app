@@ -60,11 +60,7 @@ function Dashboard() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <main className="w-full">
-        <div className="p-8">
-        <AppHeader className="mb-6" />
+      <main className="w-full"> 
 
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-8">
@@ -79,9 +75,7 @@ function Dashboard() {
             {/* Render role-specific dashboard */}
             {renderDashboardContent()}
           </div>
-        </div>
       </main>
-    </SidebarProvider>
   );
 }
 

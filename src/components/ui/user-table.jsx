@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import api from "@/lib/api";
+import { v4 as uuidv4 } from 'uuid';
 import {
   Table,
   TableBody,
@@ -350,7 +351,12 @@ function UsersTable() {
     const handleFormSubmit = async () => {
       try {
         setIsSubmitting(true);
-        await handleSubmit(formData);
+        // Generate UUID for new user
+        const userData = {
+          ...formData,
+          user_id: uuidv4()
+        };
+        await handleSubmit(userData);
         toast.success("User added successfully!");
         onCancel();
       } catch (error) {

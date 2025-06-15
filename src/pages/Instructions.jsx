@@ -1,21 +1,8 @@
 import { HelpCircle } from "lucide-react";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/ui/app-sidebar";
-import { AppHeader } from "@/components/ui/app-header";
 
 export default function Instructions() {
   return (
-    <SidebarProvider>
-      <style jsx global>{`
-        html {
-          scroll-behavior: smooth;
-        }
-      `}</style>
-      <AppSidebar />
       <main className="w-full">
-        <div className="p-8">
-          <AppHeader className="mb-6" />
-
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-8">
               <HelpCircle className="w-8 h-8 text-primary" />
@@ -381,8 +368,6 @@ export default function Instructions() {
               </div>
             </section>
           </div>
-        </div>
       </main>
-    </SidebarProvider>
   );
 } 

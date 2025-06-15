@@ -42,11 +42,7 @@ function BookingsPage() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
       <main className="w-full">
-        <div className="p-8">
-          <AppHeader className="mb-6" />
 
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-8">
@@ -58,11 +54,9 @@ function BookingsPage() {
           </div>
 
           <div className="flex w-full justify-between mt-6 gap-6">
-            {renderBookingsTable()}
-          </div>
+          {renderBookingsTable()}
         </div>
       </main>
-    </SidebarProvider>
   );
 }
 

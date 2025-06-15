@@ -1,32 +1,85 @@
 import axios from 'axios';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Log the API key configuration
-console.log('API Key from env:', import.meta.env.VITE_API_KEY);
-console.log('API URL from env:', import.meta.env.VITE_API_URL);
+// Cache configuration
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_KEY = 'api_cache';
+
+// Helper function to get cache from localStorage
+const getCache = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    return cached ? JSON.parse(cached) : {};
+  } catch (error) {
+    console.error('Error reading cache from localStorage:', error);
+    return {};
+  }
+};
+
+// Helper function to save cache to localStorage
+const saveCache = (cache) => {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch (error) {
+    console.error('Error saving cache to localStorage:', error);
+  }
+};
+
+// Helper function to generate cache key
+const generateCacheKey = (method, url, params) => {
+  const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
+  return `${method.toUpperCase()}:${url}${queryString}`;
+};
+
+// Helper function to check if cache is valid
+const isCacheValid = (timestamp) => {
+  return timestamp && (Date.now() - timestamp) < CACHE_DURATION;
+};
+
+// Helper function to log cache status
+const logCacheStatus = (cacheKey, hit) => {
+  const status = hit ? 'HIT' : 'MISS';
+  const timestamp = new Date().toLocaleTimeString();
+  console.log(`[${timestamp}] Cache ${status} for: ${cacheKey}`);
+};
+
+// Helper function to clear related caches
+const clearRelatedCaches = (url) => {
+  const urlParts = url.split('/');
+  const sheetName = urlParts[1]; // Get the sheet name from the URL
+  
+  const cache = getCache();
+  let cleared = false;
+  
+  // Clear all caches related to this sheet
+  Object.keys(cache).forEach(key => {
+    if (key.includes(sheetName)) {
+      delete cache[key];
+      cleared = true;
+      console.log(`[${new Date().toLocaleTimeString()}] Cleared cache for: ${key}`);
+    }
+  });
+  
+  if (cleared) {
+    saveCache(cache);
+  }
+};
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://api.grandprixgrandtours.com/api/v1/' || 'http://localhost:3000/api/v1/',
-  withCredentials: true, // allow cookies (useful later if you want secure auth)
+  withCredentials: true,
   headers: {
-    'x-api-key': import.meta.env.VITE_API_KEY // Set API key in default headers
+    'x-api-key': import.meta.env.VITE_API_KEY
   }
 });
 
 // Add a request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Log the headers being sent
-    console.log('Request headers:', config.headers);
-    
-    // Get the token from localStorage
     const token = localStorage.getItem('token');
-    
-    // If token exists, add it to the headers
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
     return config;
   },
   (error) => {
@@ -38,29 +91,60 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Log the error response
-    console.error('API Error:', error.response?.data);
-    
-    // Only remove token if it's an authentication error
     if (error.response?.data?.requiresReauth) {
       localStorage.removeItem('token');
-      // Redirect to login page
       window.location.href = '/';
     }
     return Promise.reject(error);
   }
 );
 
+// Create a wrapper for the API methods
+const apiWithCache = {
+  get: async (url, config = {}) => {
+    const cacheKey = generateCacheKey('get', url, config.params);
+    const cache = getCache();
+    const cachedData = cache[cacheKey];
+
+    if (cachedData && isCacheValid(cachedData.timestamp)) {
+      logCacheStatus(cacheKey, true);
+      return { data: cachedData.data };
+    }
+
+    logCacheStatus(cacheKey, false);
+    const response = await api.get(url, config);
+    
+    // Update cache
+    cache[cacheKey] = {
+      data: response.data,
+      timestamp: Date.now()
+    };
+    saveCache(cache);
+    
+    return response;
+  },
+
+  post: async (url, data, config = {}) => {
+    const response = await api.post(url, data, config);
+    clearRelatedCaches(url);
+    return response;
+  },
+
+  put: async (url, data, config = {}) => {
+    const response = await api.put(url, data, config);
+    clearRelatedCaches(url);
+    return response;
+  },
+
+  delete: async (url, data, config = {}) => {
+    const response = await api.delete(url, data, config);
+    clearRelatedCaches(url);
+    return response;
+  }
+};
+
 // Add Gemini API configuration
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-// Debug logging for API key
-console.log('Environment variables:', {
-  hasGeminiKey: !!import.meta.env.VITE_GEMINI_API_KEY,
-  keyLength: import.meta.env.VITE_GEMINI_API_KEY?.length,
-  keyPrefix: import.meta.env.VITE_GEMINI_API_KEY?.substring(0, 4),
-  envKeys: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
-});
 
 // Initialize the Google AI client only if the API key exists
 let genAI = null;
@@ -69,34 +153,21 @@ const initializeGenAI = () => {
   try {
     if (!GEMINI_API_KEY) {
       console.warn('Gemini API key not found in environment variables. AI features will be disabled.');
-      console.warn('Please ensure VITE_GEMINI_API_KEY is set in your .env file');
       return null;
     }
 
     if (typeof GEMINI_API_KEY !== 'string' || GEMINI_API_KEY.trim() === '') {
-      throw new Error('Invalid API key format. The API key must be a non-empty string.');
+      throw new Error('Invalid API key format');
     }
 
-    // Ensure we're in a browser environment
     if (typeof window === 'undefined') {
       throw new Error('Google AI client must be initialized in a browser environment');
     }
 
-    console.log('Initializing Google AI client...');
     const client = new GoogleGenerativeAI(GEMINI_API_KEY);
-    console.log('Google AI client created:', !!client);
     return client;
   } catch (error) {
-    console.error('Failed to initialize Google AI client:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      keyStatus: {
-        exists: !!GEMINI_API_KEY,
-        type: typeof GEMINI_API_KEY,
-        length: GEMINI_API_KEY?.length
-      }
-    });
+    console.error('Failed to initialize Google AI client');
     return null;
   }
 };
@@ -116,12 +187,10 @@ const getGenAIClient = () => {
 // Function to update an existing itinerary
 export const updateItinerary = async (bookingId, content) => {
   try {
-    console.log('Attempting to update itinerary for bookingId:', bookingId);
     const response = await api.put(`/itineraries?bookingId=${bookingId}`, {
       content,
       updated_at: new Date().toISOString()
     });
-    console.log('Update itinerary response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error updating itinerary:', error);
@@ -217,9 +286,7 @@ Number of Travelers: ${bookingData.adults}`;
 // Function to get an itinerary by booking ID
 export const getItinerary = async (bookingId) => {
   try {
-    console.log('Checking for existing itinerary with bookingId:', bookingId);
     const response = await api.get(`/itineraries?bookingId=${bookingId}`);
-    console.log('getItinerary response:', response.data);
     // Return null if the response is an empty array
     return Array.isArray(response.data) && response.data.length > 0 ? response.data[0] : null;
   } catch (error) {
@@ -243,23 +310,17 @@ export const getBookingItineraries = async (bookingId) => {
 // Function to store an itinerary
 export const storeItinerary = async (bookingId, itinerary) => {
   try {
-    // First check if an itinerary already exists
-    console.log('Checking if itinerary exists before storing for bookingId:', bookingId);
     const existingItinerary = await getItinerary(bookingId);
-    console.log('Existing itinerary check result:', existingItinerary);
     
     if (existingItinerary) {
-      console.log('Itinerary already exists, throwing error');
       throw new Error('An itinerary already exists for this booking. Please use the update function instead.');
     }
 
-    console.log('Storing new itinerary for bookingId:', bookingId);
     const response = await api.post('/itineraries', {
       booking_id: bookingId,
       content: itinerary,
       generated_at: new Date().toISOString()
     });
-    console.log('Store itinerary response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error storing itinerary:', error);
@@ -337,7 +398,7 @@ Only include the JSON object in your response, nothing else. If you cannot find 
         if (coord === null) return null;
         const num = parseFloat(coord);
         if (isNaN(num) || num < min || num > max) return null;
-        return Number(num.toFixed(6)); // Ensure 6 decimal places
+        return Number(num.toFixed(6));
       };
 
       const validatedLatitude = validateCoordinate(hotelInfo.latitude, -90, 90);
@@ -358,8 +419,6 @@ Only include the JSON object in your response, nothing else. If you cannot find 
       };
     } catch (parseError) {
       console.error('Error parsing hotel info:', parseError);
-      console.error('Raw response:', response.text());
-      console.error('Cleaned response:', cleanedResponse);
       throw new Error('Failed to parse hotel information');
     }
   } catch (error) {
@@ -623,4 +682,4 @@ Only include the JSON object in your response, nothing else. If you cannot find 
 };
 
 export { genAI };
-export default api;
+export default apiWithCache;

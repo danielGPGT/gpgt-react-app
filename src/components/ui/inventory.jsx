@@ -17,7 +17,7 @@ import { Ticket, Bed, Bus, Plane, Coffee, Hotel } from "lucide-react";
 function Inventory({ defaultTab = "tickets", onTabChange }) {
   return (
     <div className="space-y-4 w-full">
-      <Tabs defaultValue={defaultTab} className="" onValueChange={onTabChange}>
+      <Tabs value={defaultTab} className="" onValueChange={onTabChange}>
         <TabsList className="flex flex-wrap gap-4">
           <TabsTrigger value="tickets" className="flex items-center gap-2">
             <Ticket className="h-4 w-4" />
@@ -46,7 +46,7 @@ function Inventory({ defaultTab = "tickets", onTabChange }) {
         </TabsContent>
 
         <TabsContent value="hotels" className="mt-6">
-        <TestHotelRooms />
+          <TestHotelRooms />
         </TabsContent>
 
         <TabsContent value="circuits" className="mt-6">

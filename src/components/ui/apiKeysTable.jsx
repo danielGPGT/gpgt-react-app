@@ -197,13 +197,12 @@ export function ApiKeysTable() {
 
   const handleCreateKey = async () => {
     if (!newKey.name || !newKey.role) {
-      toast.error("Name and role are required");
+      toast.error("Please fill in all required fields");
       return;
     }
 
     setIsLoading(true);
     try {
-      // Set the allowed sheets based on the selected role
       const roleConfig = ROLE_SHEET_ACCESS[newKey.role];
       const generatedApiKey = uuidv4();
       const keyData = {
@@ -212,12 +211,10 @@ export function ApiKeysTable() {
         role: newKey.role,
         status: "active",
         expiry_date: formatDateForAPI(newKey.expiry_date),
-        allowed_sheets: roleConfig.sheets, // This will now be a tag like "public" or "public,booking"
+        allowed_sheets: roleConfig.sheets,
         created_by: localStorage.getItem('userEmail') || 'admin',
         created_at: formatDateForAPI(new Date().toISOString())
       };
-
-      console.log('Creating API key with data:', keyData);
 
       const response = await api.post("/api_keys", keyData);
       setGeneratedKey(generatedApiKey);
@@ -231,7 +228,7 @@ export function ApiKeysTable() {
         allowed_sheets: "",
       });
     } catch (error) {
-      console.error("Failed to create API key:", error);
+      console.error("Failed to create API key");
       toast.error(error.response?.data?.error || "Failed to create API key");
     } finally {
       setIsLoading(false);
@@ -324,7 +321,6 @@ export function ApiKeysTable() {
                   value={newKey.expiry_date}
                   onChange={(e) => {
                     const date = e.target.value;
-                    console.log('Selected expiry date:', date); // Debug log
                     setNewKey({ ...newKey, expiry_date: date });
                   }}
                 />

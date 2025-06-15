@@ -1,12 +1,8 @@
 import { useState, useEffect } from "react";
 import { BadgePoundSterling } from "lucide-react";
-import { AppHeader } from "@/components/ui/app-header";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/ui/app-sidebar";
 import { CombinedPricing } from "@/components/ui/combinedPricing";
 import api from "@/lib/api";
 import { jwtDecode } from "jwt-decode";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -132,11 +128,7 @@ function Pricing() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
       <main className="w-full">
-        <div className="p-8">
-          <AppHeader className="mb-6" />
 
           <div className="mt-6">
             <div className="flex items-center gap-3 mb-8">
@@ -260,10 +252,8 @@ function Pricing() {
               )}
             </DialogContent>
           </Dialog>
-        </div>
       </main>
-    </SidebarProvider>
-  );
+  );  
 }
 
 export default Pricing; 
