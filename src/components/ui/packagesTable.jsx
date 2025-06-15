@@ -112,7 +112,7 @@ const tierConfig = {
   }
 };
 
-// Update TierBadge component to use Trash2 icon for delete
+// Update TierBadge component to use status-based colors
 const TierBadge = ({ tier, onEdit, onDelete }) => {
   const config = tierConfig[tier.tier_type] || {
     icon: Package,
@@ -122,6 +122,27 @@ const TierBadge = ({ tier, onEdit, onDelete }) => {
   };
   const Icon = config.icon;
 
+  // Status-based colors
+  const statusColors = {
+    "sales open": {
+      color: "text-success",
+      bgColor: "bg-success/10",
+      borderColor: "border-success/20"
+    },
+    "sales closed": {
+      color: "text-destructive",
+      bgColor: "bg-destructive/10",
+      borderColor: "border-destructive/20"
+    },
+    "coming soon": {
+      color: "text-muted-foreground",
+      bgColor: "bg-muted",
+      borderColor: "border-muted"
+    }
+  };
+
+  const statusConfig = statusColors[tier.status] || statusColors["coming soon"];
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -130,10 +151,10 @@ const TierBadge = ({ tier, onEdit, onDelete }) => {
             <Button
               variant="ghost"
               size="icon"
-              className={`p-2 rounded-full border ${config.bgColor} ${config.borderColor} hover:opacity-80 transition-opacity cursor-pointer`}
+              className={`p-2 rounded-full border ${statusConfig.bgColor} ${statusConfig.borderColor} hover:opacity-80 transition-opacity cursor-pointer`}
               onClick={() => onEdit(tier)}
             >
-              <Icon className={`h-4 w-4 ${config.color}`} />
+              <Icon className={`h-4 w-4 ${statusConfig.color}`} />
             </Button>
             {/* Delete button - top right */}
             <Button
@@ -150,7 +171,7 @@ const TierBadge = ({ tier, onEdit, onDelete }) => {
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{tier.tier_type}</p>
+          <p>{tier.tier_type} ({tier.status})</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

@@ -306,7 +306,7 @@ export function TierDialog({
                 { value: "", label: "Select Ticket" },
                 ...tickets.map((ticket) => ({
                   value: ticket.ticket_id,
-                  label: ticket.ticket_name,
+                  label: `${ticket.ticket_name} ${ticket.remaining === "purchased_to_order" ? "(Purchased to order)" : `(${ticket.remaining || 0} remaining)`}`,
                 })),
               ]}
               value={formData.ticket_id}
@@ -375,7 +375,7 @@ export function TierDialog({
                   )
                   .map((room) => ({
                     value: room.room_id,
-                    label: `${room.room_category} - ${room.room_type}`,
+                    label: `${room.room_category} - ${room.room_type} ${room.remaining === "purchased_to_order" ? "(Purchased to order)" : `(${room.remaining || 0} remaining)`}`,
                   })),
               ]}
               value={formData.room_id}
