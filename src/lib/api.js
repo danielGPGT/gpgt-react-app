@@ -1,44 +1,6 @@
 import axios from 'axios';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Cache configuration
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-// Global cache using Map
-const globalCache = new Map();
-
-// Helper function to get cache
-const getCache = () => {
-  return globalCache;
-};
-
-// Helper function to save cache
-const saveCache = (cache) => {
-  // No need to save since we're using a Map
-};
-
-// Helper function to generate cache key
-const generateCacheKey = (method, url, params) => {
-  const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
-  return `${method.toUpperCase()}:${url}${queryString}`;
-};
-
-// Helper function to check if cache is valid
-const isCacheValid = (timestamp) => {
-  return timestamp && (Date.now() - timestamp) < CACHE_DURATION;
-};
-
-// Helper function to log cache status
-const logCacheStatus = (cacheKey, hit) => {
-  // Cache logging removed for security
-};
-
-// Helper function to clear related caches
-const clearRelatedCaches = (url) => {
-  // Clear the entire cache for write operations
-  globalCache.clear();
-};
-
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://api.grandprixgrandtours.com/api/v1/' || 'http://localhost:3000/api/v1/',
   withCredentials: true,
@@ -72,48 +34,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// Create a wrapper for the API methods
-const apiWithCache = {
-  get: async (url, config = {}) => {
-    const cacheKey = generateCacheKey('get', url, config.params);
-    const cachedData = globalCache.get(cacheKey);
-
-    if (cachedData && isCacheValid(cachedData.timestamp)) {
-      logCacheStatus(cacheKey, true);
-      return { data: cachedData.data };
-    }
-
-    logCacheStatus(cacheKey, false);
-    const response = await api.get(url, config);
-    
-    // Update cache
-    globalCache.set(cacheKey, {
-      data: response.data,
-      timestamp: Date.now()
-    });
-    
-    return response;
-  },
-
-  post: async (url, data, config = {}) => {
-    const response = await api.post(url, data, config);
-    clearRelatedCaches(url);
-    return response;
-  },
-
-  put: async (url, data, config = {}) => {
-    const response = await api.put(url, data, config);
-    clearRelatedCaches(url);
-    return response;
-  },
-
-  delete: async (url, data, config = {}) => {
-    const response = await api.delete(url, data, config);
-    clearRelatedCaches(url);
-    return response;
-  }
-};
 
 // Add Gemini API configuration
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -654,4 +574,4 @@ Only include the JSON object in your response, nothing else. If you cannot find 
 };
 
 export { genAI };
-export default apiWithCache;
+export default api;
