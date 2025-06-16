@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3000/api/v1/flight";
+const API_URL = import.meta.env.VITE_API_FLIGHT_URL || "http://localhost:3000/api/v1/flight";
 
 const FlightAPI = () => {
     const [token, setToken] = useState(null);
