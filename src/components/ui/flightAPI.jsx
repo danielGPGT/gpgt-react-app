@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3000/api/v1/flight";
+
 const FlightAPI = () => {
     const [token, setToken] = useState(null);
     const [error, setError] = useState(null);
@@ -49,7 +51,7 @@ const FlightAPI = () => {
 
     const getToken = async () => {
         try {
-            const response = await axios.post('http://localhost:3000/api/v1/flight/token');
+            const response = await axios.post(`${API_URL}/token`);
             setToken(response.data);
             setError(null);
         } catch (err) {
@@ -103,7 +105,7 @@ const FlightAPI = () => {
             console.log('Sending search request with params:', searchParams);
             console.log('Using token:', token.access_token);
 
-            const response = await axios.post('http://localhost:3000/api/v1/flight/search-low-fares', {
+            const response = await axios.post(`${API_URL}/search-low-fares`, {
                 token: token.access_token,
                 searchParams
             });
