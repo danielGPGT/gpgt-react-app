@@ -1,0 +1,5243 @@
+{
+    "LowFareResult": {
+      "Currency": {
+        "CurrencyId": "GBP",
+        "CurrencyCode": "826",
+        "CurrencyName": "Pound Sterling",
+        "CurrencySymbol": "&#163;",
+        "DecimalPlaces": 2
+      },
+      "Locations": [
+        {
+          "AirportId": "LHR",
+          "AirportName": "London Heathrow"
+        },
+        {
+          "AirportId": "DXB",
+          "AirportName": "Dubai Intl"
+        },
+        {
+          "AirportId": "LGW",
+          "AirportName": "London Gatwick"
+        },
+        {
+          "AirportId": "STN",
+          "AirportName": "London Stansted"
+        }
+      ],
+      "Airlines": [
+        {
+          "AirlineId": "BA",
+          "AirlineName": "British Airways",
+          "SkytraxRating": 4
+        },
+        {
+          "AirlineId": "VS",
+          "AirlineName": "Virgin Atlantic Airways",
+          "SkytraxRating": 4
+        },
+        {
+          "AirlineId": "EK",
+          "AirlineName": "Emirates",
+          "SkytraxRating": 4
+        }
+      ],
+      "Cabins": [
+        {
+          "CabinId": "ECO",
+          "CabinName": "Economy"
+        },
+        {
+          "CabinId": "PEC",
+          "CabinName": "Premium Economy",
+          "IsPremium": true
+        },
+        {
+          "CabinId": "UAECO",
+          "CabinName": "Economy"
+        },
+        {
+          "CabinId": "QFPEC",
+          "CabinName": "Premium Economy",
+          "IsPremium": true
+        },
+        {
+          "CabinId": "CALEC",
+          "CabinName": "Economy",
+          "DisplayOrder": 401
+        }
+      ],
+      "PassengerTypes": [
+        {
+          "PassengerTypeId": "ADT",
+          "PassengerTypeName": "Adult"
+        },
+        {
+          "PassengerTypeId": "IIT",
+          "PassengerTypeName": "Indiv. INCL. Tour PSGR"
+        }
+      ],
+      "RevenueStreams": [
+        {
+          "RevenueStreamId": "VAI",
+          "RevenueStreamName": "Virgin Atlantic IT"
+        },
+        {
+          "RevenueStreamId": "ITE",
+          "RevenueStreamName": "Emirates IT"
+        },
+        {
+          "RevenueStreamId": "ITD",
+          "RevenueStreamName": "Inclusive Tour Deferred"
+        }
+      ],
+      "FareTypes": [
+        {
+          "FareTypeId": "ITR",
+          "FareTypeName": "Inclusive Tour Fare"
+        }
+      ],
+      "FareSubTypes": [
+        {
+          "FareSubTypeId": "ITRDEF",
+          "FareSubTypeName": "Inclusive Tour Deferred"
+        },
+        {
+          "FareSubTypeId": "CATNRM",
+          "FareSubTypeName": "CAT 35 Fare"
+        }
+      ],
+      "Flights": [
+        {
+          "FlightId": "F1",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T12:35:00",
+          "ArrivalDateTime": "2025-12-11T23:40:00",
+          "DepartureDateTimeUtc": "2025-12-11T12:35:00Z",
+          "ArrivalDateTimeUtc": "2025-12-11T19:40:00Z",
+          "FlightNumber": "0107",
+          "MarketingAirlineId": "BA",
+          "OperatingAirlineId": "BA",
+          "FlightDuration": "07:05",
+          "AircraftType": "388",
+          "DepartureTerminal": "5",
+          "ArrivalTerminal": "1",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "UAECO"
+            },
+            {
+              "GenericCabinId": "PEC",
+              "AirlineCabinId": "QFPEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F2",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T21:35:00",
+          "ArrivalDateTime": "2025-12-12T08:30:00",
+          "DepartureDateTimeUtc": "2025-12-11T21:35:00Z",
+          "ArrivalDateTimeUtc": "2025-12-12T04:30:00Z",
+          "FlightNumber": "0109",
+          "MarketingAirlineId": "BA",
+          "OperatingAirlineId": "BA",
+          "FlightDuration": "06:55",
+          "AircraftType": "781",
+          "DepartureTerminal": "5",
+          "ArrivalTerminal": "1",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "UAECO"
+            },
+            {
+              "GenericCabinId": "PEC",
+              "AirlineCabinId": "QFPEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F3",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T20:40:00",
+          "ArrivalDateTime": "2025-12-12T07:40:00",
+          "DepartureDateTimeUtc": "2025-12-11T20:40:00Z",
+          "ArrivalDateTimeUtc": "2025-12-12T03:40:00Z",
+          "FlightNumber": "0105",
+          "MarketingAirlineId": "BA",
+          "OperatingAirlineId": "BA",
+          "FlightDuration": "07:00",
+          "AircraftType": "781",
+          "DepartureTerminal": "5",
+          "ArrivalTerminal": "1",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "UAECO"
+            },
+            {
+              "GenericCabinId": "PEC",
+              "AirlineCabinId": "QFPEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F4",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T02:15:00",
+          "ArrivalDateTime": "2025-12-15T06:25:00",
+          "DepartureDateTimeUtc": "2025-12-14T22:15:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T06:25:00Z",
+          "FlightNumber": "0106",
+          "MarketingAirlineId": "BA",
+          "OperatingAirlineId": "BA",
+          "FlightDuration": "08:10",
+          "AircraftType": "388",
+          "DepartureTerminal": "1",
+          "ArrivalTerminal": "5",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "UAECO"
+            },
+            {
+              "GenericCabinId": "PEC",
+              "AirlineCabinId": "QFPEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F5",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T10:00:00",
+          "ArrivalDateTime": "2025-12-15T14:15:00",
+          "DepartureDateTimeUtc": "2025-12-15T06:00:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T14:15:00Z",
+          "FlightNumber": "0104",
+          "MarketingAirlineId": "BA",
+          "OperatingAirlineId": "BA",
+          "FlightDuration": "08:15",
+          "AircraftType": "781",
+          "DepartureTerminal": "1",
+          "ArrivalTerminal": "5",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "UAECO"
+            },
+            {
+              "GenericCabinId": "PEC",
+              "AirlineCabinId": "QFPEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F6",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T13:20:00",
+          "ArrivalDateTime": "2025-12-15T17:25:00",
+          "DepartureDateTimeUtc": "2025-12-15T09:20:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T17:25:00Z",
+          "FlightNumber": "0108",
+          "MarketingAirlineId": "BA",
+          "OperatingAirlineId": "BA",
+          "FlightDuration": "08:05",
+          "AircraftType": "781",
+          "DepartureTerminal": "1",
+          "ArrivalTerminal": "5",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "UAECO"
+            },
+            {
+              "GenericCabinId": "PEC",
+              "AirlineCabinId": "QFPEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F7",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T21:35:00",
+          "ArrivalDateTime": "2025-12-12T08:45:00",
+          "DepartureDateTimeUtc": "2025-12-11T21:35:00Z",
+          "ArrivalDateTimeUtc": "2025-12-12T04:45:00Z",
+          "FlightNumber": "400",
+          "MarketingAirlineId": "VS",
+          "OperatingAirlineId": "VS",
+          "FlightDuration": "07:10",
+          "AircraftType": "789",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "1",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F8",
+          "DepartureAirportId": "LGW",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T09:40:00",
+          "ArrivalDateTime": "2025-12-11T20:30:00",
+          "DepartureDateTimeUtc": "2025-12-11T09:40:00Z",
+          "ArrivalDateTimeUtc": "2025-12-11T16:30:00Z",
+          "FlightNumber": "12",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "06:50",
+          "AircraftType": "388",
+          "DepartureTerminal": "N",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F9",
+          "DepartureAirportId": "LGW",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T13:35:00",
+          "ArrivalDateTime": "2025-12-12T00:40:00",
+          "DepartureDateTimeUtc": "2025-12-11T13:35:00Z",
+          "ArrivalDateTimeUtc": "2025-12-11T20:40:00Z",
+          "FlightNumber": "16",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "07:05",
+          "AircraftType": "388",
+          "DepartureTerminal": "N",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F10",
+          "DepartureAirportId": "STN",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T14:05:00",
+          "ArrivalDateTime": "2025-12-12T01:00:00",
+          "DepartureDateTimeUtc": "2025-12-11T14:05:00Z",
+          "ArrivalDateTimeUtc": "2025-12-11T21:00:00Z",
+          "FlightNumber": "66",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "06:55",
+          "AircraftType": "77W",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F11",
+          "DepartureAirportId": "STN",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T20:15:00",
+          "ArrivalDateTime": "2025-12-12T07:10:00",
+          "DepartureDateTimeUtc": "2025-12-11T20:15:00Z",
+          "ArrivalDateTimeUtc": "2025-12-12T03:10:00Z",
+          "FlightNumber": "68",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "06:55",
+          "AircraftType": "77W",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F12",
+          "DepartureAirportId": "LGW",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T20:25:00",
+          "ArrivalDateTime": "2025-12-12T07:20:00",
+          "DepartureDateTimeUtc": "2025-12-11T20:25:00Z",
+          "ArrivalDateTimeUtc": "2025-12-12T03:20:00Z",
+          "FlightNumber": "10",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "06:55",
+          "AircraftType": "388",
+          "DepartureTerminal": "N",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F13",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T15:50:00",
+          "ArrivalDateTime": "2025-12-12T02:40:00",
+          "DepartureDateTimeUtc": "2025-12-11T15:50:00Z",
+          "ArrivalDateTimeUtc": "2025-12-11T22:40:00Z",
+          "FlightNumber": "30",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "06:50",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F14",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T13:40:00",
+          "ArrivalDateTime": "2025-12-12T00:40:00",
+          "DepartureDateTimeUtc": "2025-12-11T13:40:00Z",
+          "ArrivalDateTimeUtc": "2025-12-11T20:40:00Z",
+          "FlightNumber": "2",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "07:00",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F15",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T19:00:00",
+          "ArrivalDateTime": "2025-12-12T05:50:00",
+          "DepartureDateTimeUtc": "2025-12-11T19:00:00Z",
+          "ArrivalDateTimeUtc": "2025-12-12T01:50:00Z",
+          "FlightNumber": "32",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "06:50",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F16",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T20:20:00",
+          "ArrivalDateTime": "2025-12-12T07:20:00",
+          "DepartureDateTimeUtc": "2025-12-11T20:20:00Z",
+          "ArrivalDateTimeUtc": "2025-12-12T03:20:00Z",
+          "FlightNumber": "4",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "07:00",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F17",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T09:10:00",
+          "ArrivalDateTime": "2025-12-11T20:00:00",
+          "DepartureDateTimeUtc": "2025-12-11T09:10:00Z",
+          "ArrivalDateTimeUtc": "2025-12-11T16:00:00Z",
+          "FlightNumber": "8",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "06:50",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F18",
+          "DepartureAirportId": "LHR",
+          "ArrivalAirportId": "DXB",
+          "DepartureDateTime": "2025-12-11T22:00:00",
+          "ArrivalDateTime": "2025-12-12T08:45:00",
+          "DepartureDateTimeUtc": "2025-12-11T22:00:00Z",
+          "ArrivalDateTimeUtc": "2025-12-12T04:45:00Z",
+          "FlightNumber": "6",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "06:45",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F19",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T10:40:00",
+          "ArrivalDateTime": "2025-12-15T15:05:00",
+          "DepartureDateTimeUtc": "2025-12-15T06:40:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T15:05:00Z",
+          "FlightNumber": "401",
+          "MarketingAirlineId": "VS",
+          "OperatingAirlineId": "VS",
+          "FlightDuration": "08:25",
+          "AircraftType": "789",
+          "DepartureTerminal": "1",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F20",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "STN",
+          "DepartureDateTime": "2025-12-15T14:15:00",
+          "ArrivalDateTime": "2025-12-15T17:45:00",
+          "DepartureDateTimeUtc": "2025-12-15T10:15:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T17:45:00Z",
+          "FlightNumber": "67",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "07:30",
+          "AircraftType": "77W",
+          "DepartureTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F21",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LGW",
+          "DepartureDateTime": "2025-12-15T02:50:00",
+          "ArrivalDateTime": "2025-12-15T06:40:00",
+          "DepartureDateTimeUtc": "2025-12-14T22:50:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T06:40:00Z",
+          "FlightNumber": "11",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "07:50",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "N",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F22",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "STN",
+          "DepartureDateTime": "2025-12-15T08:15:00",
+          "ArrivalDateTime": "2025-12-15T12:05:00",
+          "DepartureDateTimeUtc": "2025-12-15T04:15:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T12:05:00Z",
+          "FlightNumber": "65",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "07:50",
+          "AircraftType": "77W",
+          "DepartureTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F23",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T16:05:00",
+          "ArrivalDateTime": "2025-12-15T20:00:00",
+          "DepartureDateTimeUtc": "2025-12-15T12:05:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T20:00:00Z",
+          "FlightNumber": "5",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "07:55",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F24",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T03:10:00",
+          "ArrivalDateTime": "2025-12-15T07:10:00",
+          "DepartureDateTimeUtc": "2025-12-14T23:10:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T07:10:00Z",
+          "FlightNumber": "7",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "08:00",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F25",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LGW",
+          "DepartureDateTime": "2025-12-15T07:40:00",
+          "ArrivalDateTime": "2025-12-15T11:40:00",
+          "DepartureDateTimeUtc": "2025-12-15T03:40:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T11:40:00Z",
+          "FlightNumber": "15",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "08:00",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "N",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F26",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T12:10:00",
+          "ArrivalDateTime": "2025-12-15T16:10:00",
+          "DepartureDateTimeUtc": "2025-12-15T08:10:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T16:10:00Z",
+          "FlightNumber": "31",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "08:00",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F27",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LGW",
+          "DepartureDateTime": "2025-12-15T14:25:00",
+          "ArrivalDateTime": "2025-12-15T18:25:00",
+          "DepartureDateTimeUtc": "2025-12-15T10:25:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T18:25:00Z",
+          "FlightNumber": "9",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "08:00",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "N",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F28",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T09:40:00",
+          "ArrivalDateTime": "2025-12-15T13:50:00",
+          "DepartureDateTimeUtc": "2025-12-15T05:40:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T13:50:00Z",
+          "FlightNumber": "29",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "08:10",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F29",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T14:30:00",
+          "ArrivalDateTime": "2025-12-15T18:20:00",
+          "DepartureDateTimeUtc": "2025-12-15T10:30:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T18:20:00Z",
+          "FlightNumber": "3",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "07:50",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        },
+        {
+          "FlightId": "F30",
+          "DepartureAirportId": "DXB",
+          "ArrivalAirportId": "LHR",
+          "DepartureDateTime": "2025-12-15T07:45:00",
+          "ArrivalDateTime": "2025-12-15T11:40:00",
+          "DepartureDateTimeUtc": "2025-12-15T03:45:00Z",
+          "ArrivalDateTimeUtc": "2025-12-15T11:40:00Z",
+          "FlightNumber": "1",
+          "MarketingAirlineId": "EK",
+          "OperatingAirlineId": "EK",
+          "FlightDuration": "07:55",
+          "AircraftType": "388",
+          "DepartureTerminal": "3",
+          "ArrivalTerminal": "3",
+          "Cabins": [
+            {
+              "GenericCabinId": "ECO",
+              "AirlineCabinId": "CALEC"
+            }
+          ],
+          "Stops": []
+        }
+      ],
+      "RouteGroups": [
+        {
+          "RequestedFlightId": "001f945a-6650-49ad-b3c1-404bb284cd4a",
+          "Routes": [
+            {
+              "RouteId": "G1R1",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F1"
+              ]
+            },
+            {
+              "RouteId": "G1R2",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F2"
+              ]
+            },
+            {
+              "RouteId": "G1R3",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F3"
+              ]
+            },
+            {
+              "RouteId": "G1R4",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F7"
+              ]
+            },
+            {
+              "RouteId": "G1R5",
+              "Routing": "LGW-DXB",
+              "FlightIds": [
+                "F8"
+              ]
+            },
+            {
+              "RouteId": "G1R6",
+              "Routing": "LGW-DXB",
+              "FlightIds": [
+                "F9"
+              ]
+            },
+            {
+              "RouteId": "G1R7",
+              "Routing": "STN-DXB",
+              "FlightIds": [
+                "F10"
+              ]
+            },
+            {
+              "RouteId": "G1R8",
+              "Routing": "STN-DXB",
+              "FlightIds": [
+                "F11"
+              ]
+            },
+            {
+              "RouteId": "G1R9",
+              "Routing": "LGW-DXB",
+              "FlightIds": [
+                "F12"
+              ]
+            },
+            {
+              "RouteId": "G1R10",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F13"
+              ]
+            },
+            {
+              "RouteId": "G1R11",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F14"
+              ]
+            },
+            {
+              "RouteId": "G1R12",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F15"
+              ]
+            },
+            {
+              "RouteId": "G1R13",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F16"
+              ]
+            },
+            {
+              "RouteId": "G1R14",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F17"
+              ]
+            },
+            {
+              "RouteId": "G1R15",
+              "Routing": "LHR-DXB",
+              "FlightIds": [
+                "F18"
+              ]
+            }
+          ],
+          "RouteGroupId": 1,
+          "IsInbound": false
+        },
+        {
+          "RequestedFlightId": "024a216a-27bf-4958-a3b8-3efca8537811",
+          "Routes": [
+            {
+              "RouteId": "G2R1",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F4"
+              ]
+            },
+            {
+              "RouteId": "G2R2",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F5"
+              ]
+            },
+            {
+              "RouteId": "G2R3",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F6"
+              ]
+            },
+            {
+              "RouteId": "G2R4",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F19"
+              ]
+            },
+            {
+              "RouteId": "G2R5",
+              "Routing": "DXB-STN",
+              "FlightIds": [
+                "F20"
+              ]
+            },
+            {
+              "RouteId": "G2R6",
+              "Routing": "DXB-LGW",
+              "FlightIds": [
+                "F21"
+              ]
+            },
+            {
+              "RouteId": "G2R7",
+              "Routing": "DXB-STN",
+              "FlightIds": [
+                "F22"
+              ]
+            },
+            {
+              "RouteId": "G2R8",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F23"
+              ]
+            },
+            {
+              "RouteId": "G2R9",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F24"
+              ]
+            },
+            {
+              "RouteId": "G2R10",
+              "Routing": "DXB-LGW",
+              "FlightIds": [
+                "F25"
+              ]
+            },
+            {
+              "RouteId": "G2R11",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F26"
+              ]
+            },
+            {
+              "RouteId": "G2R12",
+              "Routing": "DXB-LGW",
+              "FlightIds": [
+                "F27"
+              ]
+            },
+            {
+              "RouteId": "G2R13",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F28"
+              ]
+            },
+            {
+              "RouteId": "G2R14",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F29"
+              ]
+            },
+            {
+              "RouteId": "G2R15",
+              "Routing": "DXB-LHR",
+              "FlightIds": [
+                "F30"
+              ]
+            }
+          ],
+          "RouteGroupId": 2,
+          "IsInbound": true
+        }
+      ],
+      "Recommendations": [
+        {
+          "RecommendationId": "R3R1",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "ITRDEF",
+          "RevenueStreamId": "ITD",
+          "ValidatingAirlineId": "BA",
+          "TicketingDeadline": "2025-10-30T00:00:00",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R3R1C1",
+              "RouteIds": [
+                "G1R1",
+                "G2R1"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "ADT",
+              "TypeCount": 1,
+              "Fare": 251,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 621.22,
+              "Fares": [
+                {
+                  "FareId": "R3R1ADTF1",
+                  "ClassId": "S",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-SLNC0XM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                },
+                {
+                  "FareId": "R3R1ADTF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-OLNC0XM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 251,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 621.22,
+          "FareFamilyIds": [
+            "R3FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "NDCABA"
+        },
+        {
+          "RecommendationId": "R3R2",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "ITRDEF",
+          "RevenueStreamId": "ITD",
+          "ValidatingAirlineId": "BA",
+          "TicketingDeadline": "2025-10-30T00:00:00",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R3R2C1",
+              "RouteIds": [
+                "G1R1",
+                "G2R2"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "ADT",
+              "TypeCount": 1,
+              "Fare": 258,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 628.22,
+              "Fares": [
+                {
+                  "FareId": "R3R2ADTF1",
+                  "ClassId": "S",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-SLNC0XM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                },
+                {
+                  "FareId": "R3R2ADTF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-OLNC0PM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 258,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 628.22,
+          "FareFamilyIds": [
+            "R3FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "NDCABA"
+        },
+        {
+          "RecommendationId": "R3R3",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "ITRDEF",
+          "RevenueStreamId": "ITD",
+          "ValidatingAirlineId": "BA",
+          "TicketingDeadline": "2025-10-30T00:00:00",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R3R3C1",
+              "RouteIds": [
+                "G1R1",
+                "G2R3"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "ADT",
+              "TypeCount": 1,
+              "Fare": 264,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 634.22,
+              "Fares": [
+                {
+                  "FareId": "R3R3ADTF1",
+                  "ClassId": "S",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-SLNC0XM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                },
+                {
+                  "FareId": "R3R3ADTF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-OLNC00M7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 264,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 634.22,
+          "FareFamilyIds": [
+            "R3FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "NDCABA"
+        },
+        {
+          "RecommendationId": "R3R4",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "ITRDEF",
+          "RevenueStreamId": "ITD",
+          "ValidatingAirlineId": "BA",
+          "TicketingDeadline": "2025-10-30T00:00:00",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R3R4C1",
+              "RouteIds": [
+                "G1R2",
+                "G2R1"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "ADT",
+              "TypeCount": 1,
+              "Fare": 289,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 659.22,
+              "Fares": [
+                {
+                  "FareId": "R3R4ADTF1",
+                  "ClassId": "V",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-VLNC0PM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                },
+                {
+                  "FareId": "R3R4ADTF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-OLNC0XM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 289,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 659.22,
+          "FareFamilyIds": [
+            "R3FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "NDCABA"
+        },
+        {
+          "RecommendationId": "R3R5",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "ITRDEF",
+          "RevenueStreamId": "ITD",
+          "ValidatingAirlineId": "BA",
+          "TicketingDeadline": "2025-10-30T00:00:00",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R3R5C1",
+              "RouteIds": [
+                "G1R2",
+                "G2R2"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "ADT",
+              "TypeCount": 1,
+              "Fare": 295,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 665.22,
+              "Fares": [
+                {
+                  "FareId": "R3R5ADTF1",
+                  "ClassId": "V",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-VLNC0PM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                },
+                {
+                  "FareId": "R3R5ADTF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-OLNC0PM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 295,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 665.22,
+          "FareFamilyIds": [
+            "R3FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "NDCABA"
+        },
+        {
+          "RecommendationId": "R3R6",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "ITRDEF",
+          "RevenueStreamId": "ITD",
+          "ValidatingAirlineId": "BA",
+          "TicketingDeadline": "2025-10-30T00:00:00",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R3R6C1",
+              "RouteIds": [
+                "G1R2",
+                "G2R3"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "ADT",
+              "TypeCount": 1,
+              "Fare": 301,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 671.22,
+              "Fares": [
+                {
+                  "FareId": "R3R6ADTF1",
+                  "ClassId": "V",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-VLNC0PM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                },
+                {
+                  "FareId": "R3R6ADTF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-OLNC00M7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 301,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 671.22,
+          "FareFamilyIds": [
+            "R3FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "NDCABA"
+        },
+        {
+          "RecommendationId": "R3R7",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "ITRDEF",
+          "RevenueStreamId": "ITD",
+          "ValidatingAirlineId": "BA",
+          "TicketingDeadline": "2025-10-30T00:00:00",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R3R7C1",
+              "RouteIds": [
+                "G1R3",
+                "G2R1"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "ADT",
+              "TypeCount": 1,
+              "Fare": 368,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 738.22,
+              "Fares": [
+                {
+                  "FareId": "R3R7ADTF1",
+                  "ClassId": "M",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-MLNC0XM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                },
+                {
+                  "FareId": "R3R7ADTF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-OLNC0XM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 368,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 738.22,
+          "FareFamilyIds": [
+            "R3FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "NDCABA"
+        },
+        {
+          "RecommendationId": "R3R8",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "ITRDEF",
+          "RevenueStreamId": "ITD",
+          "ValidatingAirlineId": "BA",
+          "TicketingDeadline": "2025-10-30T00:00:00",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R3R8C1",
+              "RouteIds": [
+                "G1R3",
+                "G2R2"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "ADT",
+              "TypeCount": 1,
+              "Fare": 374,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 744.22,
+              "Fares": [
+                {
+                  "FareId": "R3R8ADTF1",
+                  "ClassId": "M",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-MLNC0XM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                },
+                {
+                  "FareId": "R3R8ADTF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-OLNC0PM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 374,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 744.22,
+          "FareFamilyIds": [
+            "R3FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "NDCABA"
+        },
+        {
+          "RecommendationId": "R3R9",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "ITRDEF",
+          "RevenueStreamId": "ITD",
+          "ValidatingAirlineId": "BA",
+          "TicketingDeadline": "2025-10-30T00:00:00",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R3R9C1",
+              "RouteIds": [
+                "G1R3",
+                "G2R3"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "ADT",
+              "TypeCount": 1,
+              "Fare": 381,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 751.22,
+              "Fares": [
+                {
+                  "FareId": "R3R9ADTF1",
+                  "ClassId": "M",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-MLNC0XM7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                },
+                {
+                  "FareId": "R3R9ADTF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "758-OLNC00M7U/Y",
+                  "FareFamilyId": "R3FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 381,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 751.22,
+          "FareFamilyIds": [
+            "R3FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "NDCABA"
+        },
+        {
+          "RecommendationId": "R2R1",
+          "FareTypeId": "ITR",
+          "RevenueStreamId": "VAI",
+          "ValidatingAirlineId": "VS",
+          "TicketingDeadline": "2025-11-11T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R1C1",
+              "RouteIds": [
+                "G1R4",
+                "G2R4"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 229,
+              "Tax": 350.72,
+              "Fee": 19.5,
+              "Total": 599.22,
+              "Fares": [
+                {
+                  "FareId": "R2R1IITF1",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QG0YA1SA",
+                  "FareFamilyId": "R2FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R1IITF2",
+                  "ClassId": "O",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "OG1YE1SA",
+                  "FareFamilyId": "R2FF1",
+                  "BaggageAllowance": {
+                    "NumberOfPieces": 1
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 229,
+          "Tax": 350.72,
+          "Fee": 19.5,
+          "Total": 599.22,
+          "FareFamilyIds": [
+            "R2FF1"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R2",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R2C1",
+              "RouteIds": [
+                "G1R5",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R2C2",
+              "RouteIds": [
+                "G1R6",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R2C3",
+              "RouteIds": [
+                "G1R5",
+                "G2R7"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R2C4",
+              "RouteIds": [
+                "G1R6",
+                "G2R7"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 407,
+              "Tax": 298.07,
+              "Fee": 19.5,
+              "Total": 724.57,
+              "Fares": [
+                {
+                  "FareId": "R2R2IITF1",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R2IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 407,
+          "Tax": 298.07,
+          "Fee": 19.5,
+          "Total": 724.57,
+          "FareFamilyIds": [
+            "R2FF2"
+          ],
+          "Routing": "LGW-DXB-STN",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R4",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R4C1",
+              "RouteIds": [
+                "G1R5",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R4C2",
+              "RouteIds": [
+                "G1R5",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R4C3",
+              "RouteIds": [
+                "G1R5",
+                "G2R12"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R4C4",
+              "RouteIds": [
+                "G1R6",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R4C5",
+              "RouteIds": [
+                "G1R6",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R4C6",
+              "RouteIds": [
+                "G1R6",
+                "G2R12"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 407,
+              "Tax": 298.07,
+              "Fee": 19.5,
+              "Total": 724.57,
+              "Fares": [
+                {
+                  "FareId": "R2R4IITF1",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R4IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 407,
+          "Tax": 298.07,
+          "Fee": 19.5,
+          "Total": 724.57,
+          "FareFamilyIds": [
+            "R2FF2"
+          ],
+          "Routing": "LGW-DXB-LGW",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R6",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R6C1",
+              "RouteIds": [
+                "G1R5",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R6C2",
+              "RouteIds": [
+                "G1R5",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R6C3",
+              "RouteIds": [
+                "G1R5",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R6C4",
+              "RouteIds": [
+                "G1R5",
+                "G2R13"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R6C5",
+              "RouteIds": [
+                "G1R6",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R6C6",
+              "RouteIds": [
+                "G1R6",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R6C7",
+              "RouteIds": [
+                "G1R6",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R6C8",
+              "RouteIds": [
+                "G1R6",
+                "G2R13"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 407,
+              "Tax": 298.07,
+              "Fee": 19.5,
+              "Total": 724.57,
+              "Fares": [
+                {
+                  "FareId": "R2R6IITF1",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R6IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 407,
+          "Tax": 298.07,
+          "Fee": 19.5,
+          "Total": 724.57,
+          "FareFamilyIds": [
+            "R2FF2"
+          ],
+          "Routing": "LGW-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R20",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R20C1",
+              "RouteIds": [
+                "G1R7",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R20C2",
+              "RouteIds": [
+                "G1R8",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R20C3",
+              "RouteIds": [
+                "G1R7",
+                "G2R7"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R20C4",
+              "RouteIds": [
+                "G1R8",
+                "G2R7"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 464,
+              "Tax": 293.3,
+              "Fee": 19.5,
+              "Total": 776.8,
+              "Fares": [
+                {
+                  "FareId": "R2R20IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R20IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 464,
+          "Tax": 293.3,
+          "Fee": 19.5,
+          "Total": 776.8,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "STN-DXB-STN",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R22",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R22C1",
+              "RouteIds": [
+                "G1R7",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R22C2",
+              "RouteIds": [
+                "G1R8",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R22C3",
+              "RouteIds": [
+                "G1R7",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R22C4",
+              "RouteIds": [
+                "G1R7",
+                "G2R12"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R22C5",
+              "RouteIds": [
+                "G1R8",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R22C6",
+              "RouteIds": [
+                "G1R8",
+                "G2R12"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 464,
+              "Tax": 293.3,
+              "Fee": 19.5,
+              "Total": 776.8,
+              "Fares": [
+                {
+                  "FareId": "R2R22IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R22IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 464,
+          "Tax": 293.3,
+          "Fee": 19.5,
+          "Total": 776.8,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "STN-DXB-LGW",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R26",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R26C1",
+              "RouteIds": [
+                "G1R7",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R26C2",
+              "RouteIds": [
+                "G1R8",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R26C3",
+              "RouteIds": [
+                "G1R7",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R26C4",
+              "RouteIds": [
+                "G1R7",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R26C5",
+              "RouteIds": [
+                "G1R8",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R26C6",
+              "RouteIds": [
+                "G1R8",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R26C7",
+              "RouteIds": [
+                "G1R7",
+                "G2R13"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R26C8",
+              "RouteIds": [
+                "G1R8",
+                "G2R13"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 464,
+              "Tax": 293.3,
+              "Fee": 19.5,
+              "Total": 776.8,
+              "Fares": [
+                {
+                  "FareId": "R2R26IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R26IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 464,
+          "Tax": 293.3,
+          "Fee": 19.5,
+          "Total": 776.8,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "STN-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R38",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R38C1",
+              "RouteIds": [
+                "G1R5",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R38C2",
+              "RouteIds": [
+                "G1R5",
+                "G2R15"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R38C3",
+              "RouteIds": [
+                "G1R6",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R38C4",
+              "RouteIds": [
+                "G1R6",
+                "G2R15"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 461,
+              "Tax": 298.07,
+              "Fee": 19.5,
+              "Total": 778.57,
+              "Fares": [
+                {
+                  "FareId": "R2R38IITF1",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R38IITF2",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 461,
+          "Tax": 298.07,
+          "Fee": 19.5,
+          "Total": 778.57,
+          "FareFamilyIds": [
+            "R2FF2",
+            "R2FF3"
+          ],
+          "Routing": "LGW-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R42",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R42C1",
+              "RouteIds": [
+                "G1R9",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R42C2",
+              "RouteIds": [
+                "G1R9",
+                "G2R7"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 464,
+              "Tax": 298.07,
+              "Fee": 19.5,
+              "Total": 781.57,
+              "Fares": [
+                {
+                  "FareId": "R2R42IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R42IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 464,
+          "Tax": 298.07,
+          "Fee": 19.5,
+          "Total": 781.57,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LGW-DXB-STN",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R43",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R43C1",
+              "RouteIds": [
+                "G1R9",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R43C2",
+              "RouteIds": [
+                "G1R9",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R43C3",
+              "RouteIds": [
+                "G1R9",
+                "G2R12"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 464,
+              "Tax": 298.07,
+              "Fee": 19.5,
+              "Total": 781.57,
+              "Fares": [
+                {
+                  "FareId": "R2R43IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R43IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 464,
+          "Tax": 298.07,
+          "Fee": 19.5,
+          "Total": 781.57,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LGW-DXB-LGW",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R45",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R45C1",
+              "RouteIds": [
+                "G1R9",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R45C2",
+              "RouteIds": [
+                "G1R9",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R45C3",
+              "RouteIds": [
+                "G1R9",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R45C4",
+              "RouteIds": [
+                "G1R9",
+                "G2R13"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 464,
+              "Tax": 298.07,
+              "Fee": 19.5,
+              "Total": 781.57,
+              "Fares": [
+                {
+                  "FareId": "R2R45IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R45IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 464,
+          "Tax": 298.07,
+          "Fee": 19.5,
+          "Total": 781.57,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LGW-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R51",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R51C1",
+              "RouteIds": [
+                "G1R10",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R51C2",
+              "RouteIds": [
+                "G1R11",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R51C3",
+              "RouteIds": [
+                "G1R10",
+                "G2R7"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R51C4",
+              "RouteIds": [
+                "G1R11",
+                "G2R7"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 464,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 810.21,
+              "Fares": [
+                {
+                  "FareId": "R2R51IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R51IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 464,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 810.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-STN",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R53",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R53C1",
+              "RouteIds": [
+                "G1R10",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R53C2",
+              "RouteIds": [
+                "G1R11",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R53C3",
+              "RouteIds": [
+                "G1R10",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R53C4",
+              "RouteIds": [
+                "G1R10",
+                "G2R12"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R53C5",
+              "RouteIds": [
+                "G1R11",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R53C6",
+              "RouteIds": [
+                "G1R11",
+                "G2R12"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 464,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 810.21,
+              "Fares": [
+                {
+                  "FareId": "R2R53IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R53IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 464,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 810.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-LGW",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R55",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R55C1",
+              "RouteIds": [
+                "G1R10",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R55C2",
+              "RouteIds": [
+                "G1R10",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R55C3",
+              "RouteIds": [
+                "G1R10",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R55C4",
+              "RouteIds": [
+                "G1R11",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R55C5",
+              "RouteIds": [
+                "G1R11",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R55C6",
+              "RouteIds": [
+                "G1R11",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R55C7",
+              "RouteIds": [
+                "G1R10",
+                "G2R13"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R55C8",
+              "RouteIds": [
+                "G1R11",
+                "G2R13"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 464,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 810.21,
+              "Fares": [
+                {
+                  "FareId": "R2R55IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R55IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 464,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 810.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R69",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R69C1",
+              "RouteIds": [
+                "G1R7",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R69C2",
+              "RouteIds": [
+                "G1R8",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R69C3",
+              "RouteIds": [
+                "G1R7",
+                "G2R15"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R69C4",
+              "RouteIds": [
+                "G1R8",
+                "G2R15"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 518,
+              "Tax": 293.3,
+              "Fee": 19.5,
+              "Total": 830.8,
+              "Fares": [
+                {
+                  "FareId": "R2R69IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R69IITF2",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 518,
+          "Tax": 293.3,
+          "Fee": 19.5,
+          "Total": 830.8,
+          "FareFamilyIds": [
+            "R2FF3"
+          ],
+          "Routing": "STN-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R73",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R73C1",
+              "RouteIds": [
+                "G1R9",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R73C2",
+              "RouteIds": [
+                "G1R9",
+                "G2R15"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 518,
+              "Tax": 298.07,
+              "Fee": 19.5,
+              "Total": 835.57,
+              "Fares": [
+                {
+                  "FareId": "R2R73IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R73IITF2",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 518,
+          "Tax": 298.07,
+          "Fee": 19.5,
+          "Total": 835.57,
+          "FareFamilyIds": [
+            "R2FF3"
+          ],
+          "Routing": "LGW-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R75",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R75C1",
+              "RouteIds": [
+                "G1R12",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R75C2",
+              "RouteIds": [
+                "G1R13",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R75C3",
+              "RouteIds": [
+                "G1R12",
+                "G2R7"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R75C4",
+              "RouteIds": [
+                "G1R13",
+                "G2R7"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 508,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 854.21,
+              "Fares": [
+                {
+                  "FareId": "R2R75IITF1",
+                  "ClassId": "U",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "UKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R75IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 508,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 854.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-STN",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R77",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R77C1",
+              "RouteIds": [
+                "G1R12",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R77C2",
+              "RouteIds": [
+                "G1R12",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R77C3",
+              "RouteIds": [
+                "G1R12",
+                "G2R12"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R77C4",
+              "RouteIds": [
+                "G1R13",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R77C5",
+              "RouteIds": [
+                "G1R13",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R77C6",
+              "RouteIds": [
+                "G1R13",
+                "G2R12"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 508,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 854.21,
+              "Fares": [
+                {
+                  "FareId": "R2R77IITF1",
+                  "ClassId": "U",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "UKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R77IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 508,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 854.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-LGW",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R79",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R79C1",
+              "RouteIds": [
+                "G1R12",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R79C2",
+              "RouteIds": [
+                "G1R12",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R79C3",
+              "RouteIds": [
+                "G1R12",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R79C4",
+              "RouteIds": [
+                "G1R13",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R79C5",
+              "RouteIds": [
+                "G1R12",
+                "G2R13"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R79C6",
+              "RouteIds": [
+                "G1R13",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R79C7",
+              "RouteIds": [
+                "G1R13",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R79C8",
+              "RouteIds": [
+                "G1R13",
+                "G2R13"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 508,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 854.21,
+              "Fares": [
+                {
+                  "FareId": "R2R79IITF1",
+                  "ClassId": "U",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "UKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R79IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 508,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 854.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R93",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R93C1",
+              "RouteIds": [
+                "G1R10",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R93C2",
+              "RouteIds": [
+                "G1R10",
+                "G2R15"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R93C3",
+              "RouteIds": [
+                "G1R11",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R93C4",
+              "RouteIds": [
+                "G1R11",
+                "G2R15"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 518,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 864.21,
+              "Fares": [
+                {
+                  "FareId": "R2R93IITF1",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R93IITF2",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 518,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 864.21,
+          "FareFamilyIds": [
+            "R2FF3"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R97",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R97C1",
+              "RouteIds": [
+                "G1R14",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R97C2",
+              "RouteIds": [
+                "G1R14",
+                "G2R7"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 553,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 899.21,
+              "Fares": [
+                {
+                  "FareId": "R2R97IITF1",
+                  "ClassId": "B",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "BKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R97IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 553,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 899.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-STN",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R98",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R98C1",
+              "RouteIds": [
+                "G1R14",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R98C2",
+              "RouteIds": [
+                "G1R14",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R98C3",
+              "RouteIds": [
+                "G1R14",
+                "G2R12"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 553,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 899.21,
+              "Fares": [
+                {
+                  "FareId": "R2R98IITF1",
+                  "ClassId": "B",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "BKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R98IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 553,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 899.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-LGW",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R100",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R100C1",
+              "RouteIds": [
+                "G1R14",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R100C2",
+              "RouteIds": [
+                "G1R14",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R100C3",
+              "RouteIds": [
+                "G1R14",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R100C4",
+              "RouteIds": [
+                "G1R14",
+                "G2R13"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 553,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 899.21,
+              "Fares": [
+                {
+                  "FareId": "R2R100IITF1",
+                  "ClassId": "B",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "BKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R100IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 553,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 899.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R106",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R106C1",
+              "RouteIds": [
+                "G1R12",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R106C2",
+              "RouteIds": [
+                "G1R12",
+                "G2R15"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R106C3",
+              "RouteIds": [
+                "G1R13",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R106C4",
+              "RouteIds": [
+                "G1R13",
+                "G2R15"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 562,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 908.21,
+              "Fares": [
+                {
+                  "FareId": "R2R106IITF1",
+                  "ClassId": "U",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "UKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R106IITF2",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 562,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 908.21,
+          "FareFamilyIds": [
+            "R2FF3"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R110",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R110C1",
+              "RouteIds": [
+                "G1R14",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R110C2",
+              "RouteIds": [
+                "G1R14",
+                "G2R15"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 607,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 953.21,
+              "Fares": [
+                {
+                  "FareId": "R2R110IITF1",
+                  "ClassId": "B",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "BKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R110IITF2",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 607,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 953.21,
+          "FareFamilyIds": [
+            "R2FF3"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R112",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R112C1",
+              "RouteIds": [
+                "G1R15",
+                "G2R5"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R112C2",
+              "RouteIds": [
+                "G1R15",
+                "G2R7"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 619,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 965.21,
+              "Fares": [
+                {
+                  "FareId": "R2R112IITF1",
+                  "ClassId": "M",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "MKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R112IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 619,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 965.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-STN",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R113",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R113C1",
+              "RouteIds": [
+                "G1R15",
+                "G2R6"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R113C2",
+              "RouteIds": [
+                "G1R15",
+                "G2R10"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R113C3",
+              "RouteIds": [
+                "G1R15",
+                "G2R12"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 619,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 965.21,
+              "Fares": [
+                {
+                  "FareId": "R2R113IITF1",
+                  "ClassId": "M",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "MKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R113IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 619,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 965.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-LGW",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R115",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R115C1",
+              "RouteIds": [
+                "G1R15",
+                "G2R8"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R115C2",
+              "RouteIds": [
+                "G1R15",
+                "G2R9"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R115C3",
+              "RouteIds": [
+                "G1R15",
+                "G2R11"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R115C4",
+              "RouteIds": [
+                "G1R15",
+                "G2R13"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 619,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 965.21,
+              "Fares": [
+                {
+                  "FareId": "R2R115IITF1",
+                  "ClassId": "M",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "MKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R115IITF2",
+                  "ClassId": "Q",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "QKATPGB2",
+                  "FareFamilyId": "R2FF2",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 619,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 965.21,
+          "FareFamilyIds": [
+            "R2FF3",
+            "R2FF2"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "AMADWS"
+        },
+        {
+          "RecommendationId": "R2R121",
+          "FareTypeId": "ITR",
+          "FareSubTypeId": "CATNRM",
+          "RevenueStreamId": "ITE",
+          "ValidatingAirlineId": "EK",
+          "TicketingDeadline": "2025-11-05T23:59:59",
+          "RouteCombinations": [
+            {
+              "RouteCombinationId": "R2R121C1",
+              "RouteIds": [
+                "G1R15",
+                "G2R14"
+              ]
+            },
+            {
+              "RouteCombinationId": "R2R121C2",
+              "RouteIds": [
+                "G1R15",
+                "G2R15"
+              ]
+            }
+          ],
+          "Passengers": [
+            {
+              "RequestedTypeId": "ADT",
+              "PricedTypeId": "IIT",
+              "TypeCount": 1,
+              "Fare": 673,
+              "Tax": 326.71,
+              "Fee": 19.5,
+              "Total": 1019.21,
+              "Fares": [
+                {
+                  "FareId": "R2R121IITF1",
+                  "ClassId": "M",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "MKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                },
+                {
+                  "FareId": "R2R121IITF2",
+                  "ClassId": "K",
+                  "CabinId": "ECO",
+                  "Seats": 9,
+                  "FareBasisCode": "KKETSGB2",
+                  "FareFamilyId": "R2FF3",
+                  "BaggageAllowance": {
+                    "WeightInKilograms": 30
+                  },
+                  "BreakPoint": true
+                }
+              ]
+            }
+          ],
+          "FareDetails": [
+            {
+              "CostTypeId": "MGSF",
+              "CostGroupId": "MSVF",
+              "CostAmount": 15
+            },
+            {
+              "CostTypeId": "MTPS",
+              "CostGroupId": "MSVF",
+              "CostAmount": 4.5
+            }
+          ],
+          "Fare": 673,
+          "Tax": 326.71,
+          "Fee": 19.5,
+          "Total": 1019.21,
+          "FareFamilyIds": [
+            "R2FF3"
+          ],
+          "Routing": "LHR-DXB-LHR",
+          "GdsId": "AMADWS"
+        }
+      ],
+      "RecommendationGroups": [
+        {
+          "RecommendationId": "R2R1",
+          "RouteCombinationId": "R2R1C1",
+          "RecommendationTypeId": "ARLCHPST",
+          "RecommendationGroupTypeId": "GENERICGRUP"
+        },
+        {
+          "RecommendationId": "R2R112",
+          "RouteCombinationId": "R2R112C1",
+          "RecommendationTypeId": "PRFQCKST",
+          "RecommendationGroupTypeId": "GENERICGRUP"
+        },
+        {
+          "RecommendationId": "R3R1",
+          "RouteCombinationId": "R3R1C1",
+          "RecommendationTypeId": "PRFCHPST",
+          "RecommendationGroupTypeId": "GENERICGRUP"
+        }
+      ],
+      "FareFamilies": [
+        {
+          "FareFamilyId": "R3FF1",
+          "FareFamilyName": "PCR_1",
+          "FareFamilyDescription": "STANDARD ECONOMY",
+          "ValidatingAirlineId": "BA",
+          "ServiceReferences": [
+            {
+              "ServiceId": "R3FS1",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS2",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS3",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS4",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS5",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS6",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS7",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS8",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS9",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS10",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS11",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS12",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS13",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS14",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R3FS15",
+              "ServiceStatusId": "INCLUD"
+            }
+          ]
+        },
+        {
+          "FareFamilyId": "R2FF1",
+          "FareFamilyName": "CLASSIC",
+          "FareFamilyDescription": "ECONOMY CLASSIC",
+          "ValidatingAirlineId": "VS",
+          "ServiceReferences": [
+            {
+              "ServiceId": "R2FS1",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS2",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS3",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS4",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS5",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS6",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS7",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS8",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS9",
+              "ServiceStatusId": "CHARGE"
+            }
+          ]
+        },
+        {
+          "FareFamilyId": "R2FF2",
+          "FareFamilyName": "ECOSAVER",
+          "FareFamilyDescription": "ECO SAVER",
+          "ValidatingAirlineId": "EK",
+          "ServiceReferences": [
+            {
+              "ServiceId": "R2FS10",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS11",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS12",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS13",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS14",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS15",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS16",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS17",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS18",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS19",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS20",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS21",
+              "ServiceStatusId": "NOFERD"
+            },
+            {
+              "ServiceId": "R2FS22",
+              "ServiceStatusId": "NOFERD"
+            }
+          ]
+        },
+        {
+          "FareFamilyId": "R2FF3",
+          "FareFamilyName": "ECOFLEX",
+          "FareFamilyDescription": "ECO FLEX",
+          "ValidatingAirlineId": "EK",
+          "ServiceReferences": [
+            {
+              "ServiceId": "R2FS23",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS11",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS12",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS13",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS14",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS15",
+              "ServiceStatusId": "INCLUD"
+            },
+            {
+              "ServiceId": "R2FS16",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS17",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS18",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS19",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS20",
+              "ServiceStatusId": "CHARGE"
+            },
+            {
+              "ServiceId": "R2FS21",
+              "ServiceStatusId": "NOFERD"
+            },
+            {
+              "ServiceId": "R2FS22",
+              "ServiceStatusId": "NOFERD"
+            }
+          ]
+        }
+      ],
+      "FareFamilyServices": [
+        {
+          "ServiceId": "R3FS1",
+          "ServiceName": "INC - CABIN BAG UPTO 23KG 56X45X25CM",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS2",
+          "ServiceName": "INC - HANDBAG UPTO 23KG 40X30X15CM",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS3",
+          "ServiceName": "INC - 1ST BAG MAX 23KG 51LB 208LCM",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS4",
+          "ServiceName": "CHA - 2ND BAG MAX 23KG 51LB 208LCM",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS5",
+          "ServiceName": "NOF - LOUNGE ACCESS",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS6",
+          "ServiceName": "NOF - PRIORITY SECURITY",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS7",
+          "ServiceName": "INC - FOOD AND BAR SERVICE",
+          "AirlineIds": [
+            "BA"
+          ],
+          "ServiceGroupId": "FSMEAL"
+        },
+        {
+          "ServiceId": "R3FS8",
+          "ServiceName": "CHA - SEAT CHOICE",
+          "AirlineIds": [
+            "BA"
+          ],
+          "ServiceGroupId": "FSGSAA"
+        },
+        {
+          "ServiceId": "R3FS9",
+          "ServiceName": "NOF - DEDICATED CHECK IN ZONE",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS10",
+          "ServiceName": "CHA - PREMIUM CATERING",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS11",
+          "ServiceName": "CHA - CHANGE BEFORE DEPARTURE",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS12",
+          "ServiceName": "CHA - CHANGE AFTER DEPARTURE",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS13",
+          "ServiceName": "NOF - REFUND BEFORE DEPARTURE",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS14",
+          "ServiceName": "NOF - REFUND AFTER DEPARTURE",
+          "AirlineIds": [
+            "BA"
+          ]
+        },
+        {
+          "ServiceId": "R3FS15",
+          "ServiceName": "1 x 23kg checked baggage allowance",
+          "AirlineIds": [
+            "BA"
+          ],
+          "ServiceGroupId": "BAGGAG"
+        },
+        {
+          "ServiceId": "R2FS1",
+          "ServiceName": "HAND BAGGAGE",
+          "AirlineIds": [
+            "VS"
+          ],
+          "ServiceClassificationId": "OTHERS",
+          "ServiceGroupId": "BAGGAG",
+          "ServiceSubGroupId": "FSGCAL"
+        },
+        {
+          "ServiceId": "R2FS2",
+          "ServiceName": "1ST BAG MAX 23KG",
+          "AirlineIds": [
+            "VS"
+          ],
+          "ServiceClassificationId": "OTHERS",
+          "ServiceGroupId": "BAGGAG"
+        },
+        {
+          "ServiceId": "R2FS3",
+          "ServiceName": "MEALS AND DRINKS",
+          "AirlineIds": [
+            "VS"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "FSMEAL"
+        },
+        {
+          "ServiceId": "R2FS4",
+          "ServiceName": "EARN MILES",
+          "AirlineIds": [
+            "VS"
+          ],
+          "ServiceClassificationId": "SRCSIZ",
+          "ServiceGroupId": "FSGPBF",
+          "ServiceSubGroupId": "FSGPFR"
+        },
+        {
+          "ServiceId": "R2FS5",
+          "ServiceName": "ADVANCED SEAT SELECTION",
+          "AirlineIds": [
+            "VS"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "FSGSAA"
+        },
+        {
+          "ServiceId": "R2FS6",
+          "ServiceName": "WIFI",
+          "AirlineIds": [
+            "VS"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "INFLEN",
+          "ServiceSubGroupId": "FSGPIT"
+        },
+        {
+          "ServiceId": "R2FS7",
+          "ServiceName": "REFUNDS",
+          "AirlineIds": [
+            "VS"
+          ],
+          "ServiceClassificationId": "SRCSIZ",
+          "ServiceGroupId": "FSGPBF",
+          "ServiceSubGroupId": "FSGPRF"
+        },
+        {
+          "ServiceId": "R2FS8",
+          "ServiceName": "UPGRADES",
+          "AirlineIds": [
+            "VS"
+          ],
+          "ServiceClassificationId": "SRCSIZ",
+          "ServiceGroupId": "FSGPBF",
+          "ServiceSubGroupId": "FSGPUE"
+        },
+        {
+          "ServiceId": "R2FS9",
+          "ServiceName": "CHANGES",
+          "AirlineIds": [
+            "VS"
+          ],
+          "ServiceClassificationId": "SRCSIZ",
+          "ServiceGroupId": "FSGPBF",
+          "ServiceSubGroupId": "FSGPVC"
+        },
+        {
+          "ServiceId": "R2FS10",
+          "ServiceName": "30 PERCENT MILES EARNED",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "SRCSIZ",
+          "ServiceGroupId": "FSGPBF",
+          "ServiceSubGroupId": "FSGPFR"
+        },
+        {
+          "ServiceId": "R2FS11",
+          "ServiceName": "BEVERAGE",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "FSMEAL",
+          "ServiceSubGroupId": "FSGPDR"
+        },
+        {
+          "ServiceId": "R2FS12",
+          "ServiceName": "ENTERTAINMENT",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "INFLEN"
+        },
+        {
+          "ServiceId": "R2FS13",
+          "ServiceName": "MEAL VOUCHER",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "FSMEAL"
+        },
+        {
+          "ServiceId": "R2FS14",
+          "ServiceName": "CARRY7KG 15LB UPTO45LI 115LCM",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "BAGGAG",
+          "ServiceSubGroupId": "FSGCAL"
+        },
+        {
+          "ServiceId": "R2FS15",
+          "ServiceName": "CHECKED BAGGAGE",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "BAGGAG"
+        },
+        {
+          "ServiceId": "R2FS16",
+          "ServiceName": "UPGRADE ELIGIBILITY",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "SRCSIZ",
+          "ServiceGroupId": "FSGPBF",
+          "ServiceSubGroupId": "FSGPUE"
+        },
+        {
+          "ServiceId": "R2FS17",
+          "ServiceName": "INTERNET ACCESS",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "INFLEN",
+          "ServiceSubGroupId": "FSGPIT"
+        },
+        {
+          "ServiceId": "R2FS18",
+          "ServiceName": "PRE RESERVED SEAT ASSIGNMENT",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "FSGSAA"
+        },
+        {
+          "ServiceId": "R2FS19",
+          "ServiceName": "REFUNDABLE TICKET",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "SRCSIZ",
+          "ServiceGroupId": "FSGPBF",
+          "ServiceSubGroupId": "FSGPRF"
+        },
+        {
+          "ServiceId": "R2FS20",
+          "ServiceName": "CHANGEABLE TICKET",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "SRCSIZ",
+          "ServiceGroupId": "FSGPBF",
+          "ServiceSubGroupId": "FSGPVC"
+        },
+        {
+          "ServiceId": "R2FS21",
+          "ServiceName": "CHAUFFEUR DRIVE",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "OTHERS",
+          "ServiceSubGroupId": "OTHERS"
+        },
+        {
+          "ServiceId": "R2FS22",
+          "ServiceName": "LOUNGE",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "FLTRLD",
+          "ServiceGroupId": "OTHERS"
+        },
+        {
+          "ServiceId": "R2FS23",
+          "ServiceName": "70 PERCENT MILES EARNED",
+          "AirlineIds": [
+            "EK"
+          ],
+          "ServiceClassificationId": "SRCSIZ",
+          "ServiceGroupId": "FSGPBF",
+          "ServiceSubGroupId": "FSGPFR"
+        }
+      ],
+      "ServiceAttributes": [],
+      "ServiceStatuses": [
+        {
+          "StatusId": "INCLUD",
+          "InternalStatusName": "Included"
+        },
+        {
+          "StatusId": "CHARGE",
+          "InternalStatusName": "At charge"
+        },
+        {
+          "StatusId": "NOFERD",
+          "InternalStatusName": "Not offered"
+        }
+      ],
+      "ServiceClassifications": [
+        {
+          "TypeId": "OTHERS",
+          "TypeName": "OTHERS"
+        },
+        {
+          "TypeId": "FLTRLD",
+          "TypeName": "Flight related. Must be associated to a flight"
+        },
+        {
+          "TypeId": "SRCSIZ",
+          "TypeName": ""
+        }
+      ],
+      "ServiceGroups": [
+        {
+          "TypeId": "FSMEAL",
+          "TypeName": "Meal"
+        },
+        {
+          "TypeId": "FSGSAA",
+          "TypeName": "Seat assignment association - desires seating together"
+        },
+        {
+          "TypeId": "BAGGAG",
+          "TypeName": "Baggage"
+        },
+        {
+          "TypeId": "FSGPBF",
+          "TypeName": ""
+        },
+        {
+          "TypeId": "INFLEN",
+          "TypeName": "Entertainment / Internet"
+        },
+        {
+          "TypeId": "OTHERS",
+          "TypeName": "OTHERS"
+        }
+      ],
+      "ServiceSubGroups": [
+        {
+          "TypeId": "FSGCAL",
+          "TypeName": "Cascading allowed"
+        },
+        {
+          "TypeId": "FSGPFR",
+          "TypeName": ""
+        },
+        {
+          "TypeId": "FSGPIT",
+          "TypeName": ""
+        },
+        {
+          "TypeId": "FSGPRF",
+          "TypeName": ""
+        },
+        {
+          "TypeId": "FSGPUE",
+          "TypeName": ""
+        },
+        {
+          "TypeId": "FSGPVC",
+          "TypeName": ""
+        },
+        {
+          "TypeId": "FSGPDR",
+          "TypeName": ""
+        },
+        {
+          "TypeId": "OTHERS",
+          "TypeName": "OTHERS"
+        }
+      ],
+      "GlobalDistributionSystems": [
+        {
+          "GdsId": "NDCABA",
+          "ExternalGdsName": "NDC British Airways"
+        },
+        {
+          "GdsId": "AMADWS",
+          "ExternalGdsName": "Amadeus"
+        }
+      ],
+      "Discounts": []
+    },
+    "ResponseInfos": [],
+    "RequestId": "251a1099-4668-4814-8301-0b3ddeb2a3ab",
+    "ServiceContext": {
+      "ContextId": "2ee68992-2415-40c3-b0c6-6fe906ca7f8d"
+    }
+  }

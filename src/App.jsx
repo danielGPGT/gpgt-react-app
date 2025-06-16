@@ -12,6 +12,7 @@ import Instructions from "@/pages/Instructions";
 import { Routes, Route } from "react-router-dom";
 import { VenuesPage } from "@/pages/venues";
 import { EventsPage } from "@/pages/events";
+import { FlightPage } from "@/pages/flight";
 import RoleBasedRoute from "./components/roleBasedRoute";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle-button";
@@ -71,6 +72,16 @@ function App() {
             <RoleBasedRoute allowedRoles={["Admin", "Operations", "Internal Sales"]}>
               <AppLayout>
                 <FlightsPage />
+              </AppLayout>
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/flight"
+          element={
+            <RoleBasedRoute allowedRoles={["Admin", "Operations", "Internal Sales"]}>
+              <AppLayout>
+                <FlightPage />
               </AppLayout>
             </RoleBasedRoute>
           }
