@@ -71,6 +71,13 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Combobox } from "@/components/ui/combobox";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Add roomFieldMappings at the top of the file after imports
 const roomFieldMappings = {
@@ -404,7 +411,22 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
                               <TableCell className="text-xs py-1.5">{room.booked}</TableCell>
                             )}
                             {visibleColumns.remaining && (
-                              <TableCell className="text-xs py-1.5">{room.remaining}</TableCell>
+                              <TableCell className="text-xs py-1.5">
+                                {room.remaining === "purchased_to_order" ? (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger>
+                                        <span className="cursor-help">PTO</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Purchased to Order</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ) : (
+                                  room.remaining
+                                )}
+                              </TableCell>
                             )}
                             {visibleColumns.checkInOut && (
                               <TableCell className="text-xs py-1.5">
@@ -960,7 +982,8 @@ function TestHotelRooms() {
         breakfast_cost_pp: roomData.breakfast_cost_pp,
         core_per_night_price_local: roomData.core_per_night_price_local,
         room_margin: roomData.room_margin,
-        attrition_group: roomData.attrition_group
+        attrition_group: roomData.attrition_group,
+        is_provisional: roomData.is_provisional || false,
       };
       await api.post("stock-rooms", newRoom);
       toast.success("Room added successfully");
@@ -1875,10 +1898,11 @@ const RoomDialog = memo(({
         check_in_date: room.check_in_date || "",
         check_out_date: room.check_out_date || "",
         hotel_id: selectedHotel?.hotel_id || room.hotel_id,
-        breakfast_included: room.breakfast_included === true || room.breakfast_included === "true" ? "true" : "false",
+        breakfast_included: room.breakfast_included === true || room.breakfast_included === "true",
         room_flexibility: room.room_flexibility || "non_flex",
         package_type: room.package_type || "Both",
-        attrition_group: room.attrition_group || ""
+        attrition_group: room.attrition_group || "",
+        is_provisional: room.is_provisional === true || room.is_provisional === "TRUE" ? true : false
       };
     }
     return {
@@ -1900,7 +1924,7 @@ const RoomDialog = memo(({
       check_out_date: "",
       nights: 0,
       currency_local: "GBP",
-      breakfast_included: "false",
+      breakfast_included: false,
       breakfast_cost_pp: 0,
       core_per_night_price_local: 0,
       final_per_night_price_local: 0,
@@ -1909,7 +1933,8 @@ const RoomDialog = memo(({
       total_room_cost_gbp: 0,
       room_margin: "55%",
       extra_night_margin: "28%",
-      attrition_group: ""
+      attrition_group: "",
+      is_provisional: false
     };
   });
 
@@ -1951,7 +1976,7 @@ const RoomDialog = memo(({
           check_out_date: room.check_out_date || "",
           hotel_id: selectedHotel?.hotel_id || room.hotel_id,
           hotel_name: selectedHotel?.hotel_name || room.hotel_name,
-          breakfast_included: room.breakfast_included === true || room.breakfast_included === "true" ? "true" : "false",
+          breakfast_included: room.breakfast_included === true || room.breakfast_included === "true",
           room_flexibility: room.room_flexibility || "non_flex",
           package_type: room.package_type || "Both",
           package_id: room.package_id || "",
@@ -1987,7 +2012,7 @@ const RoomDialog = memo(({
           check_out_date: "",
           nights: 0,
           currency_local: "GBP",
-          breakfast_included: "false",
+          breakfast_included: false,
           breakfast_cost_pp: 0,
           core_per_night_price_local: 0,
           final_per_night_price_local: 0,
@@ -2014,15 +2039,21 @@ const RoomDialog = memo(({
         // Prepare bulk updates for all changed fields
         const updates = Object.entries(formData)
           .filter(([field, value]) => {
+            // Skip remaining field
+            if (field === 'remaining') return false;
             if (field === 'breakfast_included') {
-              const originalValue = room.breakfast_included === true || room.breakfast_included === "true" ? "true" : "false";
+              const originalValue = room.breakfast_included === true || room.breakfast_included === "true";
+              return value !== originalValue;
+            }
+            if (field === 'is_provisional') {
+              const originalValue = room.is_provisional === true || room.is_provisional === "TRUE" ? true : false;
               return value !== originalValue;
             }
             return value !== room[field];
           })
           .map(([field, value]) => ({
             column: field,
-            value: field === 'breakfast_included' ? value : value
+            value: value
           }));
 
         if (updates.length > 0) {
@@ -2037,10 +2068,12 @@ const RoomDialog = memo(({
           toast.info("No changes were made");
         }
       } else {
-        // For new rooms, ensure breakfast_included is properly formatted
+        // For new rooms, exclude remaining from the payload
+        const { remaining, ...roomDataWithoutRemaining } = formData;
         const newRoomData = {
-          ...formData,
-          breakfast_included: formData.breakfast_included
+          ...roomDataWithoutRemaining,
+          breakfast_included: formData.breakfast_included,
+          is_provisional: formData.is_provisional || false
         };
         await handleAddRoom(newRoomData);
       }
@@ -2182,6 +2215,25 @@ const RoomDialog = memo(({
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label>Provisional Room</Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is-provisional"
+                    checked={formData.is_provisional}
+                    onCheckedChange={(checked) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        is_provisional: checked,
+                      }));
+                    }}
+                  />
+                  <Label htmlFor="is-provisional" className="text-sm text-muted-foreground">
+                    {formData.is_provisional ? "Provisional (Booked will be 0)" : "Confirmed"}
+                  </Label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Max Guests <span className="text-destructive">*</span></Label>
@@ -2199,6 +2251,7 @@ const RoomDialog = memo(({
                     value={formData.booked}
                     onChange={(e) => handleFieldChange('booked', parseInt(e.target.value))}
                     required
+                    disabled={formData.is_provisional}
                   />
                 </div>
               </div>
