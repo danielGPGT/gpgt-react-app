@@ -157,6 +157,7 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
     localPrice: true,
     gbpPrice: true,
     margin: true,
+    extraNightMargin: true,
     actions: true
   });
 
@@ -315,6 +316,12 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
                 >
                   Margin
                 </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.extraNightMargin}
+                  onCheckedChange={() => toggleColumn('extraNightMargin')}
+                >
+                  Extra Night Margin
+                </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button
@@ -374,10 +381,10 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
                             <TableHead className="w-[100px] text-xs py-2 font-bold">Nights</TableHead>
                           )}
                           {visibleColumns.localPrice && (
-                            <TableHead className="w-[150px] text-xs py-2 font-bold">Local Price</TableHead>
+                            <TableHead className="w-[150px] text-xs py-2 font-bold">Costs (Local)</TableHead>
                           )}
                           {visibleColumns.gbpPrice && (
-                            <TableHead className="w-[150px] text-xs py-2 font-bold">GBP Price</TableHead>
+                            <TableHead className="w-[150px] text-xs py-2 font-bold">Costs (GBP)</TableHead>
                           )}
                           {visibleColumns.margin && (
                             <TableHead className="w-[120px] text-xs py-2 font-bold">Margin</TableHead>
@@ -479,12 +486,17 @@ const ViewRoomsDialog = memo(({ isOpen, onOpenChange, hotel, rooms, onAddRoom, o
                               <TableCell className="text-xs py-1.5">
                                 <div className="flex flex-col gap-1">
                                   <div className="flex flex-row gap-1">
-                                    <span className="text-xs text-muted-foreground">Room Margin:</span>
+                                    <span className="text-xs text-muted-foreground">Room:</span>
                                     <span className="font-medium">{room.room_margin}</span>
+                                  </div>
+                                  <div className="flex flex-row gap-1">
+                                    <span className="text-xs text-muted-foreground">Extra Night:</span>
+                                    <span className="font-medium">{room.extra_night_margin}</span>
                                   </div>
                                 </div>
                               </TableCell>
                             )}
+                          
                             <TableCell className="text-xs py-1.5">
                               <div className="flex justify-start gap-1">
                                 <Button

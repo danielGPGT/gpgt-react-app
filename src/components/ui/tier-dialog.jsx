@@ -58,8 +58,8 @@ export function TierDialog({
           ticket_id: tier.ticket_id,
           hotel_id: tier.hotel_id,
           room_id: tier.room_id,
-          circuit_transfer_id: tier.circuit_transfer_id,
-          airport_transfer_id: tier.airport_transfer_id,
+          circuit_transfer_id: tier.circuit_transfer_id || "",
+          airport_transfer_id: tier.airport_transfer_id || "",
           status: tier.status || "sales open",
         });
       } else {
@@ -70,8 +70,8 @@ export function TierDialog({
           ticket_id: "",
           hotel_id: "",
           room_id: "",
-          circuit_transfer_id: "",
-          airport_transfer_id: "",
+          circuit_transfer_id: "", // Pre-fill with "No Transfer"
+          airport_transfer_id: "", // Pre-fill with "No Transfer"
           status: "sales open",
         });
       }
@@ -124,6 +124,14 @@ export function TierDialog({
       setCircuitTransfers(circuitRes.data);
       setAirportTransfers(airportRes.data);
       setTickets(ticketsRes.data);
+
+      // If no transfers are available, ensure "No Transfer" is selected
+      if (circuitRes.data.length === 0 && !formData.circuit_transfer_id) {
+        handleFieldChange("circuit_transfer_id", "");
+      }
+      if (airportRes.data.length === 0 && !formData.airport_transfer_id) {
+        handleFieldChange("airport_transfer_id", "");
+      }
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast.error("Failed to load form data");
@@ -150,6 +158,10 @@ export function TierDialog({
   const validateForm = () => {
     const errors = {};
     if (!formData.tier_type) errors.tier_type = "Required";
+    if (!formData.ticket_id) errors.ticket_id = "Ticket is required";
+    if (!formData.hotel_id) errors.hotel_id = "Hotel is required";
+    if (!formData.room_id) errors.room_id = "Room is required";
+    if (!formData.status) errors.status = "Status is required";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -174,12 +186,18 @@ export function TierDialog({
           package_id: selectedPackage.package_id,
           tier_type: formData.tier_type,
           ticket_name: ticket_name,
-          hotel_id: formData.hotel_id || "",
-          room_id: formData.room_id || "",
-          circuit_transfer_id: formData.circuit_transfer_id || "",
-          airport_transfer_id: formData.airport_transfer_id || "",
-          status: formData.status || "sales open"
+          hotel_id: formData.hotel_id,
+          room_id: formData.room_id,
+          status: formData.status
         };
+
+        // Only add transfer IDs if they are not empty (not "No Transfer")
+        if (formData.circuit_transfer_id) {
+          payload.circuit_transfer_id = formData.circuit_transfer_id;
+        }
+        if (formData.airport_transfer_id) {
+          payload.airport_transfer_id = formData.airport_transfer_id;
+        }
 
         await api.post("/package-tiers", payload);
         toast.success("Tier added successfully");
@@ -195,12 +213,6 @@ export function TierDialog({
         if (formData.room_id !== tier.room_id) {
           changedFields.room_id = formData.room_id;
         }
-        if (formData.circuit_transfer_id !== tier.circuit_transfer_id) {
-          changedFields.circuit_transfer_id = formData.circuit_transfer_id;
-        }
-        if (formData.airport_transfer_id !== tier.airport_transfer_id) {
-          changedFields.airport_transfer_id = formData.airport_transfer_id;
-        }
         if (formData.status !== tier.status) {
           changedFields.status = formData.status;
         }
@@ -208,6 +220,22 @@ export function TierDialog({
           const ticket = tickets.find((t) => t.ticket_id === formData.ticket_id);
           if (ticket) {
             changedFields.ticket_name = ticket.ticket_name;
+          }
+        }
+
+        // Handle transfers - only update if they've changed and aren't empty
+        if (formData.circuit_transfer_id !== tier.circuit_transfer_id) {
+          if (formData.circuit_transfer_id) {
+            changedFields.circuit_transfer_id = formData.circuit_transfer_id;
+          } else {
+            changedFields.circuit_transfer_id = null;
+          }
+        }
+        if (formData.airport_transfer_id !== tier.airport_transfer_id) {
+          if (formData.airport_transfer_id) {
+            changedFields.airport_transfer_id = formData.airport_transfer_id;
+          } else {
+            changedFields.airport_transfer_id = null;
           }
         }
 
@@ -403,7 +431,7 @@ export function TierDialog({
             <Label htmlFor="circuit_transfer_id">Circuit Transfer</Label>
             <Combobox
               options={[
-                { value: "", label: "Select Circuit Transfer" },
+                { value: "", label: "No Circuit Transfer" },
                 ...circuitTransfers.map((transfer) => ({
                   value: transfer.circuit_transfer_id,
                   label: transfer.transport_type,
@@ -411,11 +439,14 @@ export function TierDialog({
               ]}
               value={formData.circuit_transfer_id}
               onChange={(value) => handleFieldChange("circuit_transfer_id", value)}
-              placeholder="Select circuit transfer"
+              placeholder={formData.circuit_transfer_id === "" ? "No Circuit Transfer" : "Select circuit transfer"}
               className="w-full"
             />
             {circuitTransfers.length === 0 && (
               <p className="text-sm text-muted-foreground">No circuit transfers available for this package</p>
+            )}
+            {formErrors.circuit_transfer_id && (
+              <p className="text-sm text-destructive">{formErrors.circuit_transfer_id}</p>
             )}
           </div>
 
@@ -424,7 +455,7 @@ export function TierDialog({
             <Label htmlFor="airport_transfer_id">Airport Transfer</Label>
             <Combobox
               options={[
-                { value: "", label: "Select Airport Transfer" },
+                { value: "", label: "No Airport Transfer" },
                 ...airportTransfers.map((transfer) => ({
                   value: transfer.airport_transfer_id,
                   label: transfer.transport_type,
@@ -432,7 +463,7 @@ export function TierDialog({
               ]}
               value={formData.airport_transfer_id}
               onChange={(value) => handleFieldChange("airport_transfer_id", value)}
-              placeholder="Select airport transfer"
+              placeholder={formData.airport_transfer_id === "" ? "No Airport Transfer" : "Select airport transfer"}
               className="w-full"
             />
             {airportTransfers.length === 0 && (

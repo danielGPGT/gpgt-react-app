@@ -243,24 +243,37 @@ function CombinedPricing({
     if (selectedRoom && dateRange.from && dateRange.to) {
       const nights = differenceInCalendarDays(dateRange.to, dateRange.from);
       const extra = Math.max(nights - originalNights, 0);
-      total +=
-        (Number(selectedRoom.price) +
-          extra * Number(selectedRoom.extra_night_price)) *
-        roomQuantity;
+      const roomPrice = Number(selectedRoom.price) || 0;
+      const extraNightPrice = Number(selectedRoom.extra_night_price) || 0;
+      total += (roomPrice + extra * extraNightPrice) * roomQuantity;
     }
 
-    if (selectedTicket) total += Number(selectedTicket.price) * ticketQuantity;
-    if (selectedCircuitTransfer)
-      total += Number(selectedCircuitTransfer.price) * ticketQuantity;
-    if (selectedAirportTransfer) {
-      const needed = Math.ceil(
-        numberOfAdults / (selectedAirportTransfer.max_capacity || 1)
-      );
-      total += Number(selectedAirportTransfer.price) * needed;
+    if (selectedTicket) {
+      const ticketPrice = Number(selectedTicket.price) || 0;
+      total += ticketPrice * ticketQuantity;
     }
-    if (selectedFlight) total += Number(selectedFlight.price) * flightQuantity;
-    if (selectedLoungePass)
-      total += Number(selectedLoungePass.price) * loungePassQuantity;
+
+    if (selectedCircuitTransfer) {
+      const transferPrice = Number(selectedCircuitTransfer.price) || 0;
+      total += transferPrice * ticketQuantity;
+    }
+
+    if (selectedAirportTransfer) {
+      const transferPrice = Number(selectedAirportTransfer.price) || 0;
+      const maxCapacity = Number(selectedAirportTransfer.max_capacity) || 1;
+      const needed = Math.ceil(numberOfAdults / maxCapacity);
+      total += transferPrice * needed;
+    }
+
+    if (selectedFlight) {
+      const flightPrice = Number(selectedFlight.price) || 0;
+      total += flightPrice * flightQuantity;
+    }
+
+    if (selectedLoungePass) {
+      const loungePrice = Number(selectedLoungePass.price) || 0;
+      total += loungePrice * loungePassQuantity;
+    }
 
     if (total === 0) {
       setTotalPrice(0);
@@ -274,16 +287,20 @@ function CombinedPricing({
     let finalTotal;
     if (effectiveRole === "External B2B") {
       // For external users, apply commission first, then exchange rate
-      const withCommission = rounded * (1 + b2bCommission);
-      finalTotal = withCommission * exchangeRate;
+      const commission = Number(b2bCommission) || 0;
+      const rate = Number(exchangeRate) || 1;
+      const withCommission = rounded * (1 + commission);
+      finalTotal = withCommission * rate;
     } else {
       // For internal users, just apply exchange rate
-      finalTotal = rounded * exchangeRate;
+      const rate = Number(exchangeRate) || 1;
+      finalTotal = rounded * rate;
     }
 
     // Ensure we have a valid number
     if (isNaN(finalTotal)) {
       console.error('Invalid total price calculation:', {
+        total,
         rounded,
         b2bCommission,
         exchangeRate,

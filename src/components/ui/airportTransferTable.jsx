@@ -734,8 +734,8 @@ function AirportTransferTable() {
               <TableHead className="text-xs py-2">Max Capacity</TableHead>
               <TableHead className="text-xs py-2">Budget per car</TableHead>
               <TableHead className="text-xs py-2">Supplier</TableHead>
-              <TableHead className="text-xs py-2">Quote Currency</TableHead>
-              <TableHead className="text-xs py-2">Local Quote per car</TableHead>
+              <TableHead className="text-xs py-2">Quote per car Local</TableHead>
+              <TableHead className="text-xs py-2">Quote per car GBP</TableHead>
               <TableHead className="text-xs py-2">Status</TableHead>
               <TableHead className="text-xs py-2">Actions</TableHead>
             </TableRow>
@@ -855,9 +855,6 @@ function AirportTransferTable() {
                     {item.supplier}
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
-                    {item.quote_currency}
-                  </TableCell>
-                  <TableCell className="text-xs py-1.5">
                     {isEditing && editingCell.field === "supplier_quote_per_car_local" ? (
                       <Input
                         id="supplier_quote_per_car_local"
@@ -876,7 +873,39 @@ function AirportTransferTable() {
                         }
                         className="cursor-pointer hover:bg-muted/50 px-1 rounded"
                       >
+                        {item.quote_currency === "GBP" ? "£" : 
+                         item.quote_currency === "EUR" ? "€" : 
+                         item.quote_currency === "USD" ? "$" : 
+                         item.quote_currency === "AUD" ? "A$" : 
+                         item.quote_currency === "CAD" ? "C$" : 
+                         item.quote_currency === "NZD" ? "NZ$" : 
+                         item.quote_currency === "SGD" ? "S$" : 
+                         item.quote_currency === "MYR" ? "RM" : 
+                         item.quote_currency ? `${item.quote_currency} ` : ""}
                         {item.supplier_quote_per_car_local}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs py-1.5">
+                    {isEditing && editingCell.field === "supplier_quote_per_car_gbp" ? (
+                      <Input
+                        id="supplier_quote_per_car_gbp"
+                        type="number"
+                        value={getFormValue("supplier_quote_per_car_gbp")}
+                        onChange={(e) => handleFormChange("supplier_quote_per_car_gbp", e.target.value)}
+                      />
+                    ) : (
+                      <div
+                        onClick={() =>
+                          handleCellEdit(
+                            item.airport_transfer_id,
+                            "supplier_quote_per_car_gbp",
+                            item.supplier_quote_per_car_gbp
+                          )
+                        }
+                        className="cursor-pointer hover:bg-muted/50 px-1 rounded"
+                      >
+                        £{item.supplier_quote_per_car_gbp}
                       </div>
                     )}
                   </TableCell>
