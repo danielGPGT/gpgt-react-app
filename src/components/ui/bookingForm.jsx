@@ -127,13 +127,16 @@ function BookingForm({
     lead_traveller_name: z.string().min(1),
     lead_traveller_phone: z.string().min(1),
     lead_traveller_email: z.string().min(1),
-    guest_traveller_names: z.array(z.string().min(1)).length(numberOfAdults - 1),
+    guest_traveller_names: z.array(z.string().min(1)).length(numberOfAdults > 1 ? numberOfAdults - 1 : 0),
     acquisition: z.string(),
     booking_type: z.string(),
     atol_abtot: z.string(),
     payment1_status: z.boolean().default(false),
     payment2_status: z.boolean().default(false),
     payment3_status: z.boolean().default(false),
+    payment1_date: z.date(),
+    payment2_date: z.date().optional(),
+    payment3_date: z.date().optional(),
     booking_reference: z.string().min(1),
     booking_reference_prefix: z.string().min(1),
     create_flight_booking: z.boolean().default(false),
@@ -142,6 +145,24 @@ function BookingForm({
     flight_status: z.string().optional(),
     create_lounge_booking: z.boolean().default(false),
     lounge_booking_reference: z.string().optional(),
+  }).refine((data) => {
+    // Validate payment 2 is after payment 1
+    if (data.payment2_date && data.payment1_date) {
+      return data.payment2_date > data.payment1_date;
+    }
+    return true;
+  }, {
+    message: "Second payment must be after first payment",
+    path: ["payment2_date"]
+  }).refine((data) => {
+    // Validate payment 3 is after payment 2
+    if (data.payment3_date && data.payment2_date) {
+      return data.payment3_date > data.payment2_date;
+    }
+    return true;
+  }, {
+    message: "Third payment must be after second payment",
+    path: ["payment3_date"]
   });
 
   const form = useForm({
@@ -159,13 +180,16 @@ function BookingForm({
       lead_traveller_name: "",
       lead_traveller_phone: "",
       lead_traveller_email: "",
-      guest_traveller_names: Array(numberOfAdults - 1).fill(""),
+      guest_traveller_names: numberOfAdults > 1 ? Array(numberOfAdults - 1).fill("") : [],
       acquisition: "B2B Travel Agent",
       booking_type: "Standard",
       atol_abtot: "ATOL",
-      payment1_status: false,
+      payment1_status: true,
       payment2_status: false,
       payment3_status: false,
+      payment1_date: new Date(),
+      payment2_date: selectedPackage?.payment_date_2 ? new Date(selectedPackage.payment_date_2) : null,
+      payment3_date: selectedPackage?.payment_date_3 ? new Date(selectedPackage.payment_date_3) : null,
       booking_reference: "",
       booking_reference_prefix: "GP",
       create_flight_booking: false,
@@ -455,6 +479,52 @@ function BookingForm({
     setPaymentPercents(newPercents);
   };
 
+  // Add useEffect to update payment dates when package changes
+  useEffect(() => {
+    if (selectedPackage) {
+      // Update payment dates when package changes
+      const payment1Date = new Date(); // First payment is current date
+      const payment2Date = selectedPackage.payment_date_2 ? new Date(selectedPackage.payment_date_2) : null;
+      const payment3Date = selectedPackage.payment_date_3 ? new Date(selectedPackage.payment_date_3) : null;
+
+      // Set first payment to current date
+      form.setValue('payment1_date', payment1Date);
+      
+      if (payment2Date) {
+        const firstOfMonth2 = getFirstDayOfMonth(payment2Date);
+        // Ensure payment 2 is after payment 1
+        if (firstOfMonth2 <= payment1Date) {
+          form.setValue('payment2_date', getNextFirstOfMonth(payment1Date));
+        } else {
+          form.setValue('payment2_date', firstOfMonth2);
+        }
+      }
+      
+      if (payment3Date) {
+        const firstOfMonth3 = getFirstDayOfMonth(payment3Date);
+        const currentPayment2Date = form.getValues('payment2_date');
+        // Ensure payment 3 is after payment 2
+        if (currentPayment2Date && firstOfMonth3 <= currentPayment2Date) {
+          form.setValue('payment3_date', getNextFirstOfMonth(currentPayment2Date));
+        } else {
+          form.setValue('payment3_date', firstOfMonth3);
+        }
+      }
+    }
+  }, [selectedPackage]);
+
+  // Add useEffect to sync booking date with payment1_date
+  useEffect(() => {
+    const bookingDate = form.getValues('booking_date');
+    // Set payment1_date to the exact booking date, not first of month
+    form.setValue('payment1_date', bookingDate);
+  }, [form.getValues('booking_date')]);
+
+  // Add useEffect to update guest_traveller_names when numberOfAdults changes
+  useEffect(() => {
+    form.setValue('guest_traveller_names', numberOfAdults > 1 ? Array(numberOfAdults - 1).fill("") : []);
+  }, [numberOfAdults, form]);
+
   const handleSubmit = async (values) => {
     if (isSubmitting) {
       console.log('Submission blocked: Already submitting');
@@ -584,11 +654,11 @@ function BookingForm({
         // Payment details with rounded values
         payment_currency: selectedCurrency,
         payment_1: paymentAmounts[0],
-        payment_1_date: payment1Date,
+        payment_1_date: formatDate(values.payment1_date),
         payment_2: paymentAmounts[1],
-        payment_2_date: payment2Date,
+        payment_2_date: formatDate(values.payment2_date),
         payment_3: paymentAmounts[2],
-        payment_3_date: payment3Date,
+        payment_3_date: formatDate(values.payment3_date),
         payment_1_status: values.payment1_status ? "Paid" : "Due",
         payment_2_status: values.payment2_status ? "Paid" : "Due",
         payment_3_status: values.payment3_status ? "Paid" : "Due",
@@ -637,7 +707,27 @@ function BookingForm({
             payment_3: bookingData.payment_3,
             payment_3_date: bookingData.payment_3_date,
             payment_3_status: 'Pending',
-            guest_traveller_names: bookingData.guest_traveller_names
+            guest_traveller_names: bookingData.guest_traveller_names,
+            // Add all selected items and their quantities
+            selectedEvent,
+            selectedPackage,
+            selectedHotel,
+            selectedRoom,
+            selectedTicket,
+            selectedFlight,
+            selectedLoungePass,
+            selectedCircuitTransfer,
+            selectedAirportTransfer,
+            roomQuantity,
+            ticketQuantity,
+            loungePassQuantity,
+            circuitTransferQuantity,
+            airportTransferQuantity,
+            flightQuantity,
+            dateRange,
+            numberOfAdults,
+            totalPrice,
+            selectedCurrency
           };
 
           // Update booking details state
@@ -651,58 +741,6 @@ function BookingForm({
 
           // Close booking form dialog
           onOpenChange?.(false);
-
-          // Call onBookingComplete callback
-          onBookingComplete?.(bookingDetails);
-
-          // Create a temporary PDFDownloadLink for automatic download
-          const tempContainer = document.createElement('div');
-          document.body.appendChild(tempContainer);
-          
-          const pdfLink = (
-            <PDFDownloadLink
-              document={
-                <BookingConfirmationPDF
-                  selectedEvent={selectedEvent}
-                  selectedPackage={selectedPackage}
-                  selectedHotel={selectedHotel}
-                  selectedRoom={selectedRoom}
-                  selectedTicket={selectedTicket}
-                  selectedFlight={selectedFlight}
-                  selectedLoungePass={selectedLoungePass}
-                  selectedCircuitTransfer={selectedCircuitTransfer}
-                  selectedAirportTransfer={selectedAirportTransfer}
-                  numberOfAdults={numberOfAdults}
-                  dateRange={dateRange}
-                  roomQuantity={roomQuantity}
-                  ticketQuantity={ticketQuantity}
-                  loungePassQuantity={loungePassQuantity}
-                  circuitTransferQuantity={circuitTransferQuantity}
-                  airportTransferQuantity={airportTransferQuantity}
-                  flightQuantity={flightQuantity}
-                  totalPrice={totalPrice}
-                  selectedCurrency={selectedCurrency}
-                  bookingData={bookingDetails}
-                />
-              }
-              fileName={`${bookingDetails.booker_name} - ${bookingDetails.booking_ref} - Booking Confirmation.pdf`}
-            >
-              {({ url }) => {
-                if (url) {
-                  const link = document.createElement('a');
-                  link.href = url;
-                  link.download = `${bookingDetails.booker_name} - ${bookingDetails.booking_ref} - Booking Confirmation.pdf`;
-                  link.click();
-                  document.body.removeChild(tempContainer);
-                }
-                return null;
-              }}
-            </PDFDownloadLink>
-          );
-
-          // Render the temporary PDFDownloadLink
-          const root = ReactDOM.createRoot(tempContainer);
-          root.render(pdfLink);
         }
         
       } catch (error) {
@@ -717,6 +755,21 @@ function BookingForm({
       toast.error('Please check all required fields are filled correctly.');
       setIsSubmitting(false);
     }
+  };
+
+  // Add these helper functions at the top of the component
+  const getFirstDayOfMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  };
+
+  const isFirstDayOfMonth = (date) => {
+    return date.getDate() === 1;
+  };
+
+  const getNextFirstOfMonth = (date) => {
+    const nextMonth = new Date(date);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    return getFirstDayOfMonth(nextMonth);
   };
 
   return (
@@ -1116,7 +1169,7 @@ function BookingForm({
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {Array.from({ length: numberOfAdults - 1 }).map(
+                    {Array.from({ length: numberOfAdults > 1 ? numberOfAdults - 1 : 0 }).map(
                       (_, index) => (
                         <FormField
                           key={index}
@@ -1324,13 +1377,134 @@ function BookingForm({
                             )}
 
                             <div className="space-y-1">
-                              <div className="text-xs text-muted-foreground">
-                                {idx === 0 ? (
-                                  "Due on booking"
-                                ) : (
-                                  selectedPackage?.[`payment_date_${idx + 1}`] || "Date not set"
+                              <FormField
+                                control={form.control}
+                                name={`payment${idx + 1}_date`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <FormControl>
+                                          <Button
+                                            variant="outline"
+                                            className={cn(
+                                              "w-full justify-start text-left font-normal bg-background text-xs h-7",
+                                              !field.value && "text-muted-foreground"
+                                            )}
+                                          >
+                                            {field.value ? (
+                                              format(field.value, "PPP")
+                                            ) : (
+                                              <span>
+                                                {idx === 0 ? "Due on booking" : 
+                                                 idx === 1 ? (selectedPackage?.payment_date_2 || "Set date") :
+                                                 (selectedPackage?.payment_date_3 || "Set date")}
+                                              </span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
+                                          </Button>
+                                        </FormControl>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                          mode="single"
+                                          selected={field.value}
+                                          onSelect={(date) => {
+                                            if (!date) return;
+                                            
+                                            if (idx === 0) {
+                                              // For first payment, update both booking date and payment date
+                                              form.setValue('booking_date', date);
+                                              field.onChange(date);
+                                            } else {
+                                              // For other payments, ensure first of month
+                                              const firstOfMonth = getFirstDayOfMonth(date);
+                                              
+                                              // For payment 2
+                                              if (idx === 1) {
+                                                const payment1Date = form.getValues('payment1_date');
+                                                if (payment1Date && firstOfMonth <= payment1Date) {
+                                                  // If selected date is before or same as payment 1, set to next month
+                                                  const nextMonth = getNextFirstOfMonth(payment1Date);
+                                                  field.onChange(nextMonth);
+                                                  
+                                                  // Check if we need to adjust payment 3
+                                                  const payment3Date = form.getValues('payment3_date');
+                                                  if (payment3Date && nextMonth >= payment3Date) {
+                                                    // If new payment 2 date is after or same as payment 3, adjust payment 3
+                                                    form.setValue('payment3_date', getNextFirstOfMonth(nextMonth));
+                                                  }
+                                                  return;
+                                                }
+                                                
+                                                // Check if we need to adjust payment 3
+                                                const payment3Date = form.getValues('payment3_date');
+                                                if (payment3Date && firstOfMonth >= payment3Date) {
+                                                  // If new payment 2 date is after or same as payment 3, adjust payment 3
+                                                  form.setValue('payment3_date', getNextFirstOfMonth(firstOfMonth));
+                                                }
+                                              }
+                                              
+                                              // For payment 3
+                                              if (idx === 2) {
+                                                const payment2Date = form.getValues('payment2_date');
+                                                if (payment2Date && firstOfMonth <= payment2Date) {
+                                                  // If selected date is before or same as payment 2, set to next month
+                                                  const nextMonth = getNextFirstOfMonth(payment2Date);
+                                                  field.onChange(nextMonth);
+                                                  return;
+                                                }
+                                              }
+                                              
+                                              field.onChange(firstOfMonth);
+                                            }
+                                          }}
+                                          disabled={(date) => {
+                                            if (idx === 0) {
+                                              // For first payment, no restrictions
+                                              return false;
+                                            }
+                                            
+                                            // For other payments, disable all dates that aren't the first of the month
+                                            if (!isFirstDayOfMonth(date)) {
+                                              return true;
+                                            }
+                                            
+                                            // For payment 2, disable dates before or same as payment 1
+                                            if (idx === 1) {
+                                              const payment1Date = form.getValues('payment1_date');
+                                              if (payment1Date) {
+                                                return date <= payment1Date;
+                                              }
+                                            }
+                                            
+                                            // For payment 3, disable dates before or same as payment 2
+                                            if (idx === 2) {
+                                              const payment2Date = form.getValues('payment2_date');
+                                              if (payment2Date) {
+                                                return date <= payment2Date;
+                                              }
+                                            }
+                                            
+                                            return false;
+                                          }}
+                                          modifiers={{
+                                            firstOfMonth: (date) => isFirstDayOfMonth(date)
+                                          }}
+                                          modifiersStyles={{
+                                            firstOfMonth: {
+                                              fontWeight: 'bold',
+                                              color: 'var(--primary)'
+                                            }
+                                          }}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
                                 )}
-                              </div>
+                              />
 
                               <div className="flex items-center justify-between">
                                 <div className="text-xs font-medium">
@@ -1377,16 +1551,7 @@ function BookingForm({
                     >
                       Cancel
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        onOpenChange(false);
-                        setShowQuoteDialog(true);
-                      }}
-                    >
-                      Generate Quote
-                    </Button>
+
                     <Button type="submit" disabled={isSubmitting}>
                       {isSubmitting ? "Creating Booking..." : "Create Booking"}
                     </Button>
@@ -1399,7 +1564,16 @@ function BookingForm({
       </Dialog>
 
       {/* Success Dialog */}
-      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+      <Dialog 
+        open={showSuccessDialog} 
+        onOpenChange={(open) => {
+          if (!open) {
+            // When the booking confirmation dialog is closed, refresh the page
+            window.location.reload();
+          }
+          setShowSuccessDialog(open);
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Booking Confirmed!</DialogTitle>
@@ -1448,50 +1622,14 @@ function BookingForm({
               </div>
             </div>
             <div className="pt-4">
-              <PDFDownloadLink
-                document={
-                  <BookingConfirmationPDF
-                    selectedEvent={selectedEvent}
-                    selectedPackage={selectedPackage}
-                    selectedHotel={selectedHotel}
-                    selectedRoom={selectedRoom}
-                    selectedTicket={selectedTicket}
-                    selectedFlight={selectedFlight}
-                    selectedLoungePass={selectedLoungePass}
-                    selectedCircuitTransfer={selectedCircuitTransfer}
-                    selectedAirportTransfer={selectedAirportTransfer}
-                    numberOfAdults={numberOfAdults}
-                    dateRange={dateRange}
-                    roomQuantity={roomQuantity}
-                    ticketQuantity={ticketQuantity}
-                    loungePassQuantity={loungePassQuantity}
-                    circuitTransferQuantity={circuitTransferQuantity}
-                    airportTransferQuantity={airportTransferQuantity}
-                    flightQuantity={flightQuantity}
-                    totalPrice={totalPrice}
-                    selectedCurrency={selectedCurrency}
-                    bookingData={bookingDetails}
-                  />
-                }
-                fileName={`${bookingDetails?.booker_name} - ${bookingDetails?.booking_ref} - Booking Confirmation.pdf`}
+              <Button
+                onClick={() => {
+                  const url = `${import.meta.env.VITE_API_URL}/bookingFile/${bookingDetails.booking_ref}`;
+                  window.open(url, '_blank');
+                }}
                 className="w-full"
               >
-                {({ loading }) =>
-                  loading ? (
-                    <Button type="button" variant="outline" className="w-full" disabled>
-                      Generating PDF...
-                    </Button>
-                  ) : (
-                    <Button type="button" className="w-full">
-                      Download Booking Confirmation
-                    </Button>
-                  )
-                }
-              </PDFDownloadLink>
-            </div>
-            <div className="flex justify-end gap-4">
-              <Button variant="outline" onClick={() => setShowSuccessDialog(false)}>
-                Close
+                Download Booking Confirmation
               </Button>
             </div>
           </div>

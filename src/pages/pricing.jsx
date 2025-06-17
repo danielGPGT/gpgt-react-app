@@ -127,6 +127,11 @@ function Pricing() {
     }
   };
 
+  const handleBookingComplete = () => {
+    // Implement the logic to handle booking completion
+    console.log("Booking completed");
+  };
+
   return (
       <main className="w-full">
 
@@ -141,6 +146,7 @@ function Pricing() {
 
           <div className="flex w-full justify-between mt-4 gap-6">
             <CombinedPricing
+              key={selectedEvent ? 'selected' : 'reset'}
               numberOfAdults={numberOfAdults}
               setNumberOfAdults={setNumberOfAdults}
               selectedCurrency={selectedCurrency}
@@ -180,6 +186,7 @@ function Pricing() {
               flightQuantity={flightQuantity}
               setFlightQuantity={setFlightQuantity}
               userRole={role}
+              onBookingComplete={handleBookingComplete}
             />
           </div>
 

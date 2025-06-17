@@ -114,6 +114,7 @@ function CombinedPricing({
   flightQuantity,
   setFlightQuantity,
   userRole,
+  onBookingComplete,
 }) {
   const { theme } = useTheme();
   const [events, setEvents] = useState([]);
@@ -356,102 +357,117 @@ function CombinedPricing({
     }
   }, [selectedRoom, setOriginalNights]);
 
-  const handleEventSelect = async (eventId) => {
-    if (eventId === "none") {
-      // Reset all states when event is deselected
-      setSelectedEvent(null);
-      setSelectedPackage(null);
-      setSelectedHotel(null);
-      setSelectedRoom(null);
-      setSelectedTicket(null);
-      setSelectedCircuitTransfer(null);
-      setSelectedAirportTransfer(null);
-      setSelectedFlight(null);
-      setSelectedLoungePass(null);
+  // Add this helper function near the top of the component
+  const resetDependentStates = (options = {}) => {
+    const {
+      resetPackage = true,
+      resetHotel = true,
+      resetRoom = true,
+      resetTicket = true,
+      resetFlight = true,
+      resetLoungePass = true,
+      resetCircuitTransfer = true,
+      resetAirportTransfer = true,
+      resetDateRange = true,
+      resetQuantities = true,
+      resetCategories = true
+    } = options;
+
+    if (resetPackage) setSelectedPackage(null);
+    if (resetHotel) setSelectedHotel(null);
+    if (resetRoom) setSelectedRoom(null);
+    if (resetTicket) setSelectedTicket(null);
+    if (resetFlight) setSelectedFlight(null);
+    if (resetLoungePass) setSelectedLoungePass(null);
+    if (resetCircuitTransfer) setSelectedCircuitTransfer(null);
+    if (resetAirportTransfer) setSelectedAirportTransfer(null);
+    if (resetDateRange) {
       setDateRange({ from: null, to: null });
       setOriginalNights(0);
+    }
+    if (resetQuantities) {
       setTicketQuantity(0);
       setCircuitTransferQuantity(0);
       setAirportTransferQuantity(0);
       setLoungePassQuantity(0);
-      setCategories([]);
-      return;
     }
+    if (resetCategories) setCategories([]);
+  };
 
-    const foundEvent = events.find((ev) => ev.event_id === eventId);
-    setSelectedEvent(foundEvent);
-
-    // Reset dependent states
-    setSelectedPackage(null);
-    setSelectedHotel(null);
-    setSelectedRoom(null);
-    setSelectedTicket(null);
-    setSelectedCircuitTransfer(null);
-    setSelectedAirportTransfer(null);
-    setSelectedFlight(null);
-    setSelectedLoungePass(null);
-    setDateRange({ from: null, to: null });
-    setOriginalNights(0);
-    setTicketQuantity(0);
-    setCircuitTransferQuantity(0);
-    setAirportTransferQuantity(0);
-    setLoungePassQuantity(0);
-    setCategories([]);
-
-    if (foundEvent) {
-      try {
-        setLoadingPackages(true);
-        setLoadingCategories(true);
-        setLoadingFlights(true);
-        setLoadingLoungePasses(true);
-
-        const [packagesRes, flightsRes, loungeRes] = await Promise.all([
-          api.get("/packages", {
-            params: { eventId: foundEvent.event_id },
-          }),
-          api.get("/flights", { params: { event_id: foundEvent.event_id } }),
-          api.get("/lounge-passes", { params: { event_id: foundEvent.event_id } }),
-        ]);
-
-        setPackages(packagesRes.data);
-        setFlights(flightsRes.data);
-        setLoungePasses(loungeRes.data);
-      } catch (error) {
-        console.error("Failed to fetch event data:", error.message);
-        toast.error("Failed to load event data. Please try again.");
-      } finally {
-        setLoadingPackages(false);
-        setLoadingFlights(false);
-        setLoadingLoungePasses(false);
+  const handleEventSelect = async (eventId) => {
+    try {
+      if (eventId === "none") {
+        setSelectedEvent(null);
+        resetDependentStates();
+        return;
       }
+
+      const foundEvent = events.find((ev) => ev.event_id === eventId);
+      if (!foundEvent) {
+        toast.error("Selected event not found");
+        return;
+      }
+
+      setSelectedEvent(foundEvent);
+      resetDependentStates();
+
+      setLoadingPackages(true);
+      setLoadingCategories(true);
+      setLoadingFlights(true);
+      setLoadingLoungePasses(true);
+
+      const [packagesRes, flightsRes, loungeRes] = await Promise.all([
+        api.get("/packages", {
+          params: { eventId: foundEvent.event_id },
+        }),
+        api.get("/flights", { params: { event_id: foundEvent.event_id } }),
+        api.get("/lounge-passes", { params: { event_id: foundEvent.event_id } }),
+      ]);
+
+      if (!packagesRes.data || !flightsRes.data || !loungeRes.data) {
+        throw new Error("Invalid response data");
+      }
+
+      setPackages(packagesRes.data);
+      setFlights(flightsRes.data);
+      setLoungePasses(loungeRes.data);
+    } catch (error) {
+      console.error("Failed to fetch event data:", error);
+      toast.error(error.message || "Failed to load event data. Please try again.");
+      // Reset to previous state on error
+      setSelectedEvent(null);
+      resetDependentStates();
+    } finally {
+      setLoadingPackages(false);
+      setLoadingCategories(false);
+      setLoadingFlights(false);
+      setLoadingLoungePasses(false);
     }
   };
 
   const handlePackageSelect = async (packageId) => {
-    if (packageId === "none") {
-      setSelectedPackage(null);
-      setSelectedHotel(null);
-      setSelectedRoom(null);
-      setSelectedTicket(null);
-      setSelectedFlight(null);
-      setSelectedLoungePass(null);
-      setSelectedCircuitTransfer(null);
-      setSelectedAirportTransfer(null);
-      setRooms([]);
-      setHotels([]);
-      setTickets([]);
-      setFlights([]);
-      setLoungePasses([]);
-      setCircuitTransfers([]);
-      setAirportTransfers([]);
-      setPackageTiers([]);
-      setSelectedTier(null);
-      setDateRange({ from: null, to: null });
-      setOriginalNights(0);
-      return;
-    }
-
     try {
+      if (packageId === "none") {
+        setSelectedPackage(null);
+        resetDependentStates();
+        setRooms([]);
+        setHotels([]);
+        setTickets([]);
+        setFlights([]);
+        setLoungePasses([]);
+        setCircuitTransfers([]);
+        setAirportTransfers([]);
+        setPackageTiers([]);
+        setSelectedTier(null);
+        return;
+      }
+
+      const packageData = packages.find((p) => p.package_id === packageId);
+      if (!packageData) {
+        toast.error("Selected package not found");
+        return;
+      }
+
       setLoadingHotels(true);
       setLoadingRooms(true);
       setLoadingTickets(true);
@@ -466,6 +482,10 @@ function CombinedPricing({
         params: { packageId },
       });
 
+      if (!roomsRes.data) {
+        throw new Error("Invalid rooms data");
+      }
+
       // Extract unique hotel IDs from rooms
       const uniqueHotelIds = [...new Set(roomsRes.data.map(room => room.hotel_id))];
 
@@ -473,6 +493,10 @@ function CombinedPricing({
       const hotelsRes = await api.get("/hotels", {
         params: { hotelIds: uniqueHotelIds.join(',') },
       });
+
+      if (!hotelsRes.data) {
+        throw new Error("Invalid hotels data");
+      }
 
       // Get other data in parallel
       const [
@@ -487,7 +511,11 @@ function CombinedPricing({
         api.get("/package-tiers", { params: { packageId } })
       ]);
 
-      const packageData = packages.find((p) => p.package_id === packageId);
+      if (!ticketsRes.data || !circuitTransfersRes.data || 
+          !airportTransfersRes.data || !tiersRes.data) {
+        throw new Error("Invalid response data");
+      }
+
       setSelectedPackage(packageData);
       setRooms(roomsRes.data);
       setHotels(hotelsRes.data);
@@ -497,7 +525,10 @@ function CombinedPricing({
       setPackageTiers(tiersRes.data);
     } catch (error) {
       console.error("Failed to fetch package data:", error);
-      toast.error("Failed to load package data. Please try again.");
+      toast.error(error.message || "Failed to load package data. Please try again.");
+      // Reset to previous state on error
+      setSelectedPackage(null);
+      resetDependentStates();
     } finally {
       setLoadingHotels(false);
       setLoadingRooms(false);
@@ -516,34 +547,18 @@ function CombinedPricing({
       return;
     }
 
-    console.log('Tier Selection Started - Tier ID:', tierId);
     const selectedTierData = packageTiers.find((tier) => tier.tier_id === tierId);
-    console.log('Selected Tier Data:', selectedTierData);
     setSelectedTier(selectedTierData);
 
     if (selectedTierData) {
       try {
         // Set all the selections based on the tier data
         if (selectedTierData.ticket_id) {
-          console.log('Processing Ticket Selection:');
-          console.log('- Looking for ticket_id:', selectedTierData.ticket_id);
-          console.log('- Available tickets:', tickets);
-          
           const ticket = tickets.find((t) => t.ticket_id === selectedTierData.ticket_id);
-          console.log('- Found ticket:', ticket);
           
           if (ticket) {
-            console.log('- Ticket details:', {
-              id: ticket.ticket_id,
-              name: ticket.ticket_name,
-              remaining: ticket.remaining,
-              category_id: ticket.category_id
-            });
-            
             if (parseInt(ticket.remaining) <= 0) {
-              console.log('- Ticket is sold out, looking for next available ticket');
               const nextAvailableTicket = tickets.find(t => parseInt(t.remaining) > 0);
-              console.log('- Next available ticket:', nextAvailableTicket);
               
               if (nextAvailableTicket) {
                 // Fetch category information for the next available ticket
@@ -554,12 +569,9 @@ function CombinedPricing({
                     }
                   });
                   
-                  console.log('Category Response:', categoryRes.data);
-                  
                   if (categoryRes.data && categoryRes.data.length > 0) {
                     const matchedCategory = categoryRes.data.find(cat => cat.category_id === nextAvailableTicket.category_id);
                     if (matchedCategory) {
-                      console.log('Found Category:', matchedCategory);
                       const ticketWithCategory = {
                         ...nextAvailableTicket,
                         category: {
@@ -575,16 +587,13 @@ function CombinedPricing({
                         }
                       };
                       
-                      console.log('Ticket with Category:', ticketWithCategory);
                       setSelectedTicket(ticketWithCategory);
                       setTicketQuantity(numberOfAdults);
                     } else {
-                      console.warn('No matching category found for ticket:', nextAvailableTicket);
                       setSelectedTicket(nextAvailableTicket);
                       setTicketQuantity(numberOfAdults);
                     }
                   } else {
-                    console.warn('No category found for ticket:', nextAvailableTicket);
                     setSelectedTicket(nextAvailableTicket);
                     setTicketQuantity(numberOfAdults);
                   }
@@ -593,7 +602,6 @@ function CombinedPricing({
                   toast.error("Failed to load category information");
                 }
               } else {
-                console.log('- No available tickets found');
                 toast.error("No available tickets found");
               }
             } else {
@@ -605,12 +613,9 @@ function CombinedPricing({
                   }
                 });
                 
-                console.log('Category Response:', categoryRes.data);
-                
                 if (categoryRes.data && categoryRes.data.length > 0) {
                   const matchedCategory = categoryRes.data.find(cat => cat.category_id === ticket.category_id);
                   if (matchedCategory) {
-                    console.log('Found Category:', matchedCategory);
                     const ticketWithCategory = {
                       ...ticket,
                       category: {
@@ -626,16 +631,13 @@ function CombinedPricing({
                       }
                     };
                     
-                    console.log('Ticket with Category:', ticketWithCategory);
                     setSelectedTicket(ticketWithCategory);
                     setTicketQuantity(numberOfAdults);
                   } else {
-                    console.warn('No matching category found for ticket:', ticket);
                     setSelectedTicket(ticket);
                     setTicketQuantity(numberOfAdults);
                   }
                 } else {
-                  console.warn('No category found for ticket:', ticket);
                   setSelectedTicket(ticket);
                   setTicketQuantity(numberOfAdults);
                 }
@@ -644,12 +646,7 @@ function CombinedPricing({
                 toast.error("Failed to load category information");
               }
             }
-          } else {
-            console.log('- No ticket found with ID:', selectedTierData.ticket_id);
-            console.log('- Available ticket IDs:', tickets.map(t => t.ticket_id));
           }
-        } else {
-          console.log('No ticket_id in tier data');
         }
 
         if (selectedTierData.hotel_id) {
@@ -774,219 +771,258 @@ function CombinedPricing({
   };
 
   const handleHotelSelect = async (hotelId) => {
-    if (hotelId === "none") {
+    try {
+      if (hotelId === "none") {
+        setSelectedHotel(null);
+        setSelectedRoom(null);
+        setRooms([]);
+        return;
+      }
+
+      const foundHotel = hotels.find((h) => h.hotel_id === hotelId);
+      if (!foundHotel) {
+        toast.error("Selected hotel not found");
+        return;
+      }
+
+      setLoadingRooms(true);
+      setSelectedHotel(foundHotel);
+      setSelectedRoom(null);
+
+      const roomsRes = await api.get("/rooms", {
+        params: { 
+          packageId: selectedPackage?.package_id,
+          hotelId: foundHotel.hotel_id 
+        },
+      });
+
+      if (!roomsRes.data) {
+        throw new Error("Invalid rooms data");
+      }
+
+      setRooms(roomsRes.data);
+    } catch (error) {
+      console.error("Failed to fetch hotel data:", error);
+      toast.error(error.message || "Failed to load hotel data. Please try again.");
       setSelectedHotel(null);
       setSelectedRoom(null);
       setRooms([]);
-      setDateRange({ from: null, to: null });
-      setOriginalNights(0);
-      return;
-    }
-
-    try {
-      setLoadingRooms(true);
-      setLoadingCircuitTransfers(true);
-      setLoadingAirportTransfers(true);
-
-      // Find hotel from our existing data
-      const hotel = hotels.find(h => h.hotel_id === hotelId);
-      setSelectedHotel(hotel);
-
-      if (hotel) {
-        // Get rooms for this hotel that match the selected package
-        const roomsRes = await api.get("/rooms", {
-          params: { 
-            hotelId: hotel.hotel_id,
-            packageId: selectedPackage?.package_id 
-          },
-        });
-
-        // Get transfers
-        const [circuitRes, airportRes] = await Promise.all([
-          api.get("/circuit-transfers", {
-            params: { hotelId: hotel.hotel_id },
-          }),
-          api.get("/airport-transfers", {
-            params: { hotelId: hotel.hotel_id },
-          }),
-        ]);
-
-        setRooms(roomsRes.data);
-        setCircuitTransfers(circuitRes.data);
-        setAirportTransfers(airportRes.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch hotel data:", error);
-      toast.error("Failed to load hotel data. Please try again.");
     } finally {
       setLoadingRooms(false);
-      setLoadingCircuitTransfers(false);
-      setLoadingAirportTransfers(false);
     }
   };
 
   const handleRoomSelect = async (roomId) => {
-    if (roomId === "none") {
-      setSelectedRoom(null);
-      setDateRange({ from: null, to: null });
-      setOriginalNights(0);
-      return;
-    }
-
     try {
-      setLoadingRooms(true);
-      const room = rooms.find((r) => r.room_id === roomId);
-      if (room) {
-        setSelectedRoom(room);
-        // Set date range from room's check-in and check-out dates
-        const from = new Date(room.check_in_date.split('/').reverse().join('-'));
-        const to = new Date(room.check_out_date.split('/').reverse().join('-'));
-        setDateRange({ from, to });
-        setOriginalNights(room.nights);
+      if (roomId === "none") {
+        setSelectedRoom(null);
+        return;
+      }
+
+      const foundRoom = rooms.find((r) => r.room_id === roomId);
+      if (!foundRoom) {
+        toast.error("Selected room not found");
+        return;
+      }
+
+      // Check room availability
+      if (parseInt(foundRoom.remaining) <= 0) {
+        toast.error("This room type is no longer available");
+        return;
+      }
+
+      // Check if room is purchased to order
+      if (foundRoom.purchased_to_order) {
+        toast.error("This room type is currently on hold");
+        return;
+      }
+
+      setSelectedRoom(foundRoom);
+      
+      // Update nights if date range is set
+      if (dateRange.from && dateRange.to) {
+        const nights = differenceInCalendarDays(dateRange.to, dateRange.from);
+        setOriginalNights(nights);
       }
     } catch (error) {
-      console.error("Failed to fetch room data:", error);
-      toast.error("Failed to load room data. Please try again.");
-    } finally {
-      setLoadingRooms(false);
+      console.error("Failed to select room:", error);
+      toast.error(error.message || "Failed to select room. Please try again.");
+      setSelectedRoom(null);
     }
   };
 
   const handleTicketSelect = async (ticketId) => {
-    if (ticketId === "none") {
+    try {
+      if (ticketId === "none") {
+        setSelectedTicket(null);
+        setTicketQuantity(0);
+        return;
+      }
+
+      const foundTicket = tickets.find((t) => t.ticket_id === ticketId);
+      if (!foundTicket) {
+        toast.error("Selected ticket not found");
+        return;
+      }
+
+      // Check ticket availability
+      if (parseInt(foundTicket.remaining) <= 0) {
+        toast.error("This ticket category is no longer available");
+        return;
+      }
+
+      setLoadingCategories(true);
+      setSelectedTicket(foundTicket);
+      setTicketQuantity(1); // Reset to default quantity
+
+      // Fetch category information
+      const categoryRes = await api.get("/categories", {
+        params: { categoryId: foundTicket.category_id }
+      });
+
+      if (!categoryRes.data || categoryRes.data.length === 0) {
+        throw new Error("Invalid category data");
+      }
+
+      const matchedCategory = categoryRes.data.find(
+        cat => cat.category_id === foundTicket.category_id
+      );
+
+      if (!matchedCategory) {
+        throw new Error("Category not found");
+      }
+
+      const ticketWithCategory = {
+        ...foundTicket,
+        category: {
+          ...matchedCategory,
+          category_name: matchedCategory.category_name || matchedCategory.gpgt_category_name,
+          video_wall: matchedCategory.video_wall || false,
+          covered_seat: matchedCategory.covered_seat || false,
+          numbered_seat: matchedCategory.numbered_seat || false,
+          category_info: matchedCategory.category_info || '',
+          ticket_delivery_days: matchedCategory.ticket_delivery_days || 0,
+          ticket_image_1: matchedCategory.ticket_image_1 || '',
+          ticket_image_2: matchedCategory.ticket_image_2 || ''
+        }
+      };
+
+      setSelectedTicket(ticketWithCategory);
+    } catch (error) {
+      console.error("Failed to select ticket:", error);
+      toast.error(error.message || "Failed to select ticket. Please try again.");
       setSelectedTicket(null);
       setTicketQuantity(0);
-      if (selectedCircuitTransfer) {
-        setCircuitTransferQuantity(0);
-      }
-      return;
-    }
-
-    const foundTicket = tickets.find((ticket) => ticket.ticket_id === ticketId);
-    if (foundTicket) {
-      console.log('Selected Ticket:', foundTicket);
-      
-      try {
-        // Fetch category using category_id
-        const categoryRes = await api.get("/categories", {
-          params: { 
-            categoryId: foundTicket.category_id
-          }
-        });
-        
-        console.log('Category Response:', categoryRes.data);
-        
-        if (categoryRes.data && categoryRes.data.length > 0) {
-          // Find the correct category by category_id
-          const matchedCategory = categoryRes.data.find(cat => cat.category_id === foundTicket.category_id);
-          if (matchedCategory) {
-            console.log('Found Category:', matchedCategory);
-            const ticketWithCategory = {
-              ...foundTicket,
-              category: {
-                ...matchedCategory,
-                category_name: matchedCategory.category_name || matchedCategory.gpgt_category_name,
-                video_wall: matchedCategory.video_wall || false,
-                covered_seat: matchedCategory.covered_seat || false,
-                numbered_seat: matchedCategory.numbered_seat || false,
-                category_info: matchedCategory.category_info || '',
-                ticket_delivery_days: matchedCategory.ticket_delivery_days || 0,
-                ticket_image_1: matchedCategory.ticket_image_1 || '',
-                ticket_image_2: matchedCategory.ticket_image_2 || ''
-              }
-            };
-            console.log('Ticket with Category:', ticketWithCategory);
-            setSelectedTicket(ticketWithCategory);
-            setTicketQuantity(numberOfAdults);
-            if (selectedCircuitTransfer) {
-              setCircuitTransferQuantity(numberOfAdults);
-            }
-          } else {
-            console.warn('No matching category found for ticket:', foundTicket);
-            setSelectedTicket(foundTicket);
-            setTicketQuantity(numberOfAdults);
-            if (selectedCircuitTransfer) {
-              setCircuitTransferQuantity(numberOfAdults);
-            }
-          }
-        } else {
-          console.warn('No category found for ticket:', foundTicket);
-          setSelectedTicket(foundTicket);
-          setTicketQuantity(numberOfAdults);
-          if (selectedCircuitTransfer) {
-            setCircuitTransferQuantity(numberOfAdults);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch category:', error);
-        // Still set the ticket even if category fetch fails
-        setSelectedTicket(foundTicket);
-        setTicketQuantity(numberOfAdults);
-        if (selectedCircuitTransfer) {
-          setCircuitTransferQuantity(numberOfAdults);
-        }
-      }
+    } finally {
+      setLoadingCategories(false);
     }
   };
 
   const handleCircuitTransferSelect = async (transferId) => {
-    if (transferId === "none") {
+    try {
+      if (transferId === "none") {
+        setSelectedCircuitTransfer(null);
+        setCircuitTransferQuantity(0);
+        return;
+      }
+
+      const foundTransfer = circuitTransfers.find((t) => t.transfer_id === transferId);
+      if (!foundTransfer) {
+        toast.error("Selected circuit transfer not found");
+        return;
+      }
+
+      setSelectedCircuitTransfer(foundTransfer);
+      setCircuitTransferQuantity(1); // Reset to default quantity
+    } catch (error) {
+      console.error("Failed to select circuit transfer:", error);
+      toast.error(error.message || "Failed to select circuit transfer. Please try again.");
       setSelectedCircuitTransfer(null);
       setCircuitTransferQuantity(0);
-      return;
     }
-
-    const foundTransfer = circuitTransfers.find(
-      (transfer) => transfer.circuit_transfer_id === transferId
-    );
-    setSelectedCircuitTransfer(foundTransfer);
-    setCircuitTransferQuantity(ticketQuantity);
   };
 
   const handleAirportTransferSelect = async (transferId) => {
-    if (transferId === "none") {
+    try {
+      if (transferId === "none") {
+        setSelectedAirportTransfer(null);
+        setAirportTransferQuantity(0);
+        return;
+      }
+
+      const foundTransfer = airportTransfers.find((t) => t.transfer_id === transferId);
+      if (!foundTransfer) {
+        toast.error("Selected airport transfer not found");
+        return;
+      }
+
+      setSelectedAirportTransfer(foundTransfer);
+      setAirportTransferQuantity(1); // Reset to default quantity
+    } catch (error) {
+      console.error("Failed to select airport transfer:", error);
+      toast.error(error.message || "Failed to select airport transfer. Please try again.");
       setSelectedAirportTransfer(null);
       setAirportTransferQuantity(0);
-      return;
     }
-
-    const foundTransfer = airportTransfers.find(
-      (transfer) => transfer.airport_transfer_id === transferId
-    );
-    setSelectedAirportTransfer(foundTransfer);
-    const needed = Math.ceil(
-      numberOfAdults / (foundTransfer.max_capacity || 1)
-    );
-    setAirportTransferQuantity(needed);
   };
 
   const handleFlightSelect = async (flightId) => {
-    if (flightId === "none") {
+    try {
+      if (flightId === "none") {
+        setSelectedFlight(null);
+        setFlightQuantity(0);
+        return;
+      }
+
+      const foundFlight = flights.find((f) => f.flight_id === flightId);
+      if (!foundFlight) {
+        toast.error("Selected flight not found");
+        return;
+      }
+
+      // Check flight availability
+      if (parseInt(foundFlight.remaining_seats) <= 0) {
+        toast.error("This flight is no longer available");
+        return;
+      }
+
+      setSelectedFlight(foundFlight);
+      setFlightQuantity(1); // Reset to default quantity
+    } catch (error) {
+      console.error("Failed to select flight:", error);
+      toast.error(error.message || "Failed to select flight. Please try again.");
       setSelectedFlight(null);
       setFlightQuantity(0);
-      return;
-    }
-
-    const foundFlight = flights.find((flight) => flight.flight_id === flightId);
-    if (foundFlight) {
-      setSelectedFlight(foundFlight);
-      setFlightQuantity(numberOfAdults);
     }
   };
 
   const handleLoungePassSelect = (passId) => {
-    if (passId === "none") {
+    try {
+      if (passId === "none") {
+        setSelectedLoungePass(null);
+        setLoungePassQuantity(0);
+        return;
+      }
+
+      const foundPass = loungePasses.find((p) => p.pass_id === passId);
+      if (!foundPass) {
+        toast.error("Selected lounge pass not found");
+        return;
+      }
+
+      // Check pass availability
+      if (parseInt(foundPass.remaining) <= 0) {
+        toast.error("This lounge pass is no longer available");
+        return;
+      }
+
+      setSelectedLoungePass(foundPass);
+      setLoungePassQuantity(1); // Reset to default quantity
+    } catch (error) {
+      console.error("Failed to select lounge pass:", error);
+      toast.error(error.message || "Failed to select lounge pass. Please try again.");
       setSelectedLoungePass(null);
       setLoungePassQuantity(0);
-      return;
-    }
-
-    const foundPass = loungePasses.find(
-      (pass) => pass.lounge_pass_id === passId
-    );
-    if (foundPass) {
-      setSelectedLoungePass(foundPass);
-      setLoungePassQuantity(1);
     }
   };
 
@@ -1019,6 +1055,12 @@ function CombinedPricing({
       setCircuitTransferQuantity(ticketQuantity);
     }
   }, [ticketQuantity, selectedCircuitTransfer]);
+
+  const handleBookingComplete = (bookingDetails) => {
+    console.log('Refreshing page after booking completion');
+    // Force a complete page refresh
+    window.location.reload();
+  };
 
   return (
     <div className="p-4 bg-card rounded-md border shadow-sm w-full mx-auto h-full flex flex-col gap-4">
@@ -1239,11 +1281,20 @@ function CombinedPricing({
                   </SelectTrigger>
                   <SelectContent>
                     {rooms.map((room) => (
-                      <SelectItem key={room.room_id} value={room.room_id} className="text-xs" disabled={parseInt(room.remaining) <= 0}>
+                      <SelectItem 
+                        key={room.room_id} 
+                        value={room.room_id} 
+                        className="text-xs" 
+                        disabled={parseInt(room.remaining) <= 0 && room.remaining !== "purchased_to_order"}
+                      >
                         <div className="flex flex-col items-start">
                           <span className="font-medium">{room.room_category} - {room.room_type}</span>
                           <span className="text-xs text-muted-foreground">
-                            {parseInt(room.remaining) > 0 ? `${room.remaining} rooms left` : "Sold Out"}
+                            {room.remaining === "purchased_to_order" 
+                              ? "Provisional Stock"
+                              : parseInt(room.remaining) > 0
+                                ? `${room.remaining} rooms left`
+                                : "Sold Out"}
                           </span>
                         </div>
                       </SelectItem>
@@ -1834,6 +1885,135 @@ function CombinedPricing({
                 </Select>
               </div>
 
+              {/* Price Breakdown for Admin */}
+              {isAdmin && (
+                <div className="space-y-2 border-b pb-3">
+                  <h3 className="text-sm font-semibold text-foreground">Price Breakdown</h3>
+                  {selectedRoom && (
+                    <>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Room Base Price:</span>
+                          <span className="font-medium">
+                            {currencySymbols[selectedCurrency]}
+                            {Number(selectedRoom.price * roomQuantity).toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                          <span>{selectedRoom.room_category} - {selectedRoom.room_type}</span>
+                          <span>{roomQuantity} × {currencySymbols[selectedCurrency]}{Number(selectedRoom.price).toFixed(0)}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Extra Nights:</span>
+                          <span className="font-medium">
+                            {currencySymbols[selectedCurrency]}
+                            {Number(Math.max(differenceInCalendarDays(dateRange.to || dateRange.from, dateRange.from) - originalNights, 0) * selectedRoom.extra_night_price * roomQuantity).toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                          <span>Extra {Math.max(differenceInCalendarDays(dateRange.to || dateRange.from, dateRange.from) - originalNights, 0)} nights</span>
+                          {Math.max(differenceInCalendarDays(dateRange.to || dateRange.from, dateRange.from) - originalNights, 0) > 0 && (
+                            <span>{roomQuantity} × {currencySymbols[selectedCurrency]}{Number(selectedRoom.extra_night_price).toFixed(0)}</span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {selectedTicket && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Tickets:</span>
+                        <span className="font-medium">
+                          {currencySymbols[selectedCurrency]}
+                          {Number(selectedTicket.price * ticketQuantity).toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                        <span>{selectedTicket.ticket_name}</span>
+                        <span>{ticketQuantity} × {currencySymbols[selectedCurrency]}{Number(selectedTicket.price).toFixed(0)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedCircuitTransfer && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Circuit Transfer:</span>
+                        <span className="font-medium">
+                          {currencySymbols[selectedCurrency]}
+                          {Number(selectedCircuitTransfer.price * circuitTransferQuantity).toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                        <span>{selectedCircuitTransfer.transport_type}</span>
+                        <span>{circuitTransferQuantity} × {currencySymbols[selectedCurrency]}{Number(selectedCircuitTransfer.price).toFixed(0)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedAirportTransfer && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Airport Transfer:</span>
+                        <span className="font-medium">
+                          {currencySymbols[selectedCurrency]}
+                          {Number(selectedAirportTransfer.price * airportTransferQuantity).toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                        <span>{selectedAirportTransfer.transport_type} ({transferDirection})</span>
+                        <span>{airportTransferQuantity} × {currencySymbols[selectedCurrency]}{Number(selectedAirportTransfer.price).toFixed(0)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedFlight && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Flight:</span>
+                        <span className="font-medium">
+                          {currencySymbols[selectedFlight.currency || selectedCurrency]}
+                          {Number(selectedFlight.price * flightQuantity).toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                        <span>{selectedFlight.airline} • {selectedFlight.class}</span>
+                        <span>{flightQuantity} × {currencySymbols[selectedFlight.currency || selectedCurrency]}{Number(selectedFlight.price).toFixed(0)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedLoungePass && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Lounge Pass:</span>
+                        <span className="font-medium">
+                          {currencySymbols[selectedLoungePass.currency || selectedCurrency]}
+                          {Number(selectedLoungePass.price * loungePassQuantity).toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                        <span>{selectedLoungePass.variant}</span>
+                        <span>{loungePassQuantity} × {currencySymbols[selectedLoungePass.currency || selectedCurrency]}{Number(selectedLoungePass.price).toFixed(0)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {effectiveRole === "External B2B" && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">B2B Commission:</span>
+                        <span className="font-medium">
+                          {currencySymbols[selectedCurrency]}
+                          {Number(totalPrice * b2bCommission).toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground pl-2">
+                        <span>Commission Rate</span>
+                        <span>{(b2bCommission * 100).toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Selected Items */}
               <div className="space-y-2">
                 {selectedRoom && (
@@ -2022,6 +2202,7 @@ function CombinedPricing({
         totalPrice={totalPrice}
         selectedCurrency={selectedCurrency}
         transferDirection={transferDirection}
+        onBookingComplete={handleBookingComplete}
       />
 
       <Dialog open={showQuote} onOpenChange={setShowQuote}>
@@ -2133,6 +2314,7 @@ CombinedPricing.propTypes = {
   flightQuantity: PropTypes.number,
   setFlightQuantity: PropTypes.func,
   userRole: PropTypes.string.isRequired,
+  onBookingComplete: PropTypes.func,
 };
 
 export { CombinedPricing }; 

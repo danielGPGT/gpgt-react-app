@@ -33,6 +33,7 @@ import {
   Package,
   Trophy,
   UserPlus,
+  Download,
 } from "lucide-react";
 import {
   Pagination,
@@ -99,6 +100,10 @@ import { jwtDecode } from "jwt-decode";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { differenceInCalendarDays } from "date-fns";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { BookingConfirmationPDF } from "@/components/ui/BookingConfirmationPDF";
+import ReactDOM from "react-dom/client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Role-based column configurations
 const roleBasedColumns = {
@@ -1481,6 +1486,180 @@ function BookingsTable() {
     setSortDirection(sortDirection === "asc" ? "desc" : "asc");
   };
 
+  const handleDownloadConfirmation = (booking) => {
+    // Create a temporary container for the PDF download
+    const tempContainer = document.createElement('div');
+    document.body.appendChild(tempContainer);
+    
+    // Format the booking data
+    const formattedBooking = {
+      event: {
+        event: booking.event_name,
+        event_id: booking.event_id,
+        sport: booking.sport
+      },
+      package: {
+        package_name: booking.package_type,
+        package_id: booking.package_id
+      },
+      hotel: {
+        hotel_name: booking.hotel_name,
+        hotel_id: booking.hotel_id
+      },
+      room: {
+        room_category: booking.room_category,
+        room_type: booking.room_type,
+        room_id: booking.room_id,
+        nights: booking.nights,
+        price: booking.room_price
+      },
+      ticket: {
+        ticket_name: booking.ticket_name,
+        ticket_id: booking.ticket_id,
+        price: booking.ticket_price
+      },
+      flight: booking.flight_id ? {
+        airline: booking.airline,
+        class: booking.flight_class,
+        outbound_flight: booking.outbound_flight,
+        inbound_flight: booking.inbound_flight,
+        flight_id: booking.flight_id,
+        price: booking.flight_price
+      } : null,
+      lounge_pass: booking.lounge_pass_id ? {
+        variant: booking.lounge_pass_type,
+        lounge_pass_id: booking.lounge_pass_id,
+        price: booking.lounge_pass_price
+      } : null,
+      circuit_transfer: booking.circuit_transfer_id ? {
+        transport_type: booking.circuit_transfer_type,
+        circuit_transfer_id: booking.circuit_transfer_id,
+        price: booking.circuit_transfer_price
+      } : null,
+      airport_transfer: booking.airport_transfer_id ? {
+        transport_type: booking.airport_transfer_type,
+        airport_transfer_id: booking.airport_transfer_id,
+        price: booking.airport_transfer_price
+      } : null,
+      adults: booking.adults,
+      check_in_date: booking.check_in_date,
+      check_out_date: booking.check_out_date,
+      room_quantity: booking.room_quantity,
+      ticket_quantity: booking.ticket_quantity,
+      lounge_pass_quantity: booking.lounge_pass_quantity,
+      circuit_transfer_quantity: booking.circuit_transfer_quantity,
+      airport_transfer_quantity: booking.airport_transfer_quantity,
+      flight_quantity: booking.flight_quantity,
+      total_price: booking.total_price,
+      payment_currency: booking.payment_currency,
+      booking_ref: booking.booking_ref,
+      booker_name: booking.booker_name,
+      booker_email: booking.booker_email,
+      booker_phone: booking.booker_phone,
+      booker_address: booking.booker_address,
+      lead_traveller_name: booking.lead_traveller_name,
+      lead_traveller_email: booking.lead_traveller_email,
+      lead_traveller_phone: booking.lead_traveller_phone,
+      booking_date: booking.booking_date,
+      payment_1: booking.payment_1,
+      payment_1_date: booking.payment_1_date,
+      payment_1_status: booking.payment_1_status,
+      payment_2: booking.payment_2,
+      payment_2_date: booking.payment_2_date,
+      payment_2_status: booking.payment_2_status,
+      payment_3: booking.payment_3,
+      payment_3_date: booking.payment_3_date,
+      payment_3_status: booking.payment_3_status,
+      guest_traveller_names: booking.guest_traveller_names
+    };
+    
+    let downloadStarted = false;
+    
+    const pdfLink = (
+      <PDFDownloadLink
+        document={
+          <BookingConfirmationPDF
+            selectedEvent={formattedBooking.event}
+            selectedPackage={formattedBooking.package}
+            selectedHotel={formattedBooking.hotel}
+            selectedRoom={formattedBooking.room}
+            selectedTicket={formattedBooking.ticket}
+            selectedFlight={formattedBooking.flight}
+            selectedLoungePass={formattedBooking.lounge_pass}
+            selectedCircuitTransfer={formattedBooking.circuit_transfer}
+            selectedAirportTransfer={formattedBooking.airport_transfer}
+            numberOfAdults={formattedBooking.adults}
+            dateRange={{
+              from: new Date(formattedBooking.check_in_date),
+              to: new Date(formattedBooking.check_out_date)
+            }}
+            roomQuantity={formattedBooking.room_quantity}
+            ticketQuantity={formattedBooking.ticket_quantity}
+            loungePassQuantity={formattedBooking.lounge_pass_quantity}
+            circuitTransferQuantity={formattedBooking.circuit_transfer_quantity}
+            airportTransferQuantity={formattedBooking.airport_transfer_quantity}
+            flightQuantity={formattedBooking.flight_quantity}
+            totalPrice={formattedBooking.total_price}
+            selectedCurrency={formattedBooking.payment_currency}
+            bookingData={{
+              booking_ref: formattedBooking.booking_ref,
+              booker_name: formattedBooking.booker_name,
+              booker_email: formattedBooking.booker_email,
+              booker_phone: formattedBooking.booker_phone,
+              booker_address: formattedBooking.booker_address,
+              lead_traveller_name: formattedBooking.lead_traveller_name,
+              lead_traveller_email: formattedBooking.lead_traveller_email,
+              lead_traveller_phone: formattedBooking.lead_traveller_phone,
+              booking_date: formattedBooking.booking_date,
+              payment_1: formattedBooking.payment_1,
+              payment_1_date: formattedBooking.payment_1_date,
+              payment_1_status: formattedBooking.payment_1_status,
+              payment_2: formattedBooking.payment_2,
+              payment_2_date: formattedBooking.payment_2_date,
+              payment_2_status: formattedBooking.payment_2_status,
+              payment_3: formattedBooking.payment_3,
+              payment_3_date: formattedBooking.payment_3_date,
+              payment_3_status: formattedBooking.payment_3_status,
+              guest_traveller_names: formattedBooking.guest_traveller_names
+            }}
+          />
+        }
+        fileName={`${formattedBooking.booker_name} - ${formattedBooking.booking_ref} - Booking Confirmation.pdf`}
+      >
+        {({ blob, url, loading, error }) => {
+          if (loading) {
+            return <Loader2 className="h-4 w-4 animate-spin" />;
+          }
+          if (error) {
+            console.error('Error generating PDF:', error);
+            toast.error('Failed to generate PDF');
+            document.body.removeChild(tempContainer);
+            return null;
+          }
+          if (url && !downloadStarted) {
+            downloadStarted = true;
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = `${formattedBooking.booker_name} - ${formattedBooking.booking_ref} - Booking Confirmation.pdf`;
+            downloadLink.click();
+            
+            // Clean up after a short delay to ensure the download has started
+            setTimeout(() => {
+              if (document.body.contains(tempContainer)) {
+                document.body.removeChild(tempContainer);
+              }
+            }, 1000);
+          }
+          return null;
+        }}
+      </PDFDownloadLink>
+    );
+
+    // Render the temporary PDFDownloadLink
+    const root = ReactDOM.createRoot(tempContainer);
+    root.render(pdfLink);
+  };
+
   const renderCell = (booking, column) => {
     switch (column) {
       case "status":
@@ -1505,35 +1684,74 @@ function BookingsTable() {
         return `£ ${booking[column].toLocaleString()}`;
       case "actions":
         return (
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleViewBooking(booking)}
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleViewItinerary(booking)}
-            >
-              <FileText className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleEditBooking(booking)}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleDeleteBooking(booking.booking_id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDownloadConfirmation(booking)}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Download Booking Confirmation</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleViewBooking(booking)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>View Booking Details</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleEditBooking(booking)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Edit Booking</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteBooking(booking.booking_id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Delete Booking</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         );
       default:
@@ -1718,42 +1936,9 @@ function BookingsTable() {
                 <TableRow key={booking.booking_id}>
                   {getVisibleColumns().map((column) => (
                     <TableCell key={column} className="w-auto">
-                      {column === "actions" ? (
-                        <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewBooking(booking)}
-                    >
-                            <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewItinerary(booking)}
-                    >
-                            <FileText className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                            size="sm"
-                      onClick={() => handleEditBooking(booking)}
-                    >
-                            <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                            size="sm"
-                      onClick={() => handleDeleteBooking(booking.booking_id)}
-                    >
-                            <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                      ) : (
-                        renderCell(booking, column)
-                      )}
-                </TableCell>
-            ))}
+                      {renderCell(booking, column)}
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             )}

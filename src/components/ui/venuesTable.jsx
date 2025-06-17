@@ -66,6 +66,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import api from "@/lib/api";
 import { Combobox } from "@/components/ui/combobox";
 import { fetchVenueInfo } from "@/lib/api";
@@ -485,11 +486,11 @@ export function VenuesTable({
           <TableHeader className="bg-muted">
             <TableRow className="hover:bg-muted">
               <TableHead className="w-[50px]">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={selectedVenues.length === currentItems.length}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300"
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                  className="h-4 w-4"
                 />
               </TableHead>
               <TableHead className="text-xs py-2">Venue Name</TableHead>
@@ -511,11 +512,11 @@ export function VenuesTable({
               currentItems.map((venue) => (
                 <TableRow key={venue.venue_id}>
                   <TableCell>
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selectedVenues.some(v => v.venue_id === venue.venue_id)}
-                      onChange={(e) => handleSelectVenue(venue, e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300"
+                      onCheckedChange={(checked) => handleSelectVenue(venue, checked)}
+                      aria-label={`Select ${venue.venue_name}`}
+                      className="h-4 w-4"
                     />
                   </TableCell>
                   <TableCell className="text-xs py-1.5">
