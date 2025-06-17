@@ -328,11 +328,11 @@ const FlightAPI = () => {
                     return (
                         <div key={segment.FlightId} className="w-full">
                             <div className="flex items-center gap-4 w-full">
-                                <div className="text-center min-w-[100px]">
+                                <div className="text-center min-w-[100px] max-w-[100px]">
                                     <div className="text-lg font-bold">
                                         {format(parseISO(segment.DepartureDateTime), "HH:mm")}
                                     </div>
-                                    <div className="text-sm text-muted-foreground">
+                                    <div className="text-sm text-primary font-semibold">
                                         {getAirportInfo(segment.DepartureAirportId)?.AirportName}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
@@ -354,11 +354,11 @@ const FlightAPI = () => {
                                         {segment.MarketingAirlineId}{segment.FlightNumber}
                                     </div>
                                 </div>
-                                <div className="text-center min-w-[100px]">
+                                <div className="text-center min-w-[100px] max-w-[100px]">
                                     <div className="text-lg font-bold">
                                         {format(parseISO(segment.ArrivalDateTime), "HH:mm")}
                                     </div>
-                                    <div className="text-sm text-muted-foreground">
+                                    <div className="text-sm text-primary font-semibold">
                                         {getAirportInfo(segment.ArrivalAirportId)?.AirportName}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
