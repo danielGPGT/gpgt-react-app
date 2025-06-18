@@ -227,9 +227,7 @@ function TicketTable() {
       return amount;
     }
 
-    // Apply spread to the rate (multiply by 1 + spread)
-    const adjustedRate = rate * (1 + spread);
-    return Number((amount * adjustedRate).toFixed(2));
+    return Number((amount * rate).toFixed(2));
   };
 
   // Add function to fetch categories for an event

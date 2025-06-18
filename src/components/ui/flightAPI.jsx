@@ -12,18 +12,19 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, Plane, Search, Briefcase } from "lucide-react";
+import { CalendarIcon, Plane, Search, Briefcase, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-
-const API_URL = import.meta.env.VITE_API_FLIGHT_URL || "http://localhost:3000/api/v1/flight";
+import { toast } from "sonner";
+import api from "@/lib/api";
 
 const FlightAPI = () => {
     const [token, setToken] = useState(null);
     const [error, setError] = useState(null);
     const [searchResults, setSearchResults] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [savingFlight, setSavingFlight] = useState(false);
     const [tripType, setTripType] = useState("return");
     const [departureDate, setDepartureDate] = useState(null);
     const [returnDate, setReturnDate] = useState(null);
@@ -48,10 +49,13 @@ const FlightAPI = () => {
     const [layoverMinMax, setLayoverMinMax] = useState([0, 360]);
     const [outboundTimeMinMax, setOutboundTimeMinMax] = useState([0, 1440]);
     const [inboundTimeMinMax, setInboundTimeMinMax] = useState([0, 1440]);
+    const [selectedFlights, setSelectedFlights] = useState([]);
+    const [flightInfo, setFlightInfo] = useState(null);
+    const [loadingFlightInfo, setLoadingFlightInfo] = useState(false);
 
     const getToken = async () => {
         try {
-            const response = await axios.post(`${API_URL}/token`);
+            const response = await api.post('/flight/token');
             setToken(response.data);
             setError(null);
         } catch (err) {
@@ -62,7 +66,7 @@ const FlightAPI = () => {
 
     const searchFlights = async () => {
         if (!token) {
-            setError('No token available');
+            toast.error("No token available. Please try again later.");
             return;
         }
 
@@ -102,20 +106,16 @@ const FlightAPI = () => {
                 NumberOfRecommendations: 50
             };
 
-            console.log('Sending search request with params:', searchParams);
-            console.log('Using token:', token.access_token);
-
-            const response = await axios.post(`${API_URL}/search-low-fares`, {
+            const response = await api.post('/flight/search-low-fares', {
                 token: token.access_token,
                 searchParams
             });
 
-            console.log('Search response:', response.data);
             setSearchResults(response.data);
             setError(null);
         } catch (err) {
             console.error('Search error details:', err.response?.data || err.message);
-            setError(err.response?.data?.error || 'Failed to search flights');
+            toast.error(err.response?.data?.error || 'Failed to search flights');
         } finally {
             setLoading(false);
         }
@@ -296,6 +296,8 @@ const FlightAPI = () => {
                         </div>
                     )}
                 </div>
+
+                {renderFlightInfo(flight)}
             </div>
         );
     };
@@ -391,6 +393,38 @@ const FlightAPI = () => {
         );
     };
 
+    const handleFlightSelection = (recommendation) => {
+        setSelectedFlights(prev => {
+            const isSelected = prev.some(f => f.RecommendationId === recommendation.RecommendationId);
+            if (isSelected) {
+                return prev.filter(f => f.RecommendationId !== recommendation.RecommendationId);
+            } else {
+                return [...prev, recommendation];
+            }
+        });
+    };
+
+    const saveSelectedFlights = async () => {
+        if (selectedFlights.length === 0) {
+            toast.error("Please select at least one flight to save.");
+            return;
+        }
+
+        setSavingFlight(true);
+        try {
+            for (const flight of selectedFlights) {
+                await saveFlightToDatabase(flight);
+            }
+            toast.success(`Successfully saved ${selectedFlights.length} flight${selectedFlights.length !== 1 ? 's' : ''}!`);
+            setSelectedFlights([]); // Clear selection after saving
+        } catch (err) {
+            console.error('Error saving flights:', err);
+            toast.error(err.message || 'Unknown error occurred');
+        } finally {
+            setSavingFlight(false);
+        }
+    };
+
     const renderRecommendation = (recommendation) => {
         console.log('Processing recommendation:', recommendation);
         
@@ -418,6 +452,9 @@ const FlightAPI = () => {
         // Get passenger details
         const adultPassenger = recommendation.Passengers.find(p => p.RequestedTypeId === "ADT");
         const fareDetails = adultPassenger?.Fares[0];
+
+        const outboundLayover = Math.round(getMaxLayoverForRoute(recommendation.RouteCombinations[0].RouteIds[0]) / 60 * 2) / 2;
+        const inboundLayover = Math.round(getMaxLayoverForRoute(recommendation.RouteCombinations[0].RouteIds[1]) / 60 * 2) / 2;
 
         return (
             <Card key={recommendation.RecommendationId} className="mb-4 hover:shadow-lg transition-shadow">
@@ -522,9 +559,15 @@ const FlightAPI = () => {
                             </div>
                         </div>
 
-                        {/* Select Button */}
+                        {/* Selection and Save Button */}
                         <div className="flex flex-col items-end justify-between min-w-[120px]">
-                            <Button className="w-full">Select</Button>
+                            <div className="flex items-center gap-2 mb-2">
+                                <Checkbox
+                                    checked={selectedFlights.some(f => f.RecommendationId === recommendation.RecommendationId)}
+                                    onCheckedChange={() => handleFlightSelection(recommendation)}
+                                />
+                                <Label>Select</Label>
+                            </div>
                             <div className="text-xs text-muted-foreground text-right">
                                 Ticketing deadline:<br />
                                 {format(parseISO(recommendation.TicketingDeadline), "MMM dd, yyyy")}
@@ -704,10 +747,34 @@ const FlightAPI = () => {
         return (
             <div className="space-y-8">
                 <CardHeader>
-                    <CardTitle>Available Flights</CardTitle>
-                    <CardDescription>
-                        Found {sortedAndFilteredRecommendations.length} flight options from {getAirportInfo(fromAirport)?.AirportName} to {getAirportInfo(toAirport)?.AirportName}
-                    </CardDescription>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Available Flights</CardTitle>
+                            <CardDescription>
+                                Found {sortedAndFilteredRecommendations.length} flight options from {getAirportInfo(fromAirport)?.AirportName} to {getAirportInfo(toAirport)?.AirportName}
+                            </CardDescription>
+                        </div>
+                        {selectedFlights.length > 0 && (
+                            <div className="flex items-center gap-4">
+                                <div className="text-sm text-muted-foreground">
+                                    {selectedFlights.length} flight{selectedFlights.length !== 1 ? 's' : ''} selected
+                                </div>
+                                <Button 
+                                    onClick={saveSelectedFlights}
+                                    disabled={savingFlight}
+                                >
+                                    {savingFlight ? (
+                                        <div className="flex items-center">
+                                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                                            Saving...
+                                        </div>
+                                    ) : (
+                                        `Save Selected Flights`
+                                    )}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </CardHeader>
 
                 <div className="grid grid-cols-[300px_1fr] gap-6">
@@ -872,6 +939,247 @@ const FlightAPI = () => {
                         {sortedAndFilteredRecommendations.map(recommendation => renderRecommendation(recommendation))}
                     </div>
                 </div>
+            </div>
+        );
+    };
+
+    const formatFlightNumber = (flight) => {
+        const airlineCode = flight.MarketingAirlineId;
+        return `${airlineCode}${flight.FlightNumber}`;
+    };
+
+    const getCabinClass = (classId) => {
+        const cabinMap = {
+            'ECO': 'Economy',
+            'BUS': 'Business',
+            'FIR': 'First',
+            'PRE': 'Premium Economy'
+        };
+        return cabinMap[classId] || 'Economy'; // Default to Economy if unknown
+    };
+
+    const formatFlightForDatabase = (recommendation) => {
+        if (!recommendation) {
+            throw new Error('No recommendation data provided');
+        }
+        
+        console.log('Starting to format flight data from recommendation:', recommendation);
+        
+        const outboundRoute = getRouteById(recommendation.RouteCombinations[0].RouteIds[0]);
+        if (!outboundRoute) {
+            throw new Error('Could not find outbound route');
+        }
+        
+        const inboundRoute = getRouteById(recommendation.RouteCombinations[0].RouteIds[1]);
+        if (!inboundRoute) {
+            throw new Error('Could not find inbound route');
+        }
+        
+        // Get first and last flights for outbound
+        const outboundFirstFlight = getFlightById(outboundRoute.FlightIds[0]);
+        const outboundLastFlight = getFlightById(outboundRoute.FlightIds[outboundRoute.FlightIds.length - 1]);
+        if (!outboundFirstFlight || !outboundLastFlight) {
+            throw new Error('Could not find outbound flight segments');
+        }
+        
+        // Get first and last flights for inbound
+        const inboundFirstFlight = getFlightById(inboundRoute.FlightIds[0]);
+        const inboundLastFlight = getFlightById(inboundRoute.FlightIds[inboundRoute.FlightIds.length - 1]);
+        if (!inboundFirstFlight || !inboundLastFlight) {
+            throw new Error('Could not find inbound flight segments');
+        }
+
+        // For multi-segment routes, we need to get the final destination
+        const finalDestinationAirport = outboundLastFlight.ArrivalAirportId;
+        console.log('Final destination airport:', finalDestinationAirport);
+        
+        const outboundLayover = Math.round(getMaxLayoverForRoute(recommendation.RouteCombinations[0].RouteIds[0]) / 60 * 2) / 2;
+        const inboundLayover = Math.round(getMaxLayoverForRoute(recommendation.RouteCombinations[0].RouteIds[1]) / 60 * 2) / 2;
+        
+        const airline = getAirlineInfo(outboundFirstFlight.MarketingAirlineId);
+        if (!airline) {
+            throw new Error('Could not find airline information');
+        }
+        
+        // Get cabin information from the passenger's fare
+        const adultPassenger = recommendation.Passengers.find(p => p.RequestedTypeId === "ADT");
+        if (!adultPassenger || !adultPassenger.Fares || !adultPassenger.Fares[0]) {
+            throw new Error('Could not find fare information');
+        }
+        
+        const fareDetails = adultPassenger.Fares[0];
+        const cabinClass = getCabinClass(fareDetails.ClassId);
+        
+        const fromLocation = getAirportInfo(fromAirport);
+        if (!fromLocation) {
+            throw new Error('Could not find departure airport information');
+        }
+        
+        const formattedData = {
+            flight_id: crypto.randomUUID(),
+            outbound_airport: outboundFirstFlight.DepartureAirportId,
+            inbound_airport: finalDestinationAirport,
+            outbound_departire_date_time: format(parseISO(outboundFirstFlight.DepartureDateTime), "dd/MM/yyyy HH:mm:ss"),
+            outbound_arrival_date_time: format(parseISO(outboundLastFlight.ArrivalDateTime), "dd/MM/yyyy HH:mm:ss"),
+            outbound_flight_number: formatFlightNumber(outboundFirstFlight),
+            inbound_departure_date_time: format(parseISO(inboundFirstFlight.DepartureDateTime), "dd/MM/yyyy HH:mm:ss"),
+            inbound_arrival_date_time: format(parseISO(inboundLastFlight.ArrivalDateTime), "dd/MM/yyyy HH:mm:ss"),
+            inbound_flight_number: formatFlightNumber(inboundLastFlight),
+            outbound_layover_time: outboundLayover,
+            inbound_layover_time: inboundLayover,
+            airline: airline.AirlineName,
+            class: cabinClass,
+            from_location: fromLocation.AirportName,
+            cost: recommendation.Total,
+            margin: "10%",
+            currency: searchResults.LowFareResult.Currency.CurrencyId,
+            source: "Flight API"
+        };
+        
+        // Log the formatted data to verify the airport codes
+        console.log('Formatted flight data with airport codes:', {
+            outbound_airport: formattedData.outbound_airport,
+            inbound_airport: formattedData.inbound_airport,
+            final_destination: finalDestinationAirport,
+            outbound_flights: outboundRoute.FlightIds.map(id => getFlightById(id)),
+            inbound_flights: inboundRoute.FlightIds.map(id => getFlightById(id))
+        });
+        
+        return formattedData;
+    };
+
+    const saveFlightToDatabase = async (recommendation) => {
+        setSavingFlight(true);
+        try {
+            const flightData = formatFlightForDatabase(recommendation);
+            console.log('Formatted flight data:', flightData);
+            
+            const response = await api.post('/test-flights', flightData);
+            console.log('Save response:', response);
+            
+            if (response.status === 200) {
+                toast.success("Flight saved successfully!");
+            }
+        } catch (err) {
+            console.error('Error in saveFlightToDatabase:', err);
+            console.error('Full error object:', JSON.stringify(err, null, 2));
+            toast.error(err.message || 'Unknown error occurred');
+        } finally {
+            setSavingFlight(false);
+        }
+    };
+
+    const getFlightInformation = async (flight) => {
+        if (!token) {
+            toast.error("No token available. Please try again later.");
+            return;
+        }
+
+        setLoadingFlightInfo(true);
+        try {
+            const requestData = {
+                FlightNumber: {
+                    Airline: {
+                        AirlineId: flight.MarketingAirlineId
+                    },
+                    Number: flight.FlightNumber
+                },
+                DepartureDateTime: flight.DepartureDateTime,
+                IsInbound: false, // This will be set based on the flight type
+                DepartureLocation: {
+                    AirportId: flight.DepartureAirportId
+                },
+                ArrivalLocation: {
+                    AirportId: flight.ArrivalAirportId
+                },
+                RequestId: crypto.randomUUID(),
+                ServiceContext: {
+                    ContextId: crypto.randomUUID(),
+                    BookingInfos: []
+                }
+            };
+
+            const response = await api.post('/flight/get-flight-information', {
+                token: token.access_token,
+                requestData
+            });
+
+            setFlightInfo(response.data);
+            toast.success("Flight information updated successfully!");
+        } catch (err) {
+            console.error('Error getting flight information:', err);
+            toast.error(err.message || 'Failed to get flight information');
+        } finally {
+            setLoadingFlightInfo(false);
+        }
+    };
+
+    const renderFlightInfo = (flight) => {
+        if (!flightInfo) return null;
+
+        return (
+            <div className="mt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Flight Information</h3>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => getFlightInformation(flight)}
+                        disabled={loadingFlightInfo}
+                    >
+                        {loadingFlightInfo ? (
+                            <div className="flex items-center">
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                Updating...
+                            </div>
+                        ) : (
+                            <div className="flex items-center">
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Update Info
+                            </div>
+                        )}
+                    </Button>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <h4 className="text-sm font-semibold mb-2">Status</h4>
+                        <div className="text-sm text-muted-foreground">
+                            {flightInfo.Status || 'Unknown'}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-semibold mb-2">Gate</h4>
+                        <div className="text-sm text-muted-foreground">
+                            {flightInfo.Gate || 'Not assigned'}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-semibold mb-2">Terminal</h4>
+                        <div className="text-sm text-muted-foreground">
+                            {flightInfo.Terminal || 'Not assigned'}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-semibold mb-2">Baggage Claim</h4>
+                        <div className="text-sm text-muted-foreground">
+                            {flightInfo.BaggageClaim || 'Not assigned'}
+                        </div>
+                    </div>
+                </div>
+
+                {flightInfo.Delays && flightInfo.Delays.length > 0 && (
+                    <div className="mt-4">
+                        <h4 className="text-sm font-semibold mb-2">Delays</h4>
+                        <div className="space-y-2">
+                            {flightInfo.Delays.map((delay, index) => (
+                                <div key={index} className="text-sm text-yellow-600">
+                                    {delay.Description}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
