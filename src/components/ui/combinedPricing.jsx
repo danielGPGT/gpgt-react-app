@@ -168,6 +168,7 @@ function CombinedPricing({
     AUD: { GBP: 0.53, USD: 0.66, EUR: 0.61, AUD: 1, CAD: 0.89 },
     CAD: { GBP: 0.59, USD: 0.74, EUR: 0.68, AUD: 1.12, CAD: 1 }
   });
+  const [flightBookedByGuest, setFlightBookedByGuest] = useState(false);
 
   const minNights = selectedRoom?.nights || 1;
   const availableCurrencies = ["GBP", "USD", "EUR", "AUD", "CAD"];
@@ -267,7 +268,10 @@ function CombinedPricing({
 
     if (selectedFlight) {
       const flightPrice = Number(selectedFlight.price) || 0;
-      total += flightPrice * flightQuantity;
+      // Only add flight price if not booked by guest
+      if (!flightBookedByGuest) {
+        total += flightPrice * flightQuantity;
+      }
     }
 
     if (selectedLoungePass) {
@@ -330,6 +334,7 @@ function CombinedPricing({
     b2bCommission,
     effectiveRole,
     selectedCurrency,
+    flightBookedByGuest,
   ]);
 
   // Fetch events and sports
@@ -437,7 +442,7 @@ function CombinedPricing({
         api.get("/packages", {
           params: { eventId: foundEvent.event_id },
         }),
-        api.get("/flights", { params: { event_id: foundEvent.event_id } }),
+        api.get("/testy-flights", { params: { event_id: foundEvent.event_id } }),
         api.get("/lounge-passes", { params: { event_id: foundEvent.event_id } }),
       ]);
 
@@ -997,12 +1002,6 @@ function CombinedPricing({
         return;
       }
 
-      // Check flight availability
-      if (parseInt(foundFlight.remaining_seats) <= 0) {
-        toast.error("This flight is no longer available");
-        return;
-      }
-
       setSelectedFlight(foundFlight);
       setFlightQuantity(1); // Reset to default quantity
     } catch (error) {
@@ -1121,7 +1120,7 @@ function CombinedPricing({
             </div>
             <div>
               <h2 className="text-xs font-semibold mb-1 text-foreground">Select Event</h2>
-              <Select onValueChange={handleEventSelect}>
+              <Select onValueChange={handleEventSelect} value={selectedEvent?.event_id}>
                 <SelectTrigger className="w-full h-9 text-sm bg-background relative group hover:border-primary transition-colors">
                   <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
                     <CalendarDays className="h-4 w-4 text-primary" />
@@ -1745,8 +1744,8 @@ function CombinedPricing({
                                             From: {flight.from_location}
                                           </p>
                                           <div className="text-sm space-y-1">
-                                            <p>Outbound: {flight.outbound_flight}</p>
-                                            <p>Inbound: {flight.inbound_flight}</p>
+                                            <p>Outbound: {flight.outbound_flight_number} • {flight.outbound_departure_date_time} - {flight.outbound_arrival_date_time}</p>
+                                            <p>Inbound: {flight.inbound_flight_number} • {flight.inbound_departure_date_time} - {flight.inbound_arrival_date_time}</p>
                                           </div>
                                         </div>
                                         <div className="text-right">
@@ -1772,8 +1771,8 @@ function CombinedPricing({
 
               {selectedFlight && (
                 <div className="text-xs space-y-1 pt-1">
-                  <p className="text-foreground">Outbound: {selectedFlight.outbound_flight}</p>
-                  <p className="text-foreground">Inbound: {selectedFlight.inbound_flight}</p>
+                  <p className="text-foreground">Outbound: {selectedFlight.outbound_flight_number} • {selectedFlight.outbound_departure_date_time} - {selectedFlight.outbound_arrival_date_time}</p>
+                  <p className="text-foreground">Inbound: {selectedFlight.inbound_flight_number} • {selectedFlight.inbound_departure_date_time} - {selectedFlight.inbound_arrival_date_time}</p>
                   <div className="flex items-center justify-between">
                     <p className="text-foreground">Price per person:</p>
                     <p className="text-foreground">
@@ -2220,6 +2219,8 @@ function CombinedPricing({
         selectedCurrency={selectedCurrency}
         transferDirection={transferDirection}
         onBookingComplete={handleBookingComplete}
+        flightBookedByGuest={flightBookedByGuest}
+        setFlightBookedByGuest={setFlightBookedByGuest}
       />
 
       <Dialog open={showQuote} onOpenChange={setShowQuote}>

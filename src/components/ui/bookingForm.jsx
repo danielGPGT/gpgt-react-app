@@ -90,7 +90,9 @@ function BookingForm({
   open,
   onOpenChange,
   transferDirection,
-  onBookingComplete
+  onBookingComplete,
+  flightBookedByGuest,
+  setFlightBookedByGuest
 }) {
   const { theme } = useTheme();
   const [showAlert, setShowAlert] = useState(false);
@@ -140,6 +142,7 @@ function BookingForm({
     booking_reference: z.string().min(1),
     booking_reference_prefix: z.string().min(1),
     create_flight_booking: z.boolean().default(false),
+    booked_by_guest: z.boolean().default(false),
     flight_booking_reference: z.string().optional(),
     ticketing_deadline: z.date().nullable().optional(),
     flight_status: z.string().optional(),
@@ -163,6 +166,24 @@ function BookingForm({
   }, {
     message: "Third payment must be after second payment",
     path: ["payment3_date"]
+  }).refine((data) => {
+    // If flight is selected and not booked by guest, flight booking reference is required
+    if (selectedFlight && !data.booked_by_guest && !data.flight_booking_reference?.trim()) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Flight booking reference is required when a flight is selected and not booked by guest",
+    path: ["flight_booking_reference"]
+  }).refine((data) => {
+    // If flight is selected and not booked by guest, ticketing deadline is required
+    if (selectedFlight && !data.booked_by_guest && !data.ticketing_deadline) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Ticketing deadline is required when a flight is selected and not booked by guest",
+    path: ["ticketing_deadline"]
   });
 
   const form = useForm({
@@ -192,7 +213,8 @@ function BookingForm({
       payment3_date: selectedPackage?.payment_date_3 ? new Date(selectedPackage.payment_date_3) : null,
       booking_reference: "",
       booking_reference_prefix: "GP",
-      create_flight_booking: false,
+      create_flight_booking: selectedFlight ? true : false,
+      booked_by_guest: false,
       flight_booking_reference: "",
       ticketing_deadline: null,
       flight_status: "",
@@ -525,6 +547,19 @@ function BookingForm({
     form.setValue('guest_traveller_names', numberOfAdults > 1 ? Array(numberOfAdults - 1).fill("") : []);
   }, [numberOfAdults, form]);
 
+  useEffect(() => {
+    if (selectedFlight) {
+      form.setValue("create_flight_booking", true);
+    }
+  }, [selectedFlight, form]);
+
+  useEffect(() => {
+    // Sync the form's booked_by_guest state with the parent's flightBookedByGuest state
+    if (flightBookedByGuest !== undefined) {
+      form.setValue("booked_by_guest", flightBookedByGuest);
+    }
+  }, [flightBookedByGuest, form]);
+
   const handleSubmit = async (values) => {
     if (isSubmitting) {
       console.log('Submission blocked: Already submitting');
@@ -639,11 +674,11 @@ function BookingForm({
         
         // Flight details
         flight_id: selectedFlight?.flight_id || '',
-        flight_booking_reference: form.getValues("create_flight_booking") ? form.getValues("flight_booking_reference") : '',
-        ticketing_deadline: form.getValues("create_flight_booking") ? formatDate(form.getValues("ticketing_deadline")) : '',
-        flight_status: form.getValues("create_flight_booking") ? form.getValues("flight_status") : '',
+        flight_booking_reference: selectedFlight ? form.getValues("flight_booking_reference") : '',
+        ticketing_deadline: selectedFlight ? formatDate(form.getValues("ticketing_deadline")) : '',
+        flight_status: selectedFlight ? form.getValues("flight_status") : '',
         flight_quantity: selectedFlight ? flightQuantity : 0,
-        flight_price: selectedFlight ? selectedFlight.price * flightQuantity : 0,
+        flight_price: selectedFlight ? (form.getValues("booked_by_guest") ? 0 : selectedFlight.price * flightQuantity) : 0,
         
         // Lounge pass details
         lounge_pass_id: selectedLoungePass?.lounge_pass_id || '',
@@ -848,79 +883,126 @@ function BookingForm({
 
                   {/* Flight */}
                   {selectedFlight && (
-                    <div className="space-y-1.5 bg-card p-2 rounded-md">
-                      <h5 className="text-sm font-medium text-muted-foreground">Flight</h5>
-                      <div className="text-sm space-y-0.5">
-                        <p><span className="font-medium">Airline:</span> {selectedFlight.airline} • {selectedFlight.class} x{flightQuantity}</p>
-                        <p><span className="font-medium">Outbound:</span> {selectedFlight.outbound_flight}</p>
-                        <p><span className="font-medium">Inbound:</span> {selectedFlight.inbound_flight}</p>
-                        <div className="flex items-center space-x-2 pt-1">
+                    <div className="space-y-3 bg-card p-3 rounded-lg border">
+                      <div className="flex items-center gap-2">
+                        <h5 className="text-sm font-semibold text-foreground">Flight Details</h5>
+                        <div className="flex items-center space-x-2">
                           <Switch
-                            id="create-flight-booking"
-                            checked={form.watch("create_flight_booking")}
-                            onCheckedChange={(checked) => form.setValue("create_flight_booking", checked)}
+                            id="booked-by-guest"
+                            checked={form.watch("booked_by_guest")}
+                            onCheckedChange={(checked) => {
+                              form.setValue("booked_by_guest", checked);
+                              setFlightBookedByGuest(checked);
+                              if (checked) {
+                                form.setValue("flight_booking_reference", "booking_by_guest");
+                                form.setValue("ticketing_deadline", new Date());
+                                form.setValue("flight_status", "booked_by_guest");
+                              } else {
+                                form.setValue("flight_booking_reference", "");
+                                form.setValue("ticketing_deadline", null);
+                                form.setValue("flight_status", "");
+                              }
+                            }}
                           />
-                          <Label htmlFor="create-flight-booking" className="text-sm">
-                            Create Flight Booking
+                          <Label htmlFor="booked-by-guest" className="text-xs text-muted-foreground">
+                            Booked by Guest
                           </Label>
                         </div>
-                        {form.watch("create_flight_booking") && (
-                          <div className="space-y-1.5 pt-1.5">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">Booking Reference:</span>
-                              <Input 
-                                value={form.watch("flight_booking_reference")}
-                                onChange={(e) => form.setValue("flight_booking_reference", e.target.value)}
-                                className="h-7 text-xs"
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">Ticketing Deadline:</span>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className={cn(
-                                      "h-7 text-xs justify-start text-left font-normal",
-                                      !form.watch("ticketing_deadline") && "text-muted-foreground"
-                                    )}
-                                  >
-                                    {form.watch("ticketing_deadline") ? (
-                                      format(form.watch("ticketing_deadline"), "PPP")
-                                    ) : (
-                                      <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={form.watch("ticketing_deadline")}
-                                    onSelect={(date) => form.setValue("ticketing_deadline", date)}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">Status:</span>
-                              <Select
-                                value={form.watch("flight_status")}
-                                onValueChange={(value) => form.setValue("flight_status", value)}
-                              >
-                                <SelectTrigger className="h-7 text-xs">
-                                  <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="booked_ticketed_paid">Booked, Ticketed & Paid</SelectItem>
-                                  <SelectItem value="booked_ticketed_not_paid">Booked, Ticketed, Not Paid</SelectItem>
-                                  <SelectItem value="booked_not_ticketed">Booked, Not Ticketed</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <p className="font-medium text-muted-foreground">Airline & Class</p>
+                          <p className="text-foreground">{selectedFlight.airline} • {selectedFlight.class} x{flightQuantity}</p>
+                        </div>
+                        <div>
+                          <p className="font-medium text-muted-foreground">Price</p>
+                          <p className="text-foreground">
+                            {form.watch("booked_by_guest") ? "£0.00" : `${currencySymbols[selectedCurrency]}${(selectedFlight.price * flightQuantity).toFixed(2)}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div>
+                          <p className="font-medium text-muted-foreground">Outbound</p>
+                          <p className="text-foreground">{selectedFlight.outbound_flight_number} • {selectedFlight.outbound_departure_date_time} - {selectedFlight.outbound_arrival_date_time}</p>
+                        </div>
+                        <div>
+                          <p className="font-medium text-muted-foreground">Inbound</p>
+                          <p className="text-foreground">{selectedFlight.inbound_flight_number} • {selectedFlight.inbound_departure_date_time} - {selectedFlight.inbound_arrival_date_time}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t">
+                        <div className="grid grid-cols-1 gap-2">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs font-medium text-foreground min-w-[120px]">
+                              Booking Reference <span className="text-red-500">*</span>
+                            </Label>
+                            <Input 
+                              value={form.watch("flight_booking_reference")}
+                              onChange={(e) => form.setValue("flight_booking_reference", e.target.value)}
+                              className={cn("h-8 text-xs", form.watch("booked_by_guest") && "bg-muted text-muted-foreground")}
+                              placeholder="Enter flight booking reference"
+                              disabled={form.watch("booked_by_guest")}
+                            />
                           </div>
-                        )}
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs font-medium text-foreground min-w-[120px]">
+                              Ticketing Deadline <span className="text-red-500">*</span>
+                            </Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    "h-8 text-xs justify-start text-left font-normal min-w-[140px]",
+                                    (!form.watch("ticketing_deadline") && !form.watch("booked_by_guest")) && "text-muted-foreground",
+                                    form.watch("booked_by_guest") && "bg-muted text-muted-foreground"
+                                  )}
+                                  disabled={form.watch("booked_by_guest")}
+                                >
+                                  {form.watch("ticketing_deadline") ? (
+                                    format(form.watch("ticketing_deadline"), "MMM dd, yyyy")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={form.watch("ticketing_deadline")}
+                                  onSelect={(date) => form.setValue("ticketing_deadline", date)}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs font-medium text-foreground min-w-[120px]">
+                              Status
+                            </Label>
+                            <Select
+                              value={form.watch("flight_status")}
+                              onValueChange={(value) => form.setValue("flight_status", value)}
+                              disabled={form.watch("booked_by_guest")}
+                            >
+                              <SelectTrigger className={cn("h-8 text-xs min-w-[140px]", form.watch("booked_by_guest") && "bg-muted text-muted-foreground")}>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="booked_ticketed_paid">Booked, Ticketed & Paid</SelectItem>
+                                <SelectItem value="booked_ticketed_not_paid">Booked, Ticketed, Not Paid</SelectItem>
+                                <SelectItem value="booked_not_ticketed">Booked, Not Ticketed</SelectItem>
+                                <SelectItem value="booked_by_guest">Booked by Guest</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1668,7 +1750,9 @@ BookingForm.propTypes = {
   open: PropTypes.bool,
   onOpenChange: PropTypes.func,
   transferDirection: PropTypes.string,
-  onBookingComplete: PropTypes.func
+  onBookingComplete: PropTypes.func,
+  flightBookedByGuest: PropTypes.bool,
+  setFlightBookedByGuest: PropTypes.func
 };
 
 export { BookingForm };

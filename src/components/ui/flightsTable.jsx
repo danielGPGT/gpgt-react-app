@@ -60,6 +60,7 @@ import {
   AlertDialogTitle,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { Link } from "react-router-dom";
 
 function FlightsTable() {
   // State declarations
@@ -416,10 +417,18 @@ function FlightsTable() {
     <div className="space-y-4 w-full">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Flights & Transport</h3>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Flight
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Flight
+          </Button>
+          <Link to="/flight">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Plane className="h-4 w-4" />
+              Add Flight from Aviate/Line
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
