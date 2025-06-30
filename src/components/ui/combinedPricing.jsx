@@ -395,7 +395,10 @@ function CombinedPricing({
       resetCategories = true
     } = options;
 
-    if (resetPackage) setSelectedPackage(null);
+    if (resetPackage) {
+      setSelectedPackage(null);
+      setPackages([]); // Clear packages array when resetting package
+    }
     if (resetHotel) setSelectedHotel(null);
     if (resetRoom) setSelectedRoom(null);
     if (resetTicket) setSelectedTicket(null);
@@ -417,53 +420,35 @@ function CombinedPricing({
   };
 
   const handleEventSelect = async (eventId) => {
-    try {
-      if (eventId === "none") {
-        setSelectedEvent(null);
-        resetDependentStates();
-        return;
-      }
-
-      const foundEvent = events.find((ev) => ev.event_id === eventId);
-      if (!foundEvent) {
-        toast.error("Selected event not found");
-        return;
-      }
-
-      setSelectedEvent(foundEvent);
-      resetDependentStates();
-
-      setLoadingPackages(true);
-      setLoadingCategories(true);
-      setLoadingFlights(true);
-      setLoadingLoungePasses(true);
-
-      const [packagesRes, flightsRes, loungeRes] = await Promise.all([
-        api.get("/packages", {
-          params: { eventId: foundEvent.event_id },
-        }),
-        api.get("/testy-flights", { params: { event_id: foundEvent.event_id } }),
-        api.get("/lounge-passes", { params: { event_id: foundEvent.event_id } }),
-      ]);
-
-      if (!packagesRes.data || !flightsRes.data || !loungeRes.data) {
-        throw new Error("Invalid response data");
-      }
-
-      setPackages(packagesRes.data);
-      setFlights(flightsRes.data);
-      setLoungePasses(loungeRes.data);
-    } catch (error) {
-      console.error("Failed to fetch event data:", error);
-      toast.error(error.message || "Failed to load event data. Please try again.");
-      // Reset to previous state on error
+    if (eventId === "none") {
       setSelectedEvent(null);
-      resetDependentStates();
+      setPackages([]);
+      return;
+    }
+
+    const foundEvent = events.find((ev) => ev.event_id === eventId);
+    if (!foundEvent) {
+      toast.error("Selected event not found");
+      return;
+    }
+
+    // Just set the event and fetch packages - nothing else
+    setSelectedEvent(foundEvent);
+    setLoadingPackages(true);
+
+    try {
+      const packagesRes = await api.get("/packages", {
+        params: { eventId: foundEvent.event_id },
+      });
+
+      if (packagesRes.data) {
+        setPackages(packagesRes.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch packages:", error);
+      toast.error("Failed to load packages. Please try again.");
     } finally {
       setLoadingPackages(false);
-      setLoadingCategories(false);
-      setLoadingFlights(false);
-      setLoadingLoungePasses(false);
     }
   };
 
@@ -1149,31 +1134,74 @@ function CombinedPricing({
           </div>
 
           {/* Package and Tier Selection */}
-          {selectedEvent && (
-            <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <h2 className="text-xs font-semibold mb-1 text-foreground">Select Package</h2>
+              {!selectedEvent ? (
+                <div className="text-xs text-muted-foreground">Select an event first</div>
+              ) : loadingPackages ? (
+                <div className="text-xs text-muted-foreground">Loading packages...</div>
+              ) : (
+                <Select onValueChange={handlePackageSelect} value={selectedPackage?.package_id}>
+                  <SelectTrigger className="w-full bg-background relative group hover:border-primary transition-colors">
+                    <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
+                      <Package className="h-4 w-4 text-primary" />
+                    </div>
+                    <SelectValue placeholder="Choose a package..." />
+                  </SelectTrigger>
+                  <SelectContent key={`packages-${packages.length}-${selectedEvent?.event_id}`}>
+                    {packages.map((pkg, idx) => (
+                      <SelectItem 
+                        key={idx} 
+                        value={pkg.package_id}
+                        disabled={pkg.status === "sales closed"}
+                        className={pkg.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{pkg.package_name}</span>
+                          {pkg.status === "sales closed" && (
+                            <span className="text-xs text-muted-foreground">Sales Closed</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            {selectedPackage && (
               <div>
-                <h2 className="text-xs font-semibold mb-1 text-foreground">Select Package</h2>
-                {loadingPackages ? (
-                  <div className="text-xs text-muted-foreground">Loading packages...</div>
+                <h2 className="text-xs font-semibold mb-1 text-foreground">Select Tier</h2>
+                {loadingTiers ? (
+                  <div className="text-xs text-muted-foreground">Loading tiers...</div>
                 ) : (
-                  <Select onValueChange={handlePackageSelect} value={selectedPackage?.package_id}>
+                  <Select onValueChange={handleTierSelect} value={selectedTier?.tier_id}>
                     <SelectTrigger className="w-full bg-background relative group hover:border-primary transition-colors">
                       <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                        <Package className="h-4 w-4 text-primary" />
+                        <Layers className="h-4 w-4" />
                       </div>
-                      <SelectValue placeholder="Choose a package..." />
+                      <SelectValue placeholder="Choose a tier...">
+                        {selectedTier ? (
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">{selectedTier.tier_type}</span>
+                          </div>
+                        ) : (
+                          "Choose a tier..."
+                        )}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {packages.map((pkg, idx) => (
+                      <SelectItem value="none">No Tier</SelectItem>
+                      {packageTiers.map((tier) => (
                         <SelectItem 
-                          key={idx} 
-                          value={pkg.package_id}
-                          disabled={pkg.status === "sales closed"}
-                          className={pkg.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
+                          key={tier.tier_id} 
+                          value={tier.tier_id}
+                          disabled={tier.status === "sales closed"}
+                          className={tier.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
                         >
                           <div className="flex flex-col items-start">
-                            <span className="font-medium">{pkg.package_name}</span>
-                            {pkg.status === "sales closed" && (
+                            <span className="font-medium">{tier.tier_type}</span>
+                            {tier.status === "sales closed" && (
                               <span className="text-xs text-muted-foreground">Sales Closed</span>
                             )}
                           </div>
@@ -1183,51 +1211,8 @@ function CombinedPricing({
                   </Select>
                 )}
               </div>
-              {selectedPackage && (
-                <div>
-                  <h2 className="text-xs font-semibold mb-1 text-foreground">Select Tier</h2>
-                  {loadingTiers ? (
-                    <div className="text-xs text-muted-foreground">Loading tiers...</div>
-                  ) : (
-                    <Select onValueChange={handleTierSelect} value={selectedTier?.tier_id}>
-                      <SelectTrigger className="w-full bg-background relative group hover:border-primary transition-colors">
-                        <div className="absolute right-8 text-muted-foreground group-hover:text-primary transition-colors">
-                          <Layers className="h-4 w-4" />
-                        </div>
-                        <SelectValue placeholder="Choose a tier...">
-                          {selectedTier ? (
-                            <div className="flex flex-col items-start">
-                              <span className="font-medium">{selectedTier.tier_type}</span>
-                            </div>
-                          ) : (
-                            "Choose a tier..."
-                          )}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Tier</SelectItem>
-                        {packageTiers.map((tier) => (
-                          <SelectItem 
-                            key={tier.tier_id} 
-                            value={tier.tier_id}
-                            disabled={tier.status === "sales closed"}
-                            className={tier.status === "sales closed" ? "text-muted-foreground opacity-50" : ""}
-                          >
-                            <div className="flex flex-col items-start">
-                              <span className="font-medium">{tier.tier_type}</span>
-                              {tier.status === "sales closed" && (
-                                <span className="text-xs text-muted-foreground">Sales Closed</span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Hotel and Adults */}
           {selectedPackage && (

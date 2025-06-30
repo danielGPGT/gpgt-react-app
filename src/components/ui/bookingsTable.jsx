@@ -201,7 +201,7 @@ const roleBasedEditableFields = {
   ]
 };
 
-function BookingsTable() {
+function BookingsTable({ provisional = false, extraColumns = [] }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -323,9 +323,23 @@ function BookingsTable() {
     }
   }, []);
 
-  // Get visible columns based on role
+  // Get visible columns based on role and provisional flag
   const getVisibleColumns = () => {
-    return roleBasedColumns[selectedRole] || roleBasedColumns["Internal Sales"];
+    let cols = roleBasedColumns[selectedRole] || roleBasedColumns["Internal Sales"];
+    if (provisional && extraColumns && Array.isArray(extraColumns)) {
+      // Insert extra columns before 'actions' if present, else at the end
+      const actionsIdx = cols.indexOf("actions");
+      if (actionsIdx !== -1) {
+        return [
+          ...cols.slice(0, actionsIdx),
+          ...extraColumns,
+          ...cols.slice(actionsIdx)
+        ];
+      } else {
+        return [...cols, ...extraColumns];
+      }
+    }
+    return cols;
   };
 
   // Get editable fields based on role
@@ -570,7 +584,8 @@ function BookingsTable() {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const response = await api.get("bookingFile");
+      const endpoint = provisional ? "/provisional" : "bookingFile";
+      const response = await api.get(endpoint);
       setBookings(response.data);
       // Check itineraries after loading bookings
       await checkBookingsItineraries(response.data);

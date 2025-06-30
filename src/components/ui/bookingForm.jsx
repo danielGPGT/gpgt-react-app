@@ -107,6 +107,7 @@ function BookingForm({
   const [currentUser, setCurrentUser] = useState(null);
   const navigate = useNavigate();
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [paymentRelativeToggles, setPaymentRelativeToggles] = useState([true, true, true]);
 
   const currencySymbols = {
     GBP: "£",
@@ -133,6 +134,8 @@ function BookingForm({
     acquisition: z.string(),
     booking_type: z.string(),
     atol_abtot: z.string(),
+    deposit: z.number().optional(),
+    deposit_status: z.boolean().optional(),
     payment1_status: z.boolean().default(false),
     payment2_status: z.boolean().default(false),
     payment3_status: z.boolean().default(false),
@@ -205,6 +208,8 @@ function BookingForm({
       acquisition: "B2B Travel Agent",
       booking_type: "Standard",
       atol_abtot: "ATOL",
+      deposit: 100,
+      deposit_status: false,
       payment1_status: true,
       payment2_status: false,
       payment3_status: false,
@@ -253,9 +258,12 @@ function BookingForm({
   // Function to get the next sequence number
   async function getNextSequenceNumber(prefix) {
     try {
-      // Fetch all booking references
-      const response = await api.get('/bookingFile');
-      const bookings = response.data || [];
+      // Fetch all booking references from both endpoints
+      const [bookingFileRes, provisionalRes] = await Promise.all([
+        api.get('/bookingFile'),
+        api.get('/provisional')
+      ]);
+      const bookings = (bookingFileRes.data || []).concat(provisionalRes.data || []);
 
       // Filter bookings that match our prefix and get the highest sequence
       const matchingRefs = bookings
@@ -436,16 +444,28 @@ function BookingForm({
     initializeReference();
   }, [selectedEvent?.event_id]);
 
-  // Update payment amounts whenever total price changes or custom payments is toggled
+  // Update payment amounts whenever total price or booking type changes or custom payments is toggled
   useEffect(() => {
-    if (!customPayments) {
-      // Simple division by three
+    if (form.watch('booking_type') === 'provisional') {
+      // Provisional booking: £100 deposit, remaining split equally across all 3 payments
+      const deposit = 100;
+      const remaining = totalPrice - deposit;
+      const equalAmount = remaining / 3;
+      setPaymentAmounts([
+        equalAmount,
+        equalAmount,
+        equalAmount
+      ]);
+      form.setValue('deposit', deposit);
+    } else if (!customPayments) {
+      // Standard booking: simple division by three
       const equalAmount = totalPrice / 3;
       setPaymentAmounts([
         equalAmount,
         equalAmount,
         equalAmount
       ]);
+      form.setValue('deposit', undefined);
     } else {
       // Use percentages only when custom payments are enabled
       const newAmounts = paymentPercents.map(percent => 
@@ -454,8 +474,9 @@ function BookingForm({
       const sum = newAmounts[0] + newAmounts[1];
       newAmounts[2] = totalPrice - sum;
       setPaymentAmounts(newAmounts);
+      form.setValue('deposit', undefined);
     }
-  }, [totalPrice, customPayments, paymentPercents]);
+  }, [totalPrice, customPayments, paymentPercents, form.watch('booking_type')]);
 
   // Add handler for custom payments toggle
   const handleCustomPaymentsToggle = (checked) => {
@@ -553,12 +574,30 @@ function BookingForm({
     }
   }, [selectedFlight, form]);
 
+  // Reset payment statuses for provisional bookings
+  useEffect(() => {
+    if (form.watch('booking_type') === 'provisional') {
+      form.setValue('payment1_status', false);
+      form.setValue('payment2_status', false);
+      form.setValue('payment3_status', false);
+    }
+  }, [form.watch('booking_type'), form]);
+
   useEffect(() => {
     // Sync the form's booked_by_guest state with the parent's flightBookedByGuest state
     if (flightBookedByGuest !== undefined) {
       form.setValue("booked_by_guest", flightBookedByGuest);
     }
   }, [flightBookedByGuest, form]);
+
+  // Update toggles when booking_type changes
+  useEffect(() => {
+    if (form.watch('booking_type') === 'provisional') {
+      setPaymentRelativeToggles([true, true, true]);
+    } else {
+      setPaymentRelativeToggles([false, false, false]);
+    }
+  }, [form.watch('booking_type')]);
 
   const handleSubmit = async (values) => {
     if (isSubmitting) {
@@ -569,6 +608,20 @@ function BookingForm({
     try {
       setIsSubmitting(true);
       console.log('Starting form submission process');
+
+      // Generate a booking UUID for provisional bookings
+      let bookingUUID = null;
+      if (values.booking_type === 'provisional') {
+        if (window.crypto && window.crypto.randomUUID) {
+          bookingUUID = window.crypto.randomUUID();
+        } else {
+          // Fallback UUID generator
+          bookingUUID = 'xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+        }
+      }
 
       // Format dates for the API
       const formatDate = (date) => {
@@ -583,10 +636,23 @@ function BookingForm({
       const bookingReference = `${values.booking_reference_prefix}${values.booking_reference}`;
       console.log('Generated booking reference:', bookingReference);
 
-      // Get payment dates from package or use current date for upfront payment
-      const payment1Date = formatDate(new Date()); // Current date for upfront payment
-      const payment2Date = selectedPackage?.payment_date_2 || '';
-      const payment3Date = selectedPackage?.payment_date_3 || '';
+      // Payment dates logic
+      let payment1Date, payment2Date, payment3Date;
+      if (values.booking_type === 'provisional') {
+        payment1Date = paymentRelativeToggles[0]
+          ? '+ 2 months'
+          : (values.payment1_date ? formatDate(values.payment1_date) : '+ 2 months');
+        payment2Date = paymentRelativeToggles[1]
+          ? '+ 2 months'
+          : (values.payment2_date ? formatDate(values.payment2_date) : '+ 2 months');
+        payment3Date = paymentRelativeToggles[2]
+          ? '+ 2 months'
+          : (values.payment3_date ? formatDate(values.payment3_date) : '+ 2 months');
+      } else {
+        payment1Date = formatDate(new Date());
+        payment2Date = selectedPackage?.payment_date_2 || '';
+        payment3Date = selectedPackage?.payment_date_3 || '';
+      }
       console.log('Payment dates:', { payment1Date, payment2Date, payment3Date });
 
       // Calculate nights and extra nights
@@ -613,7 +679,7 @@ function BookingForm({
       });
 
       // Prepare the booking data according to API requirements
-      const bookingData = {
+      let bookingData = {
         // Status and reference
         status: 'Future',
         booking_ref: bookingReference,
@@ -689,11 +755,11 @@ function BookingForm({
         // Payment details with rounded values
         payment_currency: selectedCurrency,
         payment_1: paymentAmounts[0],
-        payment_1_date: formatDate(values.payment1_date),
+        payment_1_date: payment1Date,
         payment_2: paymentAmounts[1],
-        payment_2_date: formatDate(values.payment2_date),
+        payment_2_date: payment2Date,
         payment_3: paymentAmounts[2],
-        payment_3_date: formatDate(values.payment3_date),
+        payment_3_date: payment3Date,
         payment_1_status: values.payment1_status ? "Paid" : "Due",
         payment_2_status: values.payment2_status ? "Paid" : "Due",
         payment_3_status: values.payment3_status ? "Paid" : "Due",
@@ -704,12 +770,22 @@ function BookingForm({
         'Total Sold GBP': "",
         'P&L': "" // This will be calculated by the backend
       };
+      // If provisional, add deposit fields
+      if (values.booking_type === 'provisional') {
+        bookingData.deposit = 100;
+        bookingData.deposit_status = values.deposit_status ? 'Paid' : 'Unpaid';
+        bookingData.booking_uuid = bookingUUID;
+      }
       console.log('Prepared booking data:', bookingData);
 
       // Make the API request to the correct endpoint
-      console.log('Making API request to /bookingFile');
+      let endpoint = '/bookingFile';
+      if (values.booking_type === 'provisional') {
+        endpoint = '/provisional';
+      }
+      console.log('Making API request to', endpoint);
       try {
-        const response = await api.post('/bookingFile', bookingData);
+        const response = await api.post(endpoint, bookingData);
         console.log('API Response:', response);
         
         if (response.data) {
@@ -1408,6 +1484,23 @@ function BookingForm({
                   {/* Payment Info */}
                   <div className="mb-2">
                     <div className="border-t border-border pt-2">
+                      {/* Show deposit and deposit status for provisional bookings */}
+                      {form.watch('booking_type') === 'provisional' && (
+                        <div className="flex items-center gap-4 mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-semibold">Deposit</span>
+                            <span className="text-lg font-bold text-yellow-700">£100</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={form.watch('deposit_status')}
+                              onCheckedChange={(checked) => form.setValue('deposit_status', checked)}
+                              className="h-4 w-4"
+                            />
+                            <Label className="text-xs">Deposit Paid</Label>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xs font-medium">Payment Schedule</h3>
                         <div className="flex items-center gap-2">
@@ -1415,179 +1508,80 @@ function BookingForm({
                             checked={customPayments}
                             onCheckedChange={handleCustomPaymentsToggle}
                             id="custom-payments"
+                            disabled={form.watch('booking_type') === 'provisional'}
                           />
                           <Label htmlFor="custom-payments" className="text-xs">
                             Adjust Payment Schedule
                           </Label>
                         </div>
                       </div>
-
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                         {[0, 1, 2].map((idx) => (
                           <div className="space-y-1 p-2 rounded-md border bg-card" key={idx}>
                             <div className="flex justify-between items-center">
                               <label className="text-xs font-medium">Payment {idx + 1}</label>
-                              {customPayments && (
-                                <span className="text-xs text-muted-foreground">
-                                  {paymentPercents[idx]}%
-                                </span>
-                              )}
                             </div>
-                            
-                            {customPayments && (
-                              <div className="flex items-center gap-2">
-                                <div className="relative">
-                                  <Input
-                                    type="number"
-                                    value={paymentPercents[idx]}
-                                    onChange={(e) => {
-                                      const newPercent = Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
-                                      handlePaymentChange(idx, newPercent);
-                                    }}
-                                    className={cn(
-                                      "w-20 bg-background h-7 text-xs",
-                                      paymentPercents.reduce((sum, p) => sum + p, 0) !== 100 && "border-red-500"
-                                    )}
-                                    step="1"
-                                    min="0"
-                                    max="100"
-                                    placeholder="0"
-                                  />
-                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">%</span>
-                                </div>
+                            {/* For provisional bookings, show toggle for relative date */}
+                            {form.watch('booking_type') === 'provisional' && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <Switch
+                                  checked={paymentRelativeToggles[idx]}
+                                  onCheckedChange={(checked) => {
+                                    const newToggles = [...paymentRelativeToggles];
+                                    newToggles[idx] = checked;
+                                    setPaymentRelativeToggles(newToggles);
+                                  }}
+                                  id={`relative-toggle-${idx}`}
+                                />
+                                <Label htmlFor={`relative-toggle-${idx}`} className="text-xs">
+                                  Use relative date
+                                </Label>
                               </div>
                             )}
-
                             <div className="space-y-1">
-                              <FormField
-                                control={form.control}
-                                name={`payment${idx + 1}_date`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <FormControl>
-                                          <Button
-                                            variant="outline"
-                                            className={cn(
-                                              "w-full justify-start text-left font-normal bg-background text-xs h-7",
-                                              !field.value && "text-muted-foreground"
-                                            )}
-                                          >
-                                            {field.value ? (
-                                              format(field.value, "PPP")
-                                            ) : (
-                                              <span>
-                                                {idx === 0 ? "Due on booking" : 
-                                                 idx === 1 ? (selectedPackage?.payment_date_2 || "Set date") :
-                                                 (selectedPackage?.payment_date_3 || "Set date")}
-                                              </span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
-                                          </Button>
-                                        </FormControl>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                          mode="single"
-                                          selected={field.value}
-                                          onSelect={(date) => {
-                                            if (!date) return;
-                                            
-                                            if (idx === 0) {
-                                              // For first payment, update both booking date and payment date
-                                              form.setValue('booking_date', date);
-                                              field.onChange(date);
-                                            } else {
-                                              // For other payments, ensure first of month
-                                              const firstOfMonth = getFirstDayOfMonth(date);
-                                              
-                                              // For payment 2
-                                              if (idx === 1) {
-                                                const payment1Date = form.getValues('payment1_date');
-                                                if (payment1Date && firstOfMonth <= payment1Date) {
-                                                  // If selected date is before or same as payment 1, set to next month
-                                                  const nextMonth = getNextFirstOfMonth(payment1Date);
-                                                  field.onChange(nextMonth);
-                                                  
-                                                  // Check if we need to adjust payment 3
-                                                  const payment3Date = form.getValues('payment3_date');
-                                                  if (payment3Date && nextMonth >= payment3Date) {
-                                                    // If new payment 2 date is after or same as payment 3, adjust payment 3
-                                                    form.setValue('payment3_date', getNextFirstOfMonth(nextMonth));
-                                                  }
-                                                  return;
-                                                }
-                                                
-                                                // Check if we need to adjust payment 3
-                                                const payment3Date = form.getValues('payment3_date');
-                                                if (payment3Date && firstOfMonth >= payment3Date) {
-                                                  // If new payment 2 date is after or same as payment 3, adjust payment 3
-                                                  form.setValue('payment3_date', getNextFirstOfMonth(firstOfMonth));
-                                                }
-                                              }
-                                              
-                                              // For payment 3
-                                              if (idx === 2) {
-                                                const payment2Date = form.getValues('payment2_date');
-                                                if (payment2Date && firstOfMonth <= payment2Date) {
-                                                  // If selected date is before or same as payment 2, set to next month
-                                                  const nextMonth = getNextFirstOfMonth(payment2Date);
-                                                  field.onChange(nextMonth);
-                                                  return;
-                                                }
-                                              }
-                                              
-                                              field.onChange(firstOfMonth);
-                                            }
-                                          }}
-                                          disabled={(date) => {
-                                            if (idx === 0) {
-                                              // For first payment, no restrictions
-                                              return false;
-                                            }
-                                            
-                                            // For other payments, disable all dates that aren't the first of the month
-                                            if (!isFirstDayOfMonth(date)) {
-                                              return true;
-                                            }
-                                            
-                                            // For payment 2, disable dates before or same as payment 1
-                                            if (idx === 1) {
-                                              const payment1Date = form.getValues('payment1_date');
-                                              if (payment1Date) {
-                                                return date <= payment1Date;
-                                              }
-                                            }
-                                            
-                                            // For payment 3, disable dates before or same as payment 2
-                                            if (idx === 2) {
-                                              const payment2Date = form.getValues('payment2_date');
-                                              if (payment2Date) {
-                                                return date <= payment2Date;
-                                              }
-                                            }
-                                            
-                                            return false;
-                                          }}
-                                          modifiers={{
-                                            firstOfMonth: (date) => isFirstDayOfMonth(date)
-                                          }}
-                                          modifiersStyles={{
-                                            firstOfMonth: {
-                                              fontWeight: 'bold',
-                                              color: 'var(--primary)'
-                                            }
-                                          }}
-                                          initialFocus
-                                        />
-                                      </PopoverContent>
-                                    </Popover>
-                                    <FormMessage className="text-xs" />
-                                  </FormItem>
-                                )}
-                              />
-
+                              {/* If using relative, show string. Else, show date picker. */}
+                              {form.watch('booking_type') === 'provisional' && paymentRelativeToggles[idx] ? (
+                                <div className="w-full text-xs px-2 py-1 bg-muted rounded border text-center">
+                                  {`+ 2 months`}
+                                </div>
+                              ) : (
+                                <FormField
+                                  control={form.control}
+                                  name={`payment${idx + 1}_date`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <FormControl>
+                                            <Button
+                                              variant="outline"
+                                              className={cn(
+                                                "w-full justify-start text-left font-normal bg-background text-xs h-7",
+                                                !field.value && "text-muted-foreground"
+                                              )}
+                                              disabled={false}
+                                            >
+                                              {field.value
+                                                ? format(field.value, "PPP")
+                                                : <span>Set date</span>}
+                                              <CalendarIcon className="ml-auto h-3 w-3 opacity-50" />
+                                            </Button>
+                                          </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                          <Calendar
+                                            mode="single"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            initialFocus
+                                          />
+                                        </PopoverContent>
+                                      </Popover>
+                                      <FormMessage className="text-xs" />
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
                               <div className="flex items-center justify-between">
                                 <div className="text-xs font-medium">
                                   {currencySymbols[selectedCurrency]}{paymentAmounts[idx].toFixed(2)}
@@ -1602,9 +1596,12 @@ function BookingForm({
                                           checked={field.value}
                                           onCheckedChange={field.onChange}
                                           className="h-3 w-3"
+                                          disabled={form.watch('booking_type') === 'provisional'}
                                         />
                                       </FormControl>
-                                      <FormLabel className="text-xs">Paid</FormLabel>
+                                      <FormLabel className="text-xs">
+                                        Paid
+                                      </FormLabel>
                                     </FormItem>
                                   )}
                                 />
@@ -1685,22 +1682,54 @@ function BookingForm({
                 <p className="text-sm font-medium">Total Price</p>
                 <p className="text-sm">{selectedCurrency} {totalPrice?.toFixed(2)}</p>
               </div>
+              {/* Show deposit for provisional bookings */}
+              {form.watch('booking_type') === 'provisional' && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium">Deposit</p>
+                    <p className="text-sm">£100</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Deposit Status</p>
+                    <p className="text-sm">{bookingDetails?.deposit_status || (form.watch('deposit_status') ? 'Paid' : 'Unpaid')}</p>
+                  </div>
+                </>
+              )}
             </div>
             <div className="space-y-2">
               <h4 className="text-sm font-medium">Payment Schedule:</h4>
               <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>Payment 1:</span>
-                  <span>{bookingDetails?.payment_1_date} - {selectedCurrency} {bookingDetails?.payment_1?.toFixed(2)} ({bookingDetails?.payment_1_status})</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Payment 2:</span>
-                  <span>{bookingDetails?.payment_2_date} - {selectedCurrency} {bookingDetails?.payment_2?.toFixed(2)} ({bookingDetails?.payment_2_status})</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Payment 3:</span>
-                  <span>{bookingDetails?.payment_3_date} - {selectedCurrency} {bookingDetails?.payment_3?.toFixed(2)} ({bookingDetails?.payment_3_status})</span>
-                </div>
+                {form.watch('booking_type') === 'provisional' ? (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span>Deposit:</span>
+                      <span>{bookingDetails?.payment_1_date} - £100 ({bookingDetails?.deposit_status || (form.watch('deposit_status') ? 'Paid' : 'Unpaid')})</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Payment 2:</span>
+                      <span>{bookingDetails?.payment_2_date} - {selectedCurrency} {bookingDetails?.payment_2?.toFixed(2)} ({bookingDetails?.payment_2_status})</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Payment 3:</span>
+                      <span>{bookingDetails?.payment_3_date} - {selectedCurrency} {bookingDetails?.payment_3?.toFixed(2)} ({bookingDetails?.payment_3_status})</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span>Payment 1:</span>
+                      <span>{bookingDetails?.payment_1_date} - {selectedCurrency} {bookingDetails?.payment_1?.toFixed(2)} ({bookingDetails?.payment_1_status})</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Payment 2:</span>
+                      <span>{bookingDetails?.payment_2_date} - {selectedCurrency} {bookingDetails?.payment_2?.toFixed(2)} ({bookingDetails?.payment_2_status})</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Payment 3:</span>
+                      <span>{bookingDetails?.payment_3_date} - {selectedCurrency} {bookingDetails?.payment_3?.toFixed(2)} ({bookingDetails?.payment_3_status})</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="pt-4">
@@ -1730,29 +1759,74 @@ BookingForm.propTypes = {
     to: PropTypes.instanceOf(Date)
   }),
   onSubmit: PropTypes.func.isRequired,
-  selectedEvent: PropTypes.object,
-  selectedPackage: PropTypes.object,
-  selectedHotel: PropTypes.object,
-  selectedRoom: PropTypes.object,
-  selectedTicket: PropTypes.object,
-  selectedFlight: PropTypes.object,
-  selectedLoungePass: PropTypes.object,
-  selectedCircuitTransfer: PropTypes.object,
-  selectedAirportTransfer: PropTypes.object,
-  ticketQuantity: PropTypes.number,
-  roomQuantity: PropTypes.number,
-  loungePassQuantity: PropTypes.number,
-  circuitTransferQuantity: PropTypes.number,
-  airportTransferQuantity: PropTypes.number,
-  flightQuantity: PropTypes.number,
+  selectedEvent: PropTypes.shape({
+    event_id: PropTypes.string,
+    event: PropTypes.string
+  }),
+  selectedPackage: PropTypes.shape({
+    package_id: PropTypes.string,
+    package_name: PropTypes.string,
+    payment_date_2: PropTypes.string,
+    payment_date_3: PropTypes.string
+  }),
+  selectedHotel: PropTypes.shape({
+    hotel_id: PropTypes.string,
+    hotel_name: PropTypes.string
+  }),
+  selectedRoom: PropTypes.shape({
+    room_id: PropTypes.string,
+    room_category: PropTypes.string,
+    room_type: PropTypes.string,
+    nights: PropTypes.number,
+    price: PropTypes.string,
+    extra_night_price: PropTypes.string
+  }),
+  selectedTicket: PropTypes.shape({
+    ticket_id: PropTypes.string,
+    ticket_name: PropTypes.string,
+    price: PropTypes.string
+  }),
+  selectedFlight: PropTypes.shape({
+    flight_id: PropTypes.string,
+    airline: PropTypes.string,
+    class: PropTypes.string,
+    price: PropTypes.string,
+    outbound_flight_number: PropTypes.string,
+    outbound_departure_date_time: PropTypes.string,
+    outbound_arrival_date_time: PropTypes.string,
+    inbound_flight_number: PropTypes.string,
+    inbound_departure_date_time: PropTypes.string,
+    inbound_arrival_date_time: PropTypes.string
+  }),
+  selectedLoungePass: PropTypes.shape({
+    lounge_pass_id: PropTypes.string,
+    variant: PropTypes.string
+  }),
+  selectedCircuitTransfer: PropTypes.shape({
+    circuit_transfer_id: PropTypes.string,
+    transport_type: PropTypes.string
+  }),
+  selectedAirportTransfer: PropTypes.shape({
+    airport_transfer_id: PropTypes.string,
+    transport_type: PropTypes.string
+  }),
+  ticketQuantity: PropTypes.number.isRequired,
+  roomQuantity: PropTypes.number.isRequired,
+  loungePassQuantity: PropTypes.number.isRequired,
+  circuitTransferQuantity: PropTypes.number.isRequired,
+  airportTransferQuantity: PropTypes.number.isRequired,
+  flightQuantity: PropTypes.number.isRequired,
+  flightPNR: PropTypes.string,
+  ticketingDeadline: PropTypes.instanceOf(Date),
+  paymentStatus: PropTypes.string,
   originalNights: PropTypes.number,
-  salesTeam: PropTypes.object,
-  open: PropTypes.bool,
-  onOpenChange: PropTypes.func,
+  salesTeam: PropTypes.string,
+  open: PropTypes.bool.isRequired,
+  onOpenChange: PropTypes.func.isRequired,
   transferDirection: PropTypes.string,
-  onBookingComplete: PropTypes.func,
+  onBookingComplete: PropTypes.func.isRequired,
   flightBookedByGuest: PropTypes.bool,
-  setFlightBookedByGuest: PropTypes.func
+  setFlightBookedByGuest: PropTypes.func.isRequired
 };
 
 export { BookingForm };
